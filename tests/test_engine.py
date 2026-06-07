@@ -24,7 +24,12 @@ from engine.core import (
     JobQueue,
     QueueFullError,
 )
-from engine.prompt_manager import PromptManager, GenerationConfig, SeedStrategy, PromptTemplate
+from engine.prompt_manager import (
+    PromptManager,
+    GenerationConfig,
+    SeedStrategy,
+    PromptTemplate,
+)
 
 
 # ───────────────────────────────────────────────────────────────
@@ -54,7 +59,11 @@ class TestConfigLoader:
                 },
                 "lora": {
                     "models": [
-                        {"name": "test_lora", "path": "test.pt", "weight_range": [0.5, 0.8]}
+                        {
+                            "name": "test_lora",
+                            "path": "test.pt",
+                            "weight_range": [0.5, 0.8],
+                        }
                     ],
                     "batch_size": 2,
                 },
@@ -107,6 +116,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_successful_call(self, cb):
         """Test normal operation."""
+
         async def success():
             return "ok"
 
@@ -117,6 +127,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_opens_after_failures(self, cb):
         """Test circuit opens after threshold failures."""
+
         async def fail():
             raise RuntimeError("fail")
 
@@ -129,6 +140,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_rejects_when_open(self, cb):
         """Test requests rejected when circuit is open."""
+
         async def fail():
             raise RuntimeError("fail")
 
@@ -144,6 +156,7 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_half_open_recovery(self, cb):
         """Test recovery through half-open state."""
+
         async def fail():
             raise RuntimeError("fail")
 
@@ -185,6 +198,7 @@ class TestRetry:
     @pytest.mark.asyncio
     async def test_success_no_retry(self, metrics):
         """Test successful call without retries."""
+
         async def success():
             return "ok"
 
@@ -215,6 +229,7 @@ class TestRetry:
     @pytest.mark.asyncio
     async def test_retry_exhausted(self, metrics):
         """Test failure after all retries exhausted."""
+
         async def always_fail():
             raise aiohttp.ClientError("permanent fail")
 
@@ -296,7 +311,9 @@ class TestPromptManager:
             },
             lora={
                 "models": [
-                    LoRAModelConfig(name="test", path="test.pt", weight_range=(0.5, 0.8))
+                    LoRAModelConfig(
+                        name="test", path="test.pt", weight_range=(0.5, 0.8)
+                    )
                 ],
                 "sampling": SamplingConfig(),
                 "resolutions": [(512, 768)],
@@ -380,7 +397,10 @@ class TestPromptManager:
         config = manager.generate_config(seed=42)
         workflow = {
             "1": {"class_type": "KSampler", "inputs": {"seed": 0, "steps": 20}},
-            "2": {"class_type": "EmptyLatentImage", "inputs": {"width": 512, "height": 512}},
+            "2": {
+                "class_type": "EmptyLatentImage",
+                "inputs": {"width": 512, "height": 512},
+            },
             "6": {"class_type": "CLIPTextEncode", "inputs": {"text": ""}},
             "7": {"class_type": "CLIPTextEncode", "inputs": {"text": ""}},
         }
