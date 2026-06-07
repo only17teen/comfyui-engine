@@ -1,28 +1,20 @@
-# ComfyUI Async Generation Engine v2.0
-# Production-grade async pipeline for AI character generation via ComfyUI API
-# Architecture: asyncio + aiohttp + Pydantic + circuit breaker + retry + metrics
-
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "comfyui-engine"
-version = "2.0.0"
-description = "Production async generation engine for ComfyUI with resilience patterns and metrics"
+version = "5.0.0"
+description = "Production-ready async engine for ComfyUI with advanced features"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "Senior MLOps Engineer", email = "dev@localhost"}
+    {name = "ComfyUI Engine Team", email = "team@comfyui-engine.dev"}
 ]
-keywords = ["comfyui", "stable-diffusion", "asyncio", "mlops", "lora", "resilience", "circuit-breaker"]
+keywords = ["comfyui", "async", "api", "ml", "inference", "production"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -30,45 +22,119 @@ classifiers = [
 
 dependencies = [
     "aiohttp>=3.9.0",
-    "pyyaml>=6.0.1",
-    "pydantic>=2.5.0",
+    "aiofiles>=23.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "pyyaml>=6.0.0",
+    "tenacity>=8.2.0",
+    "prometheus-client>=0.19.0",
+    "structlog>=24.0.0",
+    "python-json-logger>=2.0.0",
+    "httpx>=0.25.0",
+    "websockets>=12.0",
+    "redis>=5.0.0",
+    "opentelemetry-api>=1.21.0",
+    "opentelemetry-sdk>=1.21.0",
+    "opentelemetry-instrumentation>=0.42b0",
+    "opentelemetry-instrumentation-aiohttp-client>=0.42b0",
+    "opentelemetry-instrumentation-httpx>=0.42b0",
+    "opentelemetry-exporter-jaeger>=1.21.0",
+    "opentelemetry-exporter-prometheus>=1.21.0",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+    "jinja2>=3.1.0",
+    "mlflow>=2.8.0",
+    "kubernetes>=28.0.0",
+    "boto3>=1.34.0",
+    "google-cloud-compute>=1.14.0",
+    "azure-identity>=1.15.0",
+    "azure-mgmt-compute>=30.0.0",
+    "docker>=7.0.0",
+    "psutil>=5.9.0",
+    "numpy>=1.24.0",
+    "pillow>=10.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
-    "black>=23.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.3.0",
+    "httpx>=0.25.0",
+    "respx>=0.20.0",
     "ruff>=0.1.0",
     "mypy>=1.7.0",
-    "coverage>=7.3.0",
+    "pre-commit>=3.5.0",
+    "k6>=0.50.0",
+]
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.4.0",
+    "mkdocstrings[python]>=0.23.0",
 ]
 
 [project.scripts]
 comfyui-engine = "main:main"
+comfyui-engine-wizard = "setup_wizard:main"
+comfyui-engine-benchmark = "benchmark:main"
+comfyui-engine-dashboard = "dashboard:main"
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["engine*", "main*"]
-
-[tool.black]
-line-length = 100
-target-version = ['py311']
+include = ["engine*", "tests*"]
+exclude = ["tests.load*"]
 
 [tool.ruff]
+target-version = "py310"
 line-length = 100
-select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
-ignore = ["E501"]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+    "N",   # pep8-naming
+    "D",   # pydocstyle
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "ARG", # flake8-unused-arguments
+]
+ignore = [
+    "D100",  # Missing docstring in public module
+    "D104",  # Missing docstring in public package
+    "D107",  # Missing docstring in __init__
+    "D203",  # 1 blank line required before class docstring
+    "D213",  # Multi-line docstring summary should start at the second line
+    "B008",  # Do not perform function calls in argument defaults
+]
+
+[tool.ruff.pydocstyle]
+convention = "google"
+
+[tool.ruff.per-file-ignores]
+"tests/*" = ["D", "ARG"]
+"tests/load/*" = ["D", "ARG", "E", "F", "W"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
+disallow_untyped_decorators = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -76,11 +142,17 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "load: marks tests as load tests",
+]
 
 [tool.coverage.run]
 source = ["engine"]
-branch = true
+omit = ["tests/*", "tests/load/*"]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -89,4 +161,5 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
 ]

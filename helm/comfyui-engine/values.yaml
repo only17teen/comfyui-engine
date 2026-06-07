@@ -1,0 +1,318 @@
+# Default values for comfyui-engine.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# ───────────────────────────────────────────────────────────────
+# Global Settings
+# ───────────────────────────────────────────────────────────────
+replicaCount: 3
+
+image:
+  repository: ghcr.io/user/comfyui-engine
+  pullPolicy: IfNotPresent
+  tag: "v4.0.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# ───────────────────────────────────────────────────────────────
+# Service Account
+# ───────────────────────────────────────────────────────────────
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+# ───────────────────────────────────────────────────────────────
+# Pod Security
+# ───────────────────────────────────────────────────────────────
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+    - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+# ───────────────────────────────────────────────────────────────
+# Service Configuration
+# ───────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+  metricsPort: 9090
+
+# ───────────────────────────────────────────────────────────────
+# Ingress Configuration
+# ───────────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: api.comfyui-engine.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          servicePort: 80
+        - path: /metrics
+          pathType: Prefix
+          servicePort: 9090
+  tls:
+    - secretName: comfyui-engine-tls
+      hosts:
+        - api.comfyui-engine.example.com
+
+# ───────────────────────────────────────────────────────────────
+# Resource Limits
+# ───────────────────────────────────────────────────────────────
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+# ───────────────────────────────────────────────────────────────
+# Autoscaling
+# ───────────────────────────────────────────────────────────────
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: comfyui_engine_queue_depth
+        target:
+          type: AverageValue
+          averageValue: "50"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+        - type: Pods
+          value: 4
+          periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+      selectPolicy: Min
+
+# ───────────────────────────────────────────────────────────────
+# Probes
+# ───────────────────────────────────────────────────────────────
+livenessProbe:
+  httpGet:
+    path: /live
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 30
+
+# ───────────────────────────────────────────────────────────────
+# Pod Disruption Budget
+# ───────────────────────────────────────────────────────────────
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# ───────────────────────────────────────────────────────────────
+# Network Policy
+# ───────────────────────────────────────────────────────────────
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: comfyui
+      ports:
+        - protocol: TCP
+          port: 8188
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+# ───────────────────────────────────────────────────────────────
+# Persistence
+# ───────────────────────────────────────────────────────────────
+persistence:
+  output:
+    enabled: true
+    storageClass: "fast-ssd"
+    accessMode: ReadWriteMany
+    size: 100Gi
+  models:
+    enabled: true
+    storageClass: "fast-ssd"
+    accessMode: ReadOnlyMany
+    size: 500Gi
+
+# ───────────────────────────────────────────────────────────────
+# Engine Configuration
+# ───────────────────────────────────────────────────────────────
+config:
+  comfyui:
+    url: "http://comfyui-service:8188"
+    max_concurrent: 3
+  engine:
+    log_level: "INFO"
+    json_logging: true
+    metrics_port: 9090
+    queue_max_size: 1000
+    timeout: 300
+    retry_max: 3
+    retry_base_delay: 1.0
+    circuit_failure_threshold: 5
+    circuit_recovery_timeout: 30
+  otel:
+    enabled: true
+    endpoint: "http://otel-collector:4317"
+    sampler_ratio: 0.1
+  prompts:
+    trigger_words:
+      - "masterpiece"
+      - "best quality"
+      - "highly detailed"
+    negative_prompt: |
+      (worst quality:1.4), (low quality:1.4), (normal quality:1.4),
+      lowres, bad anatomy, bad hands, text, error, missing fingers
+
+# ───────────────────────────────────────────────────────────────
+# Secrets (use external secret management in production)
+# ───────────────────────────────────────────────────────────────
+secrets:
+  redis:
+    url: "redis://comfyui-redis:6379/0"
+  api:
+    admin_key: "admin-secret-key-change-me"
+    readonly_key: "readonly-secret-key-change-me"
+
+# ───────────────────────────────────────────────────────────────
+# Node Scheduling
+# ───────────────────────────────────────────────────────────────
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - comfyui-engine
+          topologyKey: kubernetes.io/hostname
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: comfyui-engine
+
+# ───────────────────────────────────────────────────────────────
+# Dependencies
+# ───────────────────────────────────────────────────────────────
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+
+prometheus:
+  enabled: true
+  server:
+    persistentVolume:
+      enabled: true
+      size: 50Gi
+
+grafana:
+  enabled: true
+  admin:
+    password: "admin-change-me"
+  persistence:
+    enabled: true
+    size: 10Gi

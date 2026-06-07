@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: comfyui-engine-config
+data:
+  comfyui.url: "http://comfyui-service:8188"
+  engine.max_concurrent: "3"
+  engine.log_level: "INFO"
+  engine.json_logging: "true"
+  engine.metrics_port: "9090"
+  engine.queue_max_size: "1000"
+  engine.timeout: "300"
+  otel.endpoint: "http://otel-collector:4317"
+  prompts.yaml: |
+    prompts:
+      trigger_words:
+        - "masterpiece"
+        - "best quality"
+        - "highly detailed"
+      clothing:
+        tops:
+          - "white crop top"
+          - "black turtleneck sweater"
+        bottoms:
+          - "high-waisted jeans"
+          - "pleated skirt"
+        accessories:
+          - "gold necklace"
+          - "silver hoop earrings"
+        full_body:
+          - "evening gown"
+          - "cocktail dress"
+      poses:
+        - "standing confidently"
+        - "sitting on a bench"
+      locations:
+        - "modern city rooftop at sunset"
+        - "cozy coffee shop interior"
+      expressions:
+        - "warm smile"
+        - "thoughtful gaze"
+      lighting:
+        - "golden hour sunlight"
+        - "soft studio lighting"
+      negative_prompt: |
+        (worst quality:1.4), (low quality:1.4), (normal quality:1.4),
+        lowres, bad anatomy, bad hands, text, error, missing fingers,
+        extra digit, fewer digits, cropped, jpeg artifacts, signature,
+        watermark, username, blurry, artist name
+    lora:
+      models:
+        - name: "detail_slider"
+          path: "DetailSlider.pt"
+          weight_range: [0.3, 0.8]
+        - name: "add_detail"
+          path: "add_detail.safetensors"
+          weight_range: [0.4, 1.0]
+      sampling:
+        steps_range: [20, 40]
+        cfg_scale_range: [5.0, 9.0]
+        sampler_names:
+          - "DPM++ 2M Karras"
+          - "Euler a"
+        scheduler: "Karras"
+      resolutions:
+        - [512, 768]
+        - [768, 512]
+        - [640, 640]
+      batch_size: 4
+      max_concurrent: 3

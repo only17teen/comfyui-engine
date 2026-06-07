@@ -508,12 +508,100 @@ class RESTAPIServer:
             
             return key
         
-        # Health check
+        # Health check (liveness - no auth required)
         @self.app.get("/health", tags=["System"])
         async def health_check():
             return {
                 "status": "healthy",
                 "version": "4.0.0",
+                "timestamp": time.time(),
+            }
+        
+        # Readiness check (readiness - no auth required)
+        @self.app.get("/ready", tags=["System"])
+        async def readiness_check():
+            checks = {
+                "api": True,
+                "engine_connected": self.engine is not None,
+            }
+            
+            # Check engine health if connected
+            if self.engine and hasattr(self.engine, 'health_check'):
+                try:
+                    checks["engine_healthy"] = await self.engine.health_check()
+                except Exception:
+                    checks["engine_healthy"] = False
+            
+            all_ready = all(checks.values())
+            status_code = 200 if all_ready else 503
+            
+            return JSONResponse(
+                status_code=status_code,
+                content={
+                    "status": "ready" if all_ready else "not_ready",
+                    "checks": checks,
+                    "timestamp": time.time(),
+                },
+            )
+        
+        # Liveness check (no auth required)
+        @self.app.get("/live", tags=["System"])
+        async def liveness_check():
+            return {
+                "status": "alive",
+                "timestamp": time.time(),
+            }
+        
+        # Metrics endpoint (no auth required for Prometheus scraping)
+        @self.app.get("/metrics", tags=["System"])
+        async def metrics_check():
+            """Prometheus-compatible metrics endpoint."""
+            metrics_lines = []
+            
+            # Basic info
+            metrics_lines.append(f'# HELP comfyui_engine_info Engine version info')
+            metrics_lines.append(f'# TYPE comfyui_engine_info gauge')
+            metrics_lines.append(f'comfyui_engine_info{{version="4.0.0"}} 1')
+            
+            # Uptime
+            metrics_lines.append(f'# HELP comfyui_engine_uptime_seconds Engine uptime')
+            metrics_lines.append(f'# TYPE comfyui_engine_uptime_seconds counter')
+            metrics_lines.append(f'comfyui_engine_uptime_seconds {time.time() - getattr(self, "_start_time", time.time())}')
+            
+            # Engine metrics if available
+            if self.engine and hasattr(self.engine, 'get_metrics'):
+                try:
+                    engine_metrics = await self.engine.get_metrics()
+                    for key, value in engine_metrics.items():
+                        if isinstance(value, (int, float)):
+                            metric_name = f'comfyui_engine_{key}'
+                            metrics_lines.append(f'# HELP {metric_name} {key}')
+                            metrics_lines.append(f'# TYPE {metric_name} gauge')
+                            metrics_lines.append(f'{metric_name} {value}')
+                except Exception:
+                    pass
+            
+            return StreamingResponse(
+                content=iter('\n'.join(metrics_lines) + '\n'),
+                media_type='text/plain',
+            )
+        
+        # Graceful shutdown endpoint (admin only)
+        @self.app.post("/shutdown", tags=["System"])
+        async def graceful_shutdown(key: APIKey = Depends(get_api_key)):
+            """Initiate graceful shutdown."""
+            if "admin" not in key.scopes:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Admin scope required",
+                )
+            
+            # Signal shutdown
+            asyncio.create_task(self._shutdown())
+            
+            return {
+                "status": "shutting_down",
+                "message": "Server will shutdown after active requests complete",
                 "timestamp": time.time(),
             }
         
@@ -778,9 +866,24 @@ class RESTAPIServer:
             keys = await self.key_manager.list_keys()
             return {"keys": keys}
     
+    async def _shutdown(self) -> None:
+        """Graceful shutdown with connection draining."""
+        logger.info("Initiating graceful shutdown...")
+        
+        # Signal shutdown to engine
+        if self.engine and hasattr(self.engine, 'shutdown'):
+            await self.engine.shutdown()
+        
+        # Cancel pending webhooks
+        await self.webhook_manager.shutdown()
+        
+        logger.info("Graceful shutdown complete")
+    
     async def start(self) -> None:
-        """Start the API server."""
+        """Start the API server with graceful shutdown support."""
         import uvicorn
+        
+        self._start_time = time.time()
         
         config = uvicorn.Config(
             self.app,

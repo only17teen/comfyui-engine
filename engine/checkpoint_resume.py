@@ -90,7 +90,11 @@ class CheckpointResumeManager:
 
     def _setup_signal_handlers(self) -> None:
         """Setup signal handlers for emergency checkpoint."""
-        loop = asyncio.get_event_loop()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No event loop running yet, skip signal handlers
+            return
 
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(
@@ -198,9 +202,14 @@ class CheckpointResumeManager:
             len(self._current_checkpoint.failed_jobs)
         )
 
-        # Auto-save checkpoint at interval
+        # Auto-save checkpoint at interval (only if event loop is running)
         if self._jobs_since_checkpoint >= self.checkpoint_interval:
-            asyncio.create_task(self._save_checkpoint(self._current_checkpoint))
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self._save_checkpoint(self._current_checkpoint))
+            except RuntimeError:
+                # No event loop running, skip async save
+                pass
             self._jobs_since_checkpoint = 0
 
     def get_progress(self) -> Dict[str, Any]:

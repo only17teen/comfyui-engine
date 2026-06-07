@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: comfyui-engine
+
+resources:
+- namespace.yaml
+- rbac.yaml
+- configmap.yaml
+- secret.yaml
+- pvc.yaml
+- deployment.yaml
+- service.yaml
+- ingress.yaml
+- hpa.yaml
+- network-policy.yaml
+- pdb.yaml
+
+commonLabels:
+  app.kubernetes.io/name: comfyui-engine
+  app.kubernetes.io/version: "4.0.0"
+  app.kubernetes.io/managed-by: kustomize
+
+images:
+- name: ghcr.io/user/comfyui-engine
+  newTag: v4.0.0
+
+replicas:
+- name: comfyui-engine
+  count: 3
+
+configMapGenerator:
+- name: comfyui-engine-config
+  behavior: merge
+  literals:
+  - engine.log_level=INFO
+  - engine.environment=production
+
+secretGenerator:
+- name: comfyui-engine-secrets
+  behavior: merge
+  literals:
+  - environment=production

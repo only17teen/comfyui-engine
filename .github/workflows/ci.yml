@@ -39,16 +39,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install ruff black mypy
+          pip install ruff black mypy pre-commit
+
+      - name: Pre-commit hooks
+        run: pre-commit run --all-files --show-diff-on-failure
 
       - name: Ruff lint
-        run: ruff check engine/ tests/ main.py benchmark.py
+        run: ruff check engine/ tests/ main.py benchmark.py api_server.py dashboard.py
 
       - name: Black format check
-        run: black --check engine/ tests/ main.py benchmark.py
+        run: black --check engine/ tests/ main.py benchmark.py api_server.py dashboard.py
 
       - name: Mypy type check
-        run: mypy engine/ --ignore-missing-imports
+        run: mypy engine/ --ignore-missing-imports --show-error-codes
 
   # ───────────────────────────────────────────────────────────────
   # Unit Tests

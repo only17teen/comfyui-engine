@@ -1,0 +1,148 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: comfyui-engine
+  labels:
+    app: comfyui-engine
+    version: v4.0.0
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: comfyui-engine
+  template:
+    metadata:
+      labels:
+        app: comfyui-engine
+        version: v4.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: comfyui-engine
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: engine
+        image: ghcr.io/user/comfyui-engine:v4.0.0
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        env:
+        - name: COMFYUI_URL
+          valueFrom:
+            configMapKeyRef:
+              name: comfyui-engine-config
+              key: comfyui.url
+        - name: COMFYUI_MAX_CONCURRENT
+          valueFrom:
+            configMapKeyRef:
+              name: comfyui-engine-config
+              key: engine.max_concurrent
+        - name: ENGINE_LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: comfyui-engine-config
+              key: engine.log_level
+        - name: ENGINE_OUTPUT_DIR
+          value: "/app/output_models"
+        - name: ENGINE_METRICS_PORT
+          value: "9090"
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: comfyui-engine-secrets
+              key: redis.url
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: comfyui-engine-config
+              key: otel.endpoint
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+        volumeMounts:
+        - name: output-models
+          mountPath: /app/output_models
+        - name: config
+          mountPath: /app/config
+        - name: tmp
+          mountPath: /tmp
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: output-models
+        persistentVolumeClaim:
+          claimName: comfyui-engine-output
+      - name: config
+        configMap:
+          name: comfyui-engine-config
+          items:
+          - key: prompts.yaml
+            path: prompts.yaml
+      - name: tmp
+        emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - comfyui-engine
+              topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app: comfyui-engine

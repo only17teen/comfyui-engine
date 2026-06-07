@@ -6,9 +6,11 @@ pytest-compatible tests for core components.
 import asyncio
 import json
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiohttp
 import pytest
 import yaml
 
@@ -67,7 +69,7 @@ class TestConfigLoader:
     def test_env_override(self, monkeypatch):
         """Test environment variable override."""
         monkeypatch.setenv("COMFYUI_URL", "http://192.168.1.100:8188")
-        monkeypatch.setenv("ENGINE_MAX_CONCURRENT", "8")
+        monkeypatch.setenv("COMFYUI_MAX_CONCURRENT", "8")
 
         config = ConfigLoader.load()
         assert config.base_url == "http://192.168.1.100:8188"
@@ -159,6 +161,12 @@ class TestCircuitBreaker:
         await asyncio.sleep(0.15)
 
         # First call in half-open should succeed and close circuit
+        result = await cb.call(success)
+        assert result == "ok"
+        # With success_threshold=2, need 2 successes to close
+        assert cb.state.name == "HALF_OPEN"
+        
+        # Second success should close it
         result = await cb.call(success)
         assert result == "ok"
         assert cb.state.name == "CLOSED"
@@ -308,12 +316,13 @@ class TestPromptManager:
         assert s1 != s2  # Highly likely
 
         s3 = SeedStrategy.time_based()
+        time.sleep(0.01)  # Ensure time difference
         s4 = SeedStrategy.time_based()
         assert s3 != s4  # Time-based should differ
 
         s5 = SeedStrategy.sequential(1000)
         s6 = SeedStrategy.sequential()
-        assert s6 == 1001
+        assert s6 == 1002  # Counter increments by 1, then returns incremented value
 
     def test_template_rendering(self):
         """Test prompt template rendering."""

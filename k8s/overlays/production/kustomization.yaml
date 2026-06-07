@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: comfyui-engine-prod
+
+namePrefix: prod-
+
+resources:
+- ../base
+
+replicas:
+- name: comfyui-engine
+  count: 5
+
+patchesStrategicMerge:
+- deployment-patch.yaml
+
+configMapGenerator:
+- name: comfyui-engine-config
+  behavior: merge
+  literals:
+  - engine.log_level=WARN
+  - engine.max_concurrent=5
+  - otel.endpoint=http://otel-collector.monitoring:4317
+
+images:
+- name: ghcr.io/user/comfyui-engine
+  newTag: v4.0.0-prod
+
+commonLabels:
+  environment: production
+  tier: backend

@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: comfyui-engine
+spec:
+  replicas: 5
+  template:
+    spec:
+      containers:
+      - name: engine
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        env:
+        - name: ENGINE_LOG_LEVEL
+          value: "WARN"
+        - name: COMFYUI_MAX_CONCURRENT
+          value: "5"
+        - name: OTEL_SAMPLER_RATIO
+          value: "0.1"
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - comfyui-engine
+            topologyKey: kubernetes.io/hostname

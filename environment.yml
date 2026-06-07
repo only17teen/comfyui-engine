@@ -1,0 +1,25 @@
+name: comfyui-engine
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.11
+  - pip
+  - pip:
+    - aiohttp>=3.9.0
+    - pyyaml>=6.0.1
+    - pydantic>=2.5.0
+    - pydantic-settings>=2.1.0
+    - prometheus-client>=0.19.0
+    - structlog>=23.0.0
+    - orjson>=3.9.0
+    - uvloop>=0.19.0; sys_platform == 'linux'
+    - pytest>=7.4.0
+    - pytest-asyncio>=0.21.0
+    - black>=23.0.0
+    - ruff>=0.1.0
+    - mypy>=1.7.0
+    - coverage>=7.3.0
+    - pre-commit>=3.5.0
+    - mkdocs>=1.5.0
+    - mkdocs-material>=9.0.0
