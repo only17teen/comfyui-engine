@@ -1,0 +1,170 @@
+version: '3.8'
+
+services:
+  # ComfyUI Engine - Main generation worker
+  engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: comfyui-engine
+    restart: unless-stopped
+    environment:
+      - COMFYUI_URL=http://comfyui:8188
+      - ENGINE_MAX_CONCURRENT=4
+      - ENGINE_TIMEOUT=600
+      - ENGINE_LOG_LEVEL=INFO
+      - ENGINE_JSON_LOGGING=true
+      - ENGINE_OUTPUT_DIR=/app/output_models
+      - ENGINE_METRICS_PORT=9090
+      - ENGINE_RETRY_MAX=3
+      - ENGINE_CB_FAILURE_THRESHOLD=5
+      - ENGINE_QUEUE_MAX_SIZE=100
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./workflows:/app/workflows:ro
+      - ./config:/app/config:ro
+      - engine-output:/app/output_models
+      - engine-logs:/app/logs
+      - engine-sessions:/app/sessions
+      - engine-checkpoints:/app/checkpoints
+    ports:
+      - "9090:9090"
+    networks:
+      - comfyui-network
+    depends_on:
+      - redis
+      - comfyui
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Distributed worker (scaled horizontally)
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: comfyui-engine-worker
+    restart: unless-stopped
+    environment:
+      - COMFYUI_URL=http://comfyui:8188
+      - ENGINE_MAX_CONCURRENT=2
+      - ENGINE_TIMEOUT=600
+      - ENGINE_LOG_LEVEL=INFO
+      - ENGINE_JSON_LOGGING=true
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./workflows:/app/workflows:ro
+      - ./config:/app/config:ro
+      - worker-output:/app/output_models
+      - worker-logs:/app/logs
+    networks:
+      - comfyui-network
+    depends_on:
+      - redis
+      - comfyui
+    profiles:
+      - distributed
+
+  # Redis for distributed queue
+  redis:
+    image: redis:7-alpine
+    container_name: comfyui-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - comfyui-network
+    profiles:
+      - distributed
+      - full
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: comfyui-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9091:9090"
+    networks:
+      - comfyui-network
+    profiles:
+      - monitoring
+      - full
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: comfyui-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - comfyui-network
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+      - full
+
+  # Loki for log aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: comfyui-loki
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/loki.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - comfyui-network
+    profiles:
+      - monitoring
+      - full
+
+  # Promtail for log shipping
+  promtail:
+    image: grafana/promtail:latest
+    container_name: comfyui-promtail
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/promtail.yml:/etc/promtail/config.yml:ro
+      - engine-logs:/var/log/engine:ro
+    networks:
+      - comfyui-network
+    depends_on:
+      - loki
+    profiles:
+      - monitoring
+      - full
+
+volumes:
+  engine-output:
+  engine-logs:
+  engine-sessions:
+  engine-checkpoints:
+  worker-output:
+  worker-logs:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+
+networks:
+  comfyui-network:
+    driver: bridge

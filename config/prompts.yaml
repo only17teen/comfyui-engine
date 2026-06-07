@@ -1,0 +1,121 @@
+# ComfyUI Async Generation Engine - Prompts & LoRA Configuration
+# Optimized for Arch Linux / Python 3.11+
+
+prompts:
+  # Trigger words for character archetypes
+  trigger_words:
+    - "1girl"
+    - "solo"
+    - "masterpiece"
+    - "best quality"
+    - "highly detailed"
+    - "ultra-detailed"
+    - "8k uhd"
+    - "photorealistic"
+    - "cinematic lighting"
+    - "sharp focus"
+
+  # Clothing elements (randomized)
+  clothing:
+    tops:
+      - "white crop top"
+      - "black turtleneck sweater"
+      - "denim jacket"
+      - "silk blouse"
+      - "oversized hoodie"
+      - "leather jacket"
+      - "knit cardigan"
+      - "tank top"
+    bottoms:
+      - "high-waisted jeans"
+      - "pleated skirt"
+      - "leather pants"
+      - "flowing maxi dress"
+      - "short shorts"
+      - "cargo pants"
+      - "yoga leggings"
+    accessories:
+      - "gold necklace"
+      - "silver hoop earrings"
+      - "leather wristwatch"
+      - "sunglasses"
+      - "crossbody bag"
+      - "scarf"
+
+  # Pose descriptors
+  poses:
+    - "standing confidently"
+    - "sitting on a bench"
+    - "leaning against a wall"
+    - "walking forward"
+    - "looking over shoulder"
+    - "arms crossed"
+    - "hand in pocket"
+    - "twirling hair"
+    - "stretching arms up"
+    - "sitting cross-legged"
+
+  # Location / background settings
+  locations:
+    - "modern city rooftop at sunset"
+    - "cozy coffee shop interior"
+    - "autumn forest path"
+    - "beach at golden hour"
+    - "vintage library"
+    - "rainy Tokyo street"
+    - "mountain meadow"
+    - "industrial loft studio"
+    - "botanical garden"
+    - "night city with neon lights"
+
+  # Negative prompt base
+  negative_prompt: |
+    (worst quality:1.4), (low quality:1.4), (normal quality:1.4),
+    lowres, bad anatomy, bad hands, text, error, missing fingers,
+    extra digit, fewer digits, cropped, jpeg artifacts, signature,
+    watermark, username, blurry, artist name, bad proportions,
+    disfigured, mutation, deformed, ugly, duplicate, morbid,
+    extra limbs, fused fingers, too many fingers, long neck
+
+lora:
+  # Available LoRA models with weight ranges
+  models:
+    - name: "detail_slider"
+      path: "DetailSlider.pt"
+      weight_range: [0.3, 0.8]
+    - name: "add_detail"
+      path: "add_detail.safetensors"
+      weight_range: [0.4, 1.0]
+    - name: "epi_noiseoffset"
+      path: "epi_noiseoffset.safetensors"
+      weight_range: [0.2, 0.6]
+    - name: "filmgirl"
+      path: "filmgirl.safetensors"
+      weight_range: [0.3, 0.7]
+    - name: "koreandolllikeness"
+      path: "koreandolllikeness.safetensors"
+      weight_range: [0.4, 0.9]
+
+  # Sampling configuration
+  sampling:
+    steps_range: [20, 40]
+    cfg_scale_range: [5.0, 9.0]
+    sampler_names:
+      - "DPM++ 2M Karras"
+      - "Euler a"
+      - "DPM++ SDE Karras"
+    scheduler: "Karras"
+
+  # Resolution presets
+  resolutions:
+    - [512, 768]
+    - [768, 512]
+    - [640, 640]
+    - [768, 768]
+    - [512, 1024]
+    - [1024, 512]
+
+  # Batch size per generation cycle
+  batch_size: 4
+  # Number of parallel workers
+  max_concurrent: 3

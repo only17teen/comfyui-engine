@@ -1,0 +1,116 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "ComfyUI Engine v2.0 - Generation Metrics",
+    "tags": ["comfyui", "ai-generation", "mlops"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Job Throughput",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(comfyui_engine_jobs_completed[5m])",
+            "legendFormat": "Jobs/sec"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Success Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "comfyui_engine_jobs_completed / (comfyui_engine_jobs_completed + comfyui_engine_jobs_failed)",
+            "legendFormat": "Success %"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Processing Time (p50/p95/p99)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "comfyui_engine_processing_time_p50",
+            "legendFormat": "p50"
+          },
+          {
+            "expr": "comfyui_engine_processing_time_p95",
+            "legendFormat": "p95"
+          },
+          {
+            "expr": "comfyui_engine_processing_time_p99",
+            "legendFormat": "p99"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Queue Depth",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "comfyui_engine_queue_depth",
+            "legendFormat": "Pending Jobs"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 5,
+        "title": "Active Workers",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "comfyui_engine_active_workers",
+            "legendFormat": "Workers"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Retry Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(comfyui_engine_retries_total[5m])",
+            "legendFormat": "Retries/sec"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 7,
+        "title": "Circuit Breaker State",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "comfyui_engine_circuit_breaker_trips",
+            "legendFormat": "Trips"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "id": 8,
+        "title": "Download Errors",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(comfyui_engine_download_errors[5m])",
+            "legendFormat": "Errors/sec"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32}
+      }
+    ],
+    "time": {"from": "now-1h", "to": "now"},
+    "refresh": "5s"
+  }
+}

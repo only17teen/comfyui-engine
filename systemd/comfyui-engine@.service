@@ -1,0 +1,78 @@
+[Unit]
+Description=ComfyUI Async Generation Engine v2.0
+Documentation=https://github.com/yourusername/comfyui-engine
+After=network.target
+Wants=network.target
+
+[Service]
+Type=notify
+# User and group (create if needed: useradd -r -s /bin/false comfyui-engine)
+User=%I
+Group=%I
+
+# Working directory
+WorkingDirectory=/opt/comfyui-engine
+
+# Python virtual environment
+Environment="PATH=/opt/comfyui-engine/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=/opt/comfyui-engine"
+
+# Engine configuration via environment variables
+# Edit these for your setup
+Environment="COMFYUI_URL=http://127.0.0.1:8188"
+Environment="ENGINE_MAX_CONCURRENT=4"
+Environment="ENGINE_TIMEOUT=600"
+Environment="ENGINE_LOG_LEVEL=INFO"
+Environment="ENGINE_JSON_LOGGING=true"
+Environment="ENGINE_OUTPUT_DIR=/var/lib/comfyui-engine/output_models"
+Environment="ENGINE_METRICS_PORT=9090"
+
+# GPU settings (if using NVIDIA)
+Environment="CUDA_VISIBLE_DEVICES=0"
+Environment="NVIDIA_VISIBLE_DEVICES=all"
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/comfyui-engine /opt/comfyui-engine/logs /opt/comfyui-engine/sessions
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=comfyui-engine
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Main execution
+ExecStart=/opt/comfyui-engine/.venv/bin/python -m main \
+    --batch 8 \
+    --workflow /opt/comfyui-engine/workflows/standard.json \
+    --config /opt/comfyui-engine/config/prompts.yaml \
+    --max-concurrent 4 \
+    --git-sync \
+    --repo-path /opt/comfyui-engine
+
+# Pre-start: health check
+ExecStartPre=/bin/sh -c 'curl -sf http://127.0.0.1:8188/system_stats || (echo "ComfyUI not ready" && exit 1)'
+
+# Post-stop: save checkpoint
+ExecStopPost=/bin/sh -c 'cd /opt/comfyui-engine && .venv/bin/python -c "import asyncio; from engine.session_manager import SessionManager; sm = SessionManager(); sm.pause_session()" || true'
+
+[Install]
+WantedBy=multi-user.target
