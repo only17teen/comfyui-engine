@@ -79,9 +79,7 @@ class BackupManager:
         """Start automated backup scheduler."""
         self._running = True
         self._backup_task = asyncio.create_task(self._backup_loop())
-        logger.info(
-            f"Backup manager started (interval: {self.config.backup_interval_hours}h)"
-        )
+        logger.info(f"Backup manager started (interval: {self.config.backup_interval_hours}h)")
 
     async def stop(self) -> None:
         """Stop backup scheduler."""
@@ -121,9 +119,7 @@ class BackupManager:
 
         try:
             # Create tar archive
-            with tarfile.open(
-                backup_path, "w:gz", compresslevel=self.config.compression_level
-            ) as tar:
+            with tarfile.open(backup_path, "w:gz", compresslevel=self.config.compression_level) as tar:
                 # Include models
                 if self.config.include_models:
                     model_dir = Path("output_models")
@@ -148,9 +144,7 @@ class BackupManager:
                     ]
                     for config_file in config_files:
                         if Path(config_file).exists():
-                            tar.add(
-                                config_file, arcname=f"config/{Path(config_file).name}"
-                            )
+                            tar.add(config_file, arcname=f"config/{Path(config_file).name}")
                     contents.append("config")
 
                 # Include logs
@@ -196,9 +190,7 @@ class BackupManager:
                 backup_path.unlink()
             raise
 
-    async def restore_backup(
-        self, backup_id: str, target_dir: str | None = None
-    ) -> bool:
+    async def restore_backup(self, backup_id: str, target_dir: str | None = None) -> bool:
         """Restore from a backup archive."""
         backup_path = self.backup_dir / f"{backup_id}.tar.gz"
         metadata_path = self.backup_dir / f"{backup_id}.json"
@@ -218,9 +210,7 @@ class BackupManager:
                 # Verify checksum
                 import hashlib
 
-                current_checksum = hashlib.sha256(backup_path.read_bytes()).hexdigest()[
-                    :16
-                ]
+                current_checksum = hashlib.sha256(backup_path.read_bytes()).hexdigest()[:16]
                 if current_checksum != metadata.checksum:
                     logger.warning(f"Backup checksum mismatch: {backup_id}")
 
@@ -319,9 +309,7 @@ class BackupManager:
         if removed > 0:
             logger.info(f"Cleaned up {removed} old backups")
 
-    async def _upload_to_remote(
-        self, backup_path: Path, metadata: BackupMetadata
-    ) -> None:
+    async def _upload_to_remote(self, backup_path: Path, metadata: BackupMetadata) -> None:
         """Upload backup to remote storage."""
         if not self.config.remote_storage:
             return
@@ -343,25 +331,19 @@ class BackupManager:
         except Exception as e:
             logger.error(f"Remote upload failed: {e}")
 
-    async def _upload_to_s3(
-        self, backup_path: Path, metadata: BackupMetadata, url: str
-    ) -> None:
+    async def _upload_to_s3(self, backup_path: Path, metadata: BackupMetadata, url: str) -> None:
         """Upload backup to AWS S3."""
         # Implementation would use boto3 or aiobotocore
         logger.info(f"Uploading to S3: {metadata.backup_id}")
         # Placeholder for S3 upload logic
 
-    async def _upload_to_gcs(
-        self, backup_path: Path, metadata: BackupMetadata, url: str
-    ) -> None:
+    async def _upload_to_gcs(self, backup_path: Path, metadata: BackupMetadata, url: str) -> None:
         """Upload backup to Google Cloud Storage."""
         # Implementation would use google-cloud-storage
         logger.info(f"Uploading to GCS: {metadata.backup_id}")
         # Placeholder for GCS upload logic
 
-    async def _upload_to_azure(
-        self, backup_path: Path, metadata: BackupMetadata, url: str
-    ) -> None:
+    async def _upload_to_azure(self, backup_path: Path, metadata: BackupMetadata, url: str) -> None:
         """Upload backup to Azure Blob Storage."""
         # Implementation would use azure-storage-blob
         logger.info(f"Uploading to Azure: {metadata.backup_id}")

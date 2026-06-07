@@ -195,19 +195,13 @@ class WorkflowValidator:
             result.is_valid = False
 
         # 4. Check for positive/negative prompt nodes
-        clip_nodes = [
-            n for n in result.nodes.values() if n.node_type == NodeType.CLIP_TEXT_ENCODE
-        ]
+        clip_nodes = [n for n in result.nodes.values() if n.node_type == NodeType.CLIP_TEXT_ENCODE]
         if len(clip_nodes) < 2:
-            result.warnings.append(
-                f"Found {len(clip_nodes)} CLIPTextEncode nodes, expected 2 (positive + negative)"
-            )
+            result.warnings.append(f"Found {len(clip_nodes)} CLIPTextEncode nodes, expected 2 (positive + negative)")
 
         # 5. Check for save/preview output
         output_nodes = [
-            n
-            for n in result.nodes.values()
-            if n.node_type in (NodeType.SAVE_IMAGE, NodeType.PREVIEW_IMAGE)
+            n for n in result.nodes.values() if n.node_type in (NodeType.SAVE_IMAGE, NodeType.PREVIEW_IMAGE)
         ]
         if not output_nodes:
             result.warnings.append("No SaveImage or PreviewImage node found")
@@ -232,18 +226,12 @@ class WorkflowValidator:
         # Find nodes by type and suggest IDs
         for purpose, _candidate_ids in self.STANDARD_MAPPINGS.items():
             for node_id, node_info in nodes.items():
-                if (
-                    purpose == "positive_prompt"
-                    and node_info.node_type == NodeType.CLIP_TEXT_ENCODE
-                ):
+                if purpose == "positive_prompt" and node_info.node_type == NodeType.CLIP_TEXT_ENCODE:
                     # Check if connected to positive side of sampler
                     if self._is_positive_clip(node_info, nodes):
                         mappings[purpose] = node_id
                         break
-                elif (
-                    purpose == "negative_prompt"
-                    and node_info.node_type == NodeType.CLIP_TEXT_ENCODE
-                ):
+                elif purpose == "negative_prompt" and node_info.node_type == NodeType.CLIP_TEXT_ENCODE:
                     if self._is_negative_clip(node_info, nodes):
                         mappings[purpose] = node_id
                         break
@@ -253,28 +241,16 @@ class WorkflowValidator:
                 ):
                     mappings[purpose] = node_id
                     break
-                elif (
-                    purpose == "checkpoint"
-                    and node_info.node_type == NodeType.CHECKPOINT_LOADER
-                ):
+                elif purpose == "checkpoint" and node_info.node_type == NodeType.CHECKPOINT_LOADER:
                     mappings[purpose] = node_id
                     break
-                elif (
-                    purpose == "empty_latent"
-                    and node_info.node_type == NodeType.EMPTY_LATENT
-                ):
+                elif purpose == "empty_latent" and node_info.node_type == NodeType.EMPTY_LATENT:
                     mappings[purpose] = node_id
                     break
-                elif (
-                    purpose == "vae_decode"
-                    and node_info.node_type == NodeType.VAE_DECODE
-                ):
+                elif purpose == "vae_decode" and node_info.node_type == NodeType.VAE_DECODE:
                     mappings[purpose] = node_id
                     break
-                elif (
-                    purpose == "save_image"
-                    and node_info.node_type == NodeType.SAVE_IMAGE
-                ):
+                elif purpose == "save_image" and node_info.node_type == NodeType.SAVE_IMAGE:
                     mappings[purpose] = node_id
                     break
                 elif purpose.startswith("lora_") and "Lora" in node_info.class_type:
@@ -296,10 +272,7 @@ class WorkflowValidator:
                     inputs = target.inputs
                     if "positive" in inputs:
                         pos_input = inputs["positive"]
-                        if (
-                            isinstance(pos_input, list)
-                            and str(pos_input[0]) == node.node_id
-                        ):
+                        if isinstance(pos_input, list) and str(pos_input[0]) == node.node_id:
                             return True
         return False
 
@@ -312,10 +285,7 @@ class WorkflowValidator:
                     inputs = target.inputs
                     if "negative" in inputs:
                         neg_input = inputs["negative"]
-                        if (
-                            isinstance(neg_input, list)
-                            and str(neg_input[0]) == node.node_id
-                        ):
+                        if isinstance(neg_input, list) and str(neg_input[0]) == node.node_id:
                             return True
         return False
 
@@ -332,15 +302,11 @@ class WorkflowValidator:
                     NodeType.CHECKPOINT_LOADER,
                     NodeType.CONTROL_NET,
                 ):
-                    result.warnings.append(
-                        f"Node {node_id} ({node_info.class_type}) has no connections"
-                    )
+                    result.warnings.append(f"Node {node_id} ({node_info.class_type}) has no connections")
 
         # Check for disconnected outputs
         ksampler_nodes = [
-            n
-            for n in result.nodes.values()
-            if n.node_type in (NodeType.KSAMPLER, NodeType.KSAMPLER_ADVANCED)
+            n for n in result.nodes.values() if n.node_type in (NodeType.KSAMPLER, NodeType.KSAMPLER_ADVANCED)
         ]
         for ksampler in ksampler_nodes:
             # KSampler should output to VAE decode or image save
@@ -350,9 +316,7 @@ class WorkflowValidator:
                     has_output = True
                     break
             if not has_output:
-                result.warnings.append(
-                    f"KSampler {ksampler.node_id} has no output connections"
-                )
+                result.warnings.append(f"KSampler {ksampler.node_id} has no output connections")
 
     def get_node_summary(self, workflow: dict) -> dict[str, any]:
         """Get human-readable summary of workflow nodes."""

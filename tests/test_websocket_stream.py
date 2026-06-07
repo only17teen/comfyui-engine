@@ -99,9 +99,7 @@ class TestWebSocketStreamManager:
 
     @pytest.mark.asyncio
     async def test_register_connection(self, stream_manager, mock_websocket):
-        result = await stream_manager.register_connection(
-            "conn_1", mock_websocket
-        )
+        result = await stream_manager.register_connection("conn_1", mock_websocket)
         assert result is True
         assert "conn_1" in stream_manager._connections
 
@@ -109,14 +107,10 @@ class TestWebSocketStreamManager:
     async def test_max_connections(self, stream_manager, mock_websocket):
         # Fill to capacity
         for i in range(10):
-            await stream_manager.register_connection(
-                f"conn_{i}", mock_websocket
-            )
+            await stream_manager.register_connection(f"conn_{i}", mock_websocket)
 
         # Next should fail
-        result = await stream_manager.register_connection(
-            "conn_overflow", mock_websocket
-        )
+        result = await stream_manager.register_connection("conn_overflow", mock_websocket)
         assert result is False
 
     @pytest.mark.asyncio
@@ -140,9 +134,7 @@ class TestWebSocketStreamManager:
     @pytest.mark.asyncio
     async def test_event_filtering(self, stream_manager, mock_websocket):
         # Register with specific event type filter
-        await stream_manager.register_connection(
-            "conn_1", mock_websocket, event_types=[StreamEventType.JOB_COMPLETED]
-        )
+        await stream_manager.register_connection("conn_1", mock_websocket, event_types=[StreamEventType.JOB_COMPLETED])
 
         # Send unfiltered event - should not be delivered
         event = StreamEvent(
@@ -162,9 +154,7 @@ class TestWebSocketStreamManager:
 
     @pytest.mark.asyncio
     async def test_job_filtering(self, stream_manager, mock_websocket):
-        await stream_manager.register_connection(
-            "conn_1", mock_websocket, job_ids=["job_1"]
-        )
+        await stream_manager.register_connection("conn_1", mock_websocket, job_ids=["job_1"])
 
         # Wrong job ID
         event = StreamEvent(

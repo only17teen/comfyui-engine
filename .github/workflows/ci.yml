@@ -237,7 +237,7 @@ jobs:
           body: |
             ## Changes
             - See commit history for details
-            
+
             ## Docker
             ```bash
             docker pull ghcr.io/${{ github.repository }}:v${{ steps.version.outputs.version }}

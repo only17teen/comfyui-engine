@@ -308,11 +308,7 @@ class ClusterCoordinator:
             # Update local node stats
             self._local_node.last_heartbeat = time.time()
             self._local_node.current_jobs = len(
-                [
-                    j
-                    for j in self._jobs.values()
-                    if j.assigned_node == self.node_id and j.status == "running"
-                ]
+                [j for j in self._jobs.values() if j.assigned_node == self.node_id and j.status == "running"]
             )
 
             # Update in Redis
@@ -552,9 +548,7 @@ class ClusterCoordinator:
     async def _dispatch_job(self, node: NodeInfo, job: DistributedJob) -> bool:
         """Dispatch a job to a specific node."""
         try:
-            async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=300)
-            ) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=300)) as session:
                 url = f"http://{node.host}:{node.port}/api/generate"
 
                 payload = {
@@ -567,9 +561,7 @@ class ClusterCoordinator:
                     if response.status == 202:  # Accepted
                         return True
                     else:
-                        logger.warning(
-                            f"Node {node.node_id} rejected job {job.job_id}: {response.status}"
-                        )
+                        logger.warning(f"Node {node.node_id} rejected job {job.job_id}: {response.status}")
                         return False
 
         except Exception as e:
@@ -582,14 +574,11 @@ class ClusterCoordinator:
             failed_jobs = [
                 j
                 for j in self._jobs.values()
-                if j.assigned_node == failed_node_id
-                and j.status in ("assigned", "running")
+                if j.assigned_node == failed_node_id and j.status in ("assigned", "running")
             ]
 
         for job in failed_jobs:
-            logger.info(
-                f"Reassigning job {job.job_id} from failed node {failed_node_id}"
-            )
+            logger.info(f"Reassigning job {job.job_id} from failed node {failed_node_id}")
 
             job.assigned_node = None
             job.status = "pending"
@@ -610,9 +599,7 @@ class ClusterCoordinator:
         Returns:
             Job ID
         """
-        job_id = hashlib.sha256(
-            f"{time.time()}-{json.dumps(workflow, sort_keys=True)}".encode()
-        ).hexdigest()[:16]
+        job_id = hashlib.sha256(f"{time.time()}-{json.dumps(workflow, sort_keys=True)}".encode()).hexdigest()[:16]
 
         job = DistributedJob(
             job_id=job_id,

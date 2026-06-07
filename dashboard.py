@@ -457,6 +457,7 @@ DASHBOARD_HTML = """
 @dataclass
 class DashboardMetrics:
     """Current engine metrics for dashboard display."""
+
     queue_length: int = 0
     active_jobs: int = 0
     completed_today: int = 0
@@ -471,6 +472,7 @@ class DashboardMetrics:
 @dataclass
 class JobInfo:
     """Job information for queue display."""
+
     id: str
     status: str  # pending, running, completed, failed
     prompt: str = ""
@@ -525,11 +527,13 @@ class DashboardServer:
         async def get_history(minutes: int = 60):
             cutoff = time.time() - minutes * 60
             history = [m for m in self._metrics_history if m.timestamp > cutoff]
-            return JSONResponse(content={
-                "throughput": [h.completed_today for h in history],
-                "errors": [100 - h.success_rate for h in history],
-                "timestamps": [h.timestamp for h in history],
-            })
+            return JSONResponse(
+                content={
+                    "throughput": [h.completed_today for h in history],
+                    "errors": [100 - h.success_rate for h in history],
+                    "timestamps": [h.timestamp for h in history],
+                }
+            )
 
         @self.app.get("/api/logs")
         async def get_logs(level: str = "INFO", limit: int = 100):
@@ -571,14 +575,14 @@ class DashboardServer:
         """Fetch current metrics from engine or metrics endpoint."""
         metrics = DashboardMetrics()
 
-        if self.engine_client and hasattr(self.engine_client, 'get_metrics'):
+        if self.engine_client and hasattr(self.engine_client, "get_metrics"):
             try:
                 engine_metrics = await self.engine_client.get_metrics()
-                metrics.queue_length = engine_metrics.get('queue_length', 0)
-                metrics.active_jobs = engine_metrics.get('active_jobs', 0)
-                metrics.completed_today = engine_metrics.get('completed_today', 0)
-                metrics.avg_generation_time = engine_metrics.get('avg_generation_time', 0.0)
-                metrics.success_rate = engine_metrics.get('success_rate', 100.0)
+                metrics.queue_length = engine_metrics.get("queue_length", 0)
+                metrics.active_jobs = engine_metrics.get("active_jobs", 0)
+                metrics.completed_today = engine_metrics.get("completed_today", 0)
+                metrics.avg_generation_time = engine_metrics.get("avg_generation_time", 0.0)
+                metrics.success_rate = engine_metrics.get("success_rate", 100.0)
             except Exception as e:
                 logger.warning(f"Failed to fetch engine metrics: {e}")
 
@@ -601,29 +605,34 @@ class DashboardServer:
         """Get GPU utilization via nvidia-smi or similar."""
         try:
             import subprocess
+
             result = subprocess.run(
-                ["nvidia-smi", "--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"],
+                [
+                    "nvidia-smi",
+                    "--query-gpu=utilization.gpu",
+                    "--format=csv,noheader,nounits",
+                ],
                 capture_output=True,
                 text=True,
                 timeout=5,
             )
             if result.returncode == 0:
-                return float(result.stdout.strip().split('\n')[0])
+                return float(result.stdout.strip().split("\n")[0])
         except Exception:
             pass
         return 0.0
 
     async def _fetch_queue(self) -> list[JobInfo]:
         """Fetch current job queue."""
-        if self.engine_client and hasattr(self.engine_client, 'get_queue'):
+        if self.engine_client and hasattr(self.engine_client, "get_queue"):
             try:
                 queue = await self.engine_client.get_queue()
                 return [
                     JobInfo(
-                        id=j.get('id', 'unknown'),
-                        status=j.get('status', 'unknown'),
-                        prompt=j.get('prompt', '')[:50],
-                        progress=j.get('progress', 0.0),
+                        id=j.get("id", "unknown"),
+                        status=j.get("status", "unknown"),
+                        prompt=j.get("prompt", "")[:50],
+                        progress=j.get("progress", 0.0),
                     )
                     for j in queue
                 ]
@@ -639,13 +648,13 @@ class DashboardServer:
 
         try:
             if action == "pause":
-                if hasattr(self.engine_client, 'pause'):
+                if hasattr(self.engine_client, "pause"):
                     await self.engine_client.pause()
             elif action == "resume":
-                if hasattr(self.engine_client, 'resume'):
+                if hasattr(self.engine_client, "resume"):
                     await self.engine_client.resume()
             elif action == "clear":
-                if hasattr(self.engine_client, 'clear_queue'):
+                if hasattr(self.engine_client, "clear_queue"):
                     await self.engine_client.clear_queue()
             elif action == "refresh":
                 pass  # Just triggers refresh
@@ -665,11 +674,13 @@ class DashboardServer:
         if msg_type == "command":
             action = data.get("action")
             success = await self._handle_control(action)
-            await websocket.send_json({
-                "type": "command_result",
-                "action": action,
-                "success": success,
-            })
+            await websocket.send_json(
+                {
+                    "type": "command_result",
+                    "action": action,
+                    "success": success,
+                }
+            )
 
         elif msg_type == "pong":
             pass  # Heartbeat response
@@ -679,14 +690,18 @@ class DashboardServer:
         metrics = await self._fetch_current_metrics()
         queue = await self._fetch_queue()
 
-        await websocket.send_json({
-            "type": "metrics",
-            "payload": asdict(metrics),
-        })
-        await websocket.send_json({
-            "type": "queue",
-            "payload": [asdict(j) for j in queue],
-        })
+        await websocket.send_json(
+            {
+                "type": "metrics",
+                "payload": asdict(metrics),
+            }
+        )
+        await websocket.send_json(
+            {
+                "type": "queue",
+                "payload": [asdict(j) for j in queue],
+            }
+        )
 
     async def _broadcast_metrics(self) -> None:
         """Background task to broadcast metrics to all connected clients."""
@@ -816,10 +831,10 @@ class EngineDashboardBridge:
         while self._running:
             try:
                 # Forward engine logs
-                if hasattr(self.engine, 'get_recent_logs'):
+                if hasattr(self.engine, "get_recent_logs"):
                     logs = await self.engine.get_recent_logs()
                     for log in logs:
-                        self.dashboard.log(log.get('level', 'INFO'), log.get('message', ''))
+                        self.dashboard.log(log.get("level", "INFO"), log.get("message", ""))
 
                 await asyncio.sleep(1)
 

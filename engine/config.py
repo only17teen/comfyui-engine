@@ -24,9 +24,7 @@ class LoRAModelConfig(BaseModel):
     @classmethod
     def validate_range(cls, v: tuple[float, float]) -> tuple[float, float]:
         if v[0] < 0 or v[1] > 2.0 or v[0] > v[1]:
-            raise ValueError(
-                f"Invalid weight range: {v}. Must be 0 <= min <= max <= 2.0"
-            )
+            raise ValueError(f"Invalid weight range: {v}. Must be 0 <= min <= max <= 2.0")
         return v
 
 
@@ -35,9 +33,7 @@ class SamplingConfig(BaseModel):
 
     steps_range: tuple[int, int] = (20, 40)
     cfg_scale_range: tuple[float, float] = (5.0, 9.0)
-    sampler_names: list[str] = Field(
-        default_factory=lambda: ["DPM++ 2M Karras", "Euler a"]
-    )
+    sampler_names: list[str] = Field(default_factory=lambda: ["DPM++ 2M Karras", "Euler a"])
     scheduler: str = "Karras"
 
     @field_validator("steps_range")
@@ -116,9 +112,7 @@ class EngineConfig(BaseModel):
     retry_max: int = Field(default=3, env="ENGINE_RETRY_MAX")
     retry_base_delay: float = Field(default=1.0, env="ENGINE_RETRY_BASE_DELAY")
     circuit_failure_threshold: int = Field(default=5, env="ENGINE_CB_FAILURE_THRESHOLD")
-    circuit_recovery_timeout: float = Field(
-        default=30.0, env="ENGINE_CB_RECOVERY_TIMEOUT"
-    )
+    circuit_recovery_timeout: float = Field(default=30.0, env="ENGINE_CB_RECOVERY_TIMEOUT")
     queue_max_size: int = Field(default=100, env="ENGINE_QUEUE_MAX_SIZE")
     queue_rate_limit: float | None = Field(default=None, env="ENGINE_QUEUE_RATE_LIMIT")
     log_level: str = Field(default="INFO", env="ENGINE_LOG_LEVEL")
@@ -236,11 +230,7 @@ class ConfigLoader:
         """Deep merge two dictionaries. Override wins on conflicts."""
         result = base.copy()
         for key, value in override.items():
-            if (
-                key in result
-                and isinstance(result[key], dict)
-                and isinstance(value, dict)
-            ):
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
                 result[key] = ConfigLoader._deep_merge(result[key], value)
             else:
                 result[key] = value
@@ -277,8 +267,6 @@ class ConfigLoader:
 
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
-            yaml.dump(
-                data, f, default_flow_style=False, allow_unicode=True, sort_keys=False
-            )
+            yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
         print(f"Example config saved to: {path}")

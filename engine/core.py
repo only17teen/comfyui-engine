@@ -53,9 +53,7 @@ def setup_logging(
 
     # Terminal handler: plain text
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(
-        logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")
-    )
+    console_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"))
 
     # File handler: JSON for log aggregation
     file_handler = logging.FileHandler(log_file, encoding="utf-8")
@@ -194,9 +192,7 @@ class CircuitBreaker:
     Prevents cascading failures when GPU server is overloaded or down.
     """
 
-    def __init__(
-        self, name: str, config: CircuitBreakerConfig, metrics: MetricsCollector
-    ):
+    def __init__(self, name: str, config: CircuitBreakerConfig, metrics: MetricsCollector):
         self.name = name
         self.config = config
         self.metrics = metrics
@@ -215,20 +211,15 @@ class CircuitBreaker:
                     self.state = CircuitState.HALF_OPEN
                     self._half_open_calls = 0
                     self._successes = 0
-                    logging.getLogger("circuit_breaker").info(
-                        f"[{self.name}] Transition OPEN -> HALF_OPEN"
-                    )
+                    logging.getLogger("circuit_breaker").info(f"[{self.name}] Transition OPEN -> HALF_OPEN")
                 else:
                     raise CircuitBreakerOpenError(
-                        f"Circuit {self.name} is OPEN. Last failure: "
-                        f"{self._last_failure_time}"
+                        f"Circuit {self.name} is OPEN. Last failure: " f"{self._last_failure_time}"
                     )
 
             if self.state == CircuitState.HALF_OPEN:
                 if self._half_open_calls >= self.config.half_open_max_calls:
-                    raise CircuitBreakerOpenError(
-                        f"Circuit {self.name} HALF_OPEN quota exhausted"
-                    )
+                    raise CircuitBreakerOpenError(f"Circuit {self.name} HALF_OPEN quota exhausted")
                 self._half_open_calls += 1
 
         try:
@@ -251,9 +242,7 @@ class CircuitBreaker:
                 if self._successes >= self.config.success_threshold:
                     self.state = CircuitState.CLOSED
                     self._failures = 0
-                    logging.getLogger("circuit_breaker").info(
-                        f"[{self.name}] Transition HALF_OPEN -> CLOSED"
-                    )
+                    logging.getLogger("circuit_breaker").info(f"[{self.name}] Transition HALF_OPEN -> CLOSED")
             else:
                 self._failures = max(0, self._failures - 1)
 
@@ -265,9 +254,7 @@ class CircuitBreaker:
             if self.state == CircuitState.HALF_OPEN:
                 self.state = CircuitState.OPEN
                 await self.metrics.inc("circuit_breaker_trips")
-                logging.getLogger("circuit_breaker").warning(
-                    f"[{self.name}] Transition HALF_OPEN -> OPEN (failure)"
-                )
+                logging.getLogger("circuit_breaker").warning(f"[{self.name}] Transition HALF_OPEN -> OPEN (failure)")
             elif self._failures >= self.config.failure_threshold:
                 if self.state != CircuitState.OPEN:
                     self.state = CircuitState.OPEN
@@ -470,9 +457,7 @@ class SessionState:
         return asdict(self)
 
     def save(self, path: Path) -> None:
-        path.write_text(
-            json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8"
-        )
+        path.write_text(json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8")
 
     @classmethod
     def load(cls, path: Path) -> "SessionState":

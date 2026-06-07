@@ -23,7 +23,12 @@ from engine.core import (
     QueueFullError,
     setup_logging,
 )
-from engine.prompt_manager import PromptManager, GenerationConfig, SeedStrategy, PromptTemplate
+from engine.prompt_manager import (
+    PromptManager,
+    GenerationConfig,
+    SeedStrategy,
+    PromptTemplate,
+)
 from engine.api_client import ComfyUIAsyncClient, ComfyUIJob
 from engine.output_handler import OutputHandler
 from engine.git_sync import sync_to_git, init_repo, get_git_status
@@ -33,7 +38,12 @@ from engine.websocket_manager import WebSocketManager, WSConfig, WSState
 from engine.metrics_server import MetricsServer
 from engine.workflow_validator import WorkflowValidator, NodeType
 from engine.ab_testing import ABTestFramework, ABTestRunner, VariantResult
-from engine.notifications import WebhookNotifier, NotificationConfig, WebhookType, MultiNotifier
+from engine.notifications import (
+    WebhookNotifier,
+    NotificationConfig,
+    WebhookType,
+    MultiNotifier,
+)
 
 
 # ───────────────────────────────────────────────────────────────
@@ -49,14 +59,17 @@ class TestConfigIntegration:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             config_path = Path(tmpdir) / "test.yaml"
-            config_path.write_text("""
+            config_path.write_text(
+                """
 prompts:
   trigger_words: ["test"]
   negative_prompt: "bad"
 lora:
   models: []
   batch_size: 1
-""", encoding="utf-8")
+""",
+                encoding="utf-8",
+            )
 
             config = ConfigLoader.load(config_path)
             assert config.base_url == "http://custom:8188"
@@ -82,9 +95,7 @@ lora:
                     "negative_prompt": "bad quality",
                 },
                 "lora": {
-                    "models": [
-                        {"name": "test", "path": "test.pt", "weight_range": [0.5, 0.8]}
-                    ],
+                    "models": [{"name": "test", "path": "test.pt", "weight_range": [0.5, 0.8]}],
                     "sampling": {
                         "steps_range": [20, 30],
                         "cfg_scale_range": [7.0, 7.5],
@@ -128,9 +139,7 @@ class TestPromptManagerIntegration:
                 "negative_prompt": "bad quality",
             },
             lora={
-                "models": [
-                    LoRAModelConfig(name="test", path="test.pt", weight_range=(0.5, 0.8))
-                ],
+                "models": [LoRAModelConfig(name="test", path="test.pt", weight_range=(0.5, 0.8))],
                 "sampling": SamplingConfig(),
                 "resolutions": [(512, 768), (768, 512)],
                 "batch_size": 1,
@@ -188,11 +197,20 @@ class TestPromptManagerIntegration:
         config = manager.generate_config(seed=12345, num_lora=1)
 
         workflow = {
-            "3": {"class_type": "KSampler", "inputs": {"seed": 0, "steps": 20, "cfg": 7.0}},
-            "5": {"class_type": "EmptyLatentImage", "inputs": {"width": 512, "height": 512}},
+            "3": {
+                "class_type": "KSampler",
+                "inputs": {"seed": 0, "steps": 20, "cfg": 7.0},
+            },
+            "5": {
+                "class_type": "EmptyLatentImage",
+                "inputs": {"width": 512, "height": 512},
+            },
             "6": {"class_type": "CLIPTextEncode", "inputs": {"text": ""}},
             "7": {"class_type": "CLIPTextEncode", "inputs": {"text": ""}},
-            "10": {"class_type": "LoraLoader", "inputs": {"lora_name": "", "strength_model": 0}},
+            "10": {
+                "class_type": "LoraLoader",
+                "inputs": {"lora_name": "", "strength_model": 0},
+            },
         }
 
         payload = manager.to_comfy_payload(config, workflow)
@@ -215,7 +233,7 @@ class TestAPIClientIntegration:
         """Test health check against mock server."""
         client = ComfyUIAsyncClient(base_url="http://test")
 
-        with patch.object(client, '_get_session') as mock_session:
+        with patch.object(client, "_get_session") as mock_session:
             mock_resp = AsyncMock()
             mock_resp.status = 200
             mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
@@ -366,12 +384,30 @@ class TestWorkflowValidatorIntegration:
                     "latent_image": ["5", 0],
                 },
             },
-            "4": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "model.safetensors"}},
-            "5": {"class_type": "EmptyLatentImage", "inputs": {"width": 512, "height": 768, "batch_size": 1}},
-            "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "positive prompt", "clip": ["4", 1]}},
-            "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "negative prompt", "clip": ["4", 1]}},
-            "8": {"class_type": "VAEDecode", "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
-            "9": {"class_type": "SaveImage", "inputs": {"images": ["8", 0], "filename_prefix": "ComfyUI"}},
+            "4": {
+                "class_type": "CheckpointLoaderSimple",
+                "inputs": {"ckpt_name": "model.safetensors"},
+            },
+            "5": {
+                "class_type": "EmptyLatentImage",
+                "inputs": {"width": 512, "height": 768, "batch_size": 1},
+            },
+            "6": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {"text": "positive prompt", "clip": ["4", 1]},
+            },
+            "7": {
+                "class_type": "CLIPTextEncode",
+                "inputs": {"text": "negative prompt", "clip": ["4", 1]},
+            },
+            "8": {
+                "class_type": "VAEDecode",
+                "inputs": {"samples": ["3", 0], "vae": ["4", 2]},
+            },
+            "9": {
+                "class_type": "SaveImage",
+                "inputs": {"images": ["8", 0], "filename_prefix": "ComfyUI"},
+            },
         }
 
         result = validator.validate(workflow)
@@ -398,7 +434,10 @@ class TestWorkflowValidatorIntegration:
         validator = WorkflowValidator()
 
         workflow = {
-            "3": {"class_type": "KSampler", "inputs": {"positive": ["6", 0], "negative": ["7", 0]}},
+            "3": {
+                "class_type": "KSampler",
+                "inputs": {"positive": ["6", 0], "negative": ["7", 0]},
+            },
             "6": {"class_type": "CLIPTextEncode", "inputs": {"text": "positive"}},
             "7": {"class_type": "CLIPTextEncode", "inputs": {"text": "negative"}},
             "4": {"class_type": "CheckpointLoaderSimple", "inputs": {}},
@@ -539,14 +578,18 @@ class TestNotificationIntegration:
         """Test multiple notifiers."""
         multi = MultiNotifier()
 
-        multi.add(NotificationConfig(
-            webhook_url="https://discord.com/api/webhooks/test1",
-            webhook_type=WebhookType.DISCORD,
-        ))
-        multi.add(NotificationConfig(
-            webhook_url="https://hooks.slack.com/services/test2",
-            webhook_type=WebhookType.SLACK,
-        ))
+        multi.add(
+            NotificationConfig(
+                webhook_url="https://discord.com/api/webhooks/test1",
+                webhook_type=WebhookType.DISCORD,
+            )
+        )
+        multi.add(
+            NotificationConfig(
+                webhook_url="https://hooks.slack.com/services/test2",
+                webhook_type=WebhookType.SLACK,
+            )
+        )
 
         assert len(multi.notifiers) == 2
 
@@ -571,7 +614,7 @@ class TestEndToEndPipeline:
         engine = UnifiedGenerationEngine(config)
 
         # Mock health check
-        with patch.object(engine.client, 'health_check', new_callable=AsyncMock) as mock_health:
+        with patch.object(engine.client, "health_check", new_callable=AsyncMock) as mock_health:
             mock_health.return_value = True
 
             healthy = await engine.health_check()
@@ -580,7 +623,10 @@ class TestEndToEndPipeline:
         # Mock workflow validation
         workflow = {
             "3": {"class_type": "KSampler", "inputs": {"seed": 0, "steps": 20}},
-            "5": {"class_type": "EmptyLatentImage", "inputs": {"width": 512, "height": 768}},
+            "5": {
+                "class_type": "EmptyLatentImage",
+                "inputs": {"width": 512, "height": 768},
+            },
             "6": {"class_type": "CLIPTextEncode", "inputs": {"text": ""}},
             "7": {"class_type": "CLIPTextEncode", "inputs": {"text": ""}},
             "4": {"class_type": "CheckpointLoaderSimple", "inputs": {}},

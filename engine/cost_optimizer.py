@@ -103,9 +103,7 @@ class CostOptimizer:
         """Start cost optimization loop."""
         self._running = True
         self._optimization_task = asyncio.create_task(self._optimization_loop())
-        logger.info(
-            f"Cost optimizer started (budget: ${self.budget_usd_per_hour}/hour)"
-        )
+        logger.info(f"Cost optimizer started (budget: ${self.budget_usd_per_hour}/hour)")
 
     async def stop(self) -> None:
         """Stop cost optimization loop."""
@@ -152,9 +150,7 @@ class CostOptimizer:
                 cheaper_instance = await self._find_cheaper_instance(job, cost_per_hour)
                 if cheaper_instance:
                     instance_id, cost_per_hour = cheaper_instance
-                    estimated_cost = cost_per_hour * (
-                        job.estimated_duration_minutes / 60
-                    )
+                    estimated_cost = cost_per_hour * (job.estimated_duration_minutes / 60)
                 else:
                     return False, None, 0.0
 
@@ -174,10 +170,7 @@ class CostOptimizer:
                 }
             self._running_instances[instance_id]["jobs"].append(job.job_id)
 
-            logger.info(
-                f"Scheduled job {job.job_id} on {instance_id} "
-                f"(est. cost: ${estimated_cost:.2f})"
-            )
+            logger.info(f"Scheduled job {job.job_id} on {instance_id} " f"(est. cost: ${estimated_cost:.2f})")
             return True, instance_id, estimated_cost
 
     async def complete_job(self, job_id: str, actual_duration_minutes: float) -> float:
@@ -218,8 +211,7 @@ class CostOptimizer:
                 )
 
                 logger.info(
-                    f"Job {job_id} completed. Actual cost: ${actual_cost:.2f} "
-                    f"(estimated: ${job.cost_estimate:.2f})"
+                    f"Job {job_id} completed. Actual cost: ${actual_cost:.2f} " f"(estimated: ${job.cost_estimate:.2f})"
                 )
                 return actual_cost
 
@@ -240,9 +232,7 @@ class CostOptimizer:
         if end_time is None:
             end_time = time.time()
 
-        relevant_costs = [
-            c for c in self._cost_history if start_time <= c["timestamp"] <= end_time
-        ]
+        relevant_costs = [c for c in self._cost_history if start_time <= c["timestamp"] <= end_time]
 
         total_estimated = sum(c["estimated_cost"] for c in relevant_costs)
         total_actual = sum(c["actual_cost"] for c in relevant_costs)
@@ -251,9 +241,7 @@ class CostOptimizer:
         # Cost by instance type
         by_instance = {}
         for cost in relevant_costs:
-            instance_type = self._running_instances.get(cost["instance_id"], {}).get(
-                "instance_type", "unknown"
-            )
+            instance_type = self._running_instances.get(cost["instance_id"], {}).get("instance_type", "unknown")
 
             if instance_type not in by_instance:
                 by_instance[instance_type] = {"cost": 0.0, "jobs": 0}
@@ -269,12 +257,9 @@ class CostOptimizer:
             "total_estimated_cost": total_estimated,
             "total_actual_cost": total_actual,
             "cost_efficiency": efficiency,
-            "average_cost_per_job": (
-                total_actual / total_jobs if total_jobs > 0 else 0.0
-            ),
+            "average_cost_per_job": (total_actual / total_jobs if total_jobs > 0 else 0.0),
             "cost_by_instance_type": by_instance,
-            "budget_utilization": total_actual
-            / (self.budget_usd_per_hour * (end_time - start_time) / 3600),
+            "budget_utilization": total_actual / (self.budget_usd_per_hour * (end_time - start_time) / 3600),
         }
 
     async def get_right_sizing_recommendations(self) -> list[dict[str, Any]]:
@@ -368,10 +353,7 @@ class CostOptimizer:
         for _key, pricing in self._pricing.items():
             if pricing.instance_type == job.resource_spec.gpu_type:
                 # Try preemptible first
-                if (
-                    job.resource_spec.preemptible
-                    and pricing.preemptible_price < max_cost
-                ):
+                if job.resource_spec.preemptible and pricing.preemptible_price < max_cost:
                     instance_id = f"preemptible-{pricing.region}-{pricing.instance_type}-{int(time.time())}"
                     suitable_instances.append((instance_id, pricing.preemptible_price))
                 # Then spot
@@ -387,9 +369,7 @@ class CostOptimizer:
 
     async def _get_current_hourly_cost(self) -> float:
         """Calculate current hourly cost of all running instances."""
-        return sum(
-            instance["cost_per_hour"] for instance in self._running_instances.values()
-        )
+        return sum(instance["cost_per_hour"] for instance in self._running_instances.values())
 
     async def _terminate_idle_instance(self, instance_id: str) -> None:
         """Terminate an idle instance to save costs."""
@@ -399,8 +379,7 @@ class CostOptimizer:
             total_cost = instance["cost_per_hour"] * runtime_hours
 
             logger.info(
-                f"Terminating idle instance {instance_id} "
-                f"(runtime: {runtime_hours:.1f}h, cost: ${total_cost:.2f})"
+                f"Terminating idle instance {instance_id} " f"(runtime: {runtime_hours:.1f}h, cost: ${total_cost:.2f})"
             )
             del self._running_instances[instance_id]
 

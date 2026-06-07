@@ -16,13 +16,20 @@ from typing import Dict, List, Optional
 sys.path.insert(0, str(Path(__file__).parent))
 
 from engine.config import ConfigLoader, EngineConfig
-from engine.core import MetricsCollector, CircuitBreaker, CircuitBreakerConfig, RetryConfig, with_retry
+from engine.core import (
+    MetricsCollector,
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    RetryConfig,
+    with_retry,
+)
 from engine.prompt_manager import PromptManager, SeedStrategy
 
 
 @dataclass
 class BenchmarkResult:
     """Single benchmark run result."""
+
     name: str
     duration_ms: float
     iterations: int
@@ -38,6 +45,7 @@ class BenchmarkResult:
 @dataclass
 class BenchmarkSuite:
     """Complete benchmark suite results."""
+
     suite_name: str
     timestamp: float
     results: list[BenchmarkResult] = field(default_factory=list)
@@ -230,7 +238,7 @@ class EngineBenchmark:
             retries=retry_count,
             p50_ms=latencies[len(latencies) // 2] if latencies else 0,
             p95_ms=latencies[int(len(latencies) * 0.95)] if latencies else 0,
-            p99_ms=latencies[int(len(latencies) * 0.99)] if len(latencies) >= 100 else 0,
+            p99_ms=(latencies[int(len(latencies) * 0.99)] if len(latencies) >= 100 else 0),
         )
 
     async def benchmark_metrics_collection(self) -> BenchmarkResult:
@@ -323,8 +331,10 @@ class EngineBenchmark:
         for benchmark in benchmarks:
             result = await benchmark()
             suite.results.append(result)
-            print(f"    ✓ {result.name}: {result.throughput:.0f} ops/sec, "
-                  f"p50={result.p50_ms:.2f}ms, p95={result.p95_ms:.2f}ms")
+            print(
+                f"    ✓ {result.name}: {result.throughput:.0f} ops/sec, "
+                f"p50={result.p50_ms:.2f}ms, p95={result.p95_ms:.2f}ms"
+            )
             print()
 
         return suite
@@ -349,8 +359,7 @@ class EngineBenchmark:
         print("-" * 70)
 
         for r in suite.results:
-            print(f"{r.name:<25} {r.throughput:>12.0f} {r.p50_ms:>10.2f} "
-                  f"{r.p95_ms:>10.2f} {r.errors:>8}")
+            print(f"{r.name:<25} {r.throughput:>12.0f} {r.p50_ms:>10.2f} " f"{r.p95_ms:>10.2f} {r.errors:>8}")
 
         print()
         print("Key Improvements vs v1.0:")

@@ -46,6 +46,7 @@ security = HTTPBearer(auto_error=False)
 @dataclass
 class APIKey:
     """API key for authentication."""
+
     key_id: str
     key_hash: str
     name: str
@@ -61,6 +62,7 @@ class APIKey:
 @dataclass
 class RateLimitInfo:
     """Rate limit tracking per client."""
+
     requests: list[float] = field(default_factory=list)
     limit: int = 100
     window: float = 60.0  # seconds
@@ -88,6 +90,7 @@ class RateLimitInfo:
 @dataclass
 class WebhookConfig:
     """Webhook configuration for event notifications."""
+
     url: str
     events: list[str]  # job.completed, job.failed, queue.full, etc.
     secret: str | None = None  # For HMAC signature
@@ -382,26 +385,25 @@ class WebhookManager:
 
         for attempt in range(webhook.retry_count):
             try:
-                async with aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=webhook.timeout)
-                ) as session, session.post(
-                    webhook.url,
-                    data=body,
-                    headers=headers,
-                ) as response:
+                async with (
+                    aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=webhook.timeout)) as session,
+                    session.post(
+                        webhook.url,
+                        data=body,
+                        headers=headers,
+                    ) as response,
+                ):
                     if response.status < 400:
                         logger.debug(f"Webhook delivered: {webhook.url}")
                         return
                     else:
-                        logger.warning(
-                            f"Webhook failed: {webhook.url} ({response.status})"
-                        )
+                        logger.warning(f"Webhook failed: {webhook.url} ({response.status})")
 
             except Exception as e:
                 logger.warning(f"Webhook error: {webhook.url} - {e}")
 
             if attempt < webhook.retry_count - 1:
-                await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                await asyncio.sleep(2**attempt)  # Exponential backoff
 
         logger.error(f"Webhook permanently failed: {webhook.url}")
 
@@ -525,7 +527,7 @@ class RESTAPIServer:
             }
 
             # Check engine health if connected
-            if self.engine and hasattr(self.engine, 'health_check'):
+            if self.engine and hasattr(self.engine, "health_check"):
                 try:
                     checks["engine_healthy"] = await self.engine.health_check()
                 except Exception:
@@ -558,31 +560,33 @@ class RESTAPIServer:
             metrics_lines = []
 
             # Basic info
-            metrics_lines.append(f'# HELP comfyui_engine_info Engine version info')
-            metrics_lines.append(f'# TYPE comfyui_engine_info gauge')
+            metrics_lines.append(f"# HELP comfyui_engine_info Engine version info")
+            metrics_lines.append(f"# TYPE comfyui_engine_info gauge")
             metrics_lines.append(f'comfyui_engine_info{{version="4.0.0"}} 1')
 
             # Uptime
-            metrics_lines.append(f'# HELP comfyui_engine_uptime_seconds Engine uptime')
-            metrics_lines.append(f'# TYPE comfyui_engine_uptime_seconds counter')
-            metrics_lines.append(f'comfyui_engine_uptime_seconds {time.time() - getattr(self, "_start_time", time.time())}')
+            metrics_lines.append(f"# HELP comfyui_engine_uptime_seconds Engine uptime")
+            metrics_lines.append(f"# TYPE comfyui_engine_uptime_seconds counter")
+            metrics_lines.append(
+                f'comfyui_engine_uptime_seconds {time.time() - getattr(self, "_start_time", time.time())}'
+            )
 
             # Engine metrics if available
-            if self.engine and hasattr(self.engine, 'get_metrics'):
+            if self.engine and hasattr(self.engine, "get_metrics"):
                 try:
                     engine_metrics = await self.engine.get_metrics()
                     for key, value in engine_metrics.items():
-                        if isinstance(value, (int, float)):
-                            metric_name = f'comfyui_engine_{key}'
-                            metrics_lines.append(f'# HELP {metric_name} {key}')
-                            metrics_lines.append(f'# TYPE {metric_name} gauge')
-                            metrics_lines.append(f'{metric_name} {value}')
+                        if isinstance(value, int | float):
+                            metric_name = f"comfyui_engine_{key}"
+                            metrics_lines.append(f"# HELP {metric_name} {key}")
+                            metrics_lines.append(f"# TYPE {metric_name} gauge")
+                            metrics_lines.append(f"{metric_name} {value}")
                 except Exception:
                     pass
 
             return StreamingResponse(
-                content=iter('\n'.join(metrics_lines) + '\n'),
-                media_type='text/plain',
+                content=iter("\n".join(metrics_lines) + "\n"),
+                media_type="text/plain",
             )
 
         # Graceful shutdown endpoint (admin only)
@@ -615,7 +619,7 @@ class RESTAPIServer:
             job_id = str(uuid4())[:12]
 
             # Store job
-            if self.engine and hasattr(self.engine, 'submit_job'):
+            if self.engine and hasattr(self.engine, "submit_job"):
                 job_id = await self.engine.submit_job(job_data)
 
             # Fire webhook
@@ -636,7 +640,7 @@ class RESTAPIServer:
             key: APIKey = Depends(get_api_key),
         ):
             """Get job status and results."""
-            if self.engine and hasattr(self.engine, 'get_job_status'):
+            if self.engine and hasattr(self.engine, "get_job_status"):
                 status = await self.engine.get_job_status(job_id)
                 if status:
                     return status
@@ -656,7 +660,7 @@ class RESTAPIServer:
             """List jobs with optional filtering."""
             jobs = []
 
-            if self.engine and hasattr(self.engine, 'list_jobs'):
+            if self.engine and hasattr(self.engine, "list_jobs"):
                 jobs = await self.engine.list_jobs(status, limit, offset)
 
             return {
@@ -672,7 +676,7 @@ class RESTAPIServer:
             key: APIKey = Depends(get_api_key),
         ):
             """Cancel a pending or running job."""
-            if self.engine and hasattr(self.engine, 'cancel_job'):
+            if self.engine and hasattr(self.engine, "cancel_job"):
                 success = await self.engine.cancel_job(job_id)
                 if success:
                     await self.webhook_manager.fire_event(
@@ -690,7 +694,7 @@ class RESTAPIServer:
         @self.app.get("/api/v1/queue", tags=["Queue"])
         async def get_queue_status(key: APIKey = Depends(get_api_key)):
             """Get current queue status."""
-            if self.engine and hasattr(self.engine, 'get_queue_status'):
+            if self.engine and hasattr(self.engine, "get_queue_status"):
                 return await self.engine.get_queue_status()
 
             return {"length": 0, "pending": 0, "running": 0}
@@ -698,14 +702,14 @@ class RESTAPIServer:
         @self.app.post("/api/v1/queue/pause", tags=["Queue"])
         async def pause_queue(key: APIKey = Depends(get_api_key)):
             """Pause job processing."""
-            if self.engine and hasattr(self.engine, 'pause_queue'):
+            if self.engine and hasattr(self.engine, "pause_queue"):
                 await self.engine.pause_queue()
             return {"status": "paused"}
 
         @self.app.post("/api/v1/queue/resume", tags=["Queue"])
         async def resume_queue(key: APIKey = Depends(get_api_key)):
             """Resume job processing."""
-            if self.engine and hasattr(self.engine, 'resume_queue'):
+            if self.engine and hasattr(self.engine, "resume_queue"):
                 await self.engine.resume_queue()
             return {"status": "resumed"}
 
@@ -713,7 +717,7 @@ class RESTAPIServer:
         @self.app.get("/api/v1/models", tags=["Models"])
         async def list_models(key: APIKey = Depends(get_api_key)):
             """List available models."""
-            if self.engine and hasattr(self.engine, 'list_models'):
+            if self.engine and hasattr(self.engine, "list_models"):
                 return await self.engine.list_models()
             return {"models": []}
 
@@ -723,7 +727,7 @@ class RESTAPIServer:
             key: APIKey = Depends(get_api_key),
         ):
             """Preload a model into memory."""
-            if self.engine and hasattr(self.engine, 'preload_model'):
+            if self.engine and hasattr(self.engine, "preload_model"):
                 success = await self.engine.preload_model(model_name)
                 return {"model": model_name, "loaded": success}
 
@@ -736,7 +740,7 @@ class RESTAPIServer:
         @self.app.get("/api/v1/metrics", tags=["Metrics"])
         async def get_metrics(key: APIKey = Depends(get_api_key)):
             """Get engine metrics."""
-            if self.engine and hasattr(self.engine, 'get_metrics'):
+            if self.engine and hasattr(self.engine, "get_metrics"):
                 return await self.engine.get_metrics()
 
             return {
@@ -753,7 +757,7 @@ class RESTAPIServer:
             # and doesn't require authentication
             metrics = []
 
-            if self.engine and hasattr(self.engine, 'get_prometheus_metrics'):
+            if self.engine and hasattr(self.engine, "get_prometheus_metrics"):
                 metrics = await self.engine.get_prometheus_metrics()
 
             return StreamingResponse(
@@ -870,7 +874,7 @@ class RESTAPIServer:
         logger.info("Initiating graceful shutdown...")
 
         # Signal shutdown to engine
-        if self.engine and hasattr(self.engine, 'shutdown'):
+        if self.engine and hasattr(self.engine, "shutdown"):
             await self.engine.shutdown()
 
         # Cancel pending webhooks

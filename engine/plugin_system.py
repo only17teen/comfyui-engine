@@ -67,9 +67,7 @@ class PluginHook:
     def __init__(self, name: str, description: str = ""):
         self.name = name
         self.description = description
-        self._handlers: list[tuple[Callable, int, str]] = (
-            []
-        )  # (handler, priority, plugin_name)
+        self._handlers: list[tuple[Callable, int, str]] = []  # (handler, priority, plugin_name)
 
     def register(
         self,
@@ -196,9 +194,7 @@ class HookRegistry:
         """List all available hook names."""
         return list(self._hooks.keys())
 
-    async def fire(
-        self, hook_name: str, context: PluginContext, *args, **kwargs
-    ) -> list[Any]:
+    async def fire(self, hook_name: str, context: PluginContext, *args, **kwargs) -> list[Any]:
         """Fire a hook by name."""
         hook = self._hooks.get(hook_name)
         if hook is None:
@@ -323,9 +319,7 @@ class PluginManager:
             if not ready:
                 # Circular dependency - break by taking first
                 ready = {next(iter(unresolved))}
-                logger.warning(
-                    f"Circular dependency detected, breaking at {next(iter(ready))}"
-                )
+                logger.warning(f"Circular dependency detected, breaking at {next(iter(ready))}")
 
             for name in sorted(ready):
                 resolved.append(name)
@@ -382,9 +376,7 @@ class PluginManager:
 
             # Check engine version requirement
             if not self._check_version_requirement(metadata.requires_engine):
-                logger.warning(
-                    f"Plugin {name} requires engine {metadata.requires_engine}"
-                )
+                logger.warning(f"Plugin {name} requires engine {metadata.requires_engine}")
                 return False
 
             # Check plugin dependencies
@@ -635,9 +627,7 @@ class PluginManager:
 
                     if name in last_modified and last_modified[name] != mtime:
                         if name in self._plugins:
-                            logger.info(
-                                f"Detected change in plugin {name}, reloading..."
-                            )
+                            logger.info(f"Detected change in plugin {name}, reloading...")
                             await self.reload_plugin(name)
 
                     last_modified[name] = mtime

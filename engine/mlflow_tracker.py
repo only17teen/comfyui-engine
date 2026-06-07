@@ -95,9 +95,7 @@ class MLflowTracker:
 
             return True
         except ImportError:
-            logger.warning(
-                "MLflow not installed. Tracking disabled. Install with: pip install mlflow"
-            )
+            logger.warning("MLflow not installed. Tracking disabled. Install with: pip install mlflow")
             return False
 
     async def _get_session(self) -> aiohttp.ClientSession:
@@ -134,9 +132,7 @@ class MLflowTracker:
                 logger.info(f"Created MLflow experiment: {self.config.experiment_name}")
             else:
                 self._experiment_id = experiment.experiment_id
-                logger.info(
-                    f"Using existing MLflow experiment: {self.config.experiment_name}"
-                )
+                logger.info(f"Using existing MLflow experiment: {self.config.experiment_name}")
 
             # Start background flush task
             self._flush_task = asyncio.create_task(self._background_flush())
@@ -186,9 +182,9 @@ class MLflowTracker:
         # Convert to serializable types
         clean_params = {}
         for k, v in params.items():
-            if isinstance(v, (list, dict)):
+            if isinstance(v, list | dict):
                 clean_params[k] = json.dumps(v)
-            elif isinstance(v, (int, float, str, bool)):
+            elif isinstance(v, int | float | str | bool):
                 clean_params[k] = v
             else:
                 clean_params[k] = str(v)
@@ -205,9 +201,7 @@ class MLflowTracker:
             if len(self._pending_params) >= self.batch_size:
                 await self._flush_params()
 
-    async def log_metrics(
-        self, metrics: dict[str, int | float], step: int | None = None
-    ) -> None:
+    async def log_metrics(self, metrics: dict[str, int | float], step: int | None = None) -> None:
         """Log metrics to the active run."""
         if not self.enabled or not self._active_run_id:
             return
@@ -229,9 +223,7 @@ class MLflowTracker:
             if len(self._pending_metrics) >= self.batch_size:
                 await self._flush_metrics()
 
-    async def log_generation(
-        self, metrics: GenerationMetrics, image_path: Path | None = None
-    ) -> None:
+    async def log_generation(self, metrics: GenerationMetrics, image_path: Path | None = None) -> None:
         """Log a complete generation event with all parameters and metrics."""
         if not self.enabled:
             return
@@ -265,9 +257,7 @@ class MLflowTracker:
         if image_path and image_path.exists():
             await self.log_artifact(image_path, artifact_path="images")
 
-    async def log_artifact(
-        self, local_path: Path, artifact_path: str | None = None
-    ) -> None:
+    async def log_artifact(self, local_path: Path, artifact_path: str | None = None) -> None:
         """Log an artifact (image, config, etc.) to the active run."""
         if not self.enabled or not self._active_run_id:
             return
@@ -351,9 +341,7 @@ class MLflowTracker:
                 loop = asyncio.get_event_loop()
                 await loop.run_in_executor(
                     None,
-                    lambda m=metrics, s=step, r=run_id: mlflow.log_metrics(
-                        m, step=s, run_id=r
-                    ),
+                    lambda m=metrics, s=step, r=run_id: mlflow.log_metrics(m, step=s, run_id=r),
                 )
 
             logger.debug(f"Flushed {len(batch)} metric sets")
