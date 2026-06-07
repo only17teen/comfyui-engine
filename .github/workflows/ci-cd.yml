@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline v5.0
 
 on:
   push:
@@ -28,16 +28,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install black ruff mypy
+          pip install black ruff mypy pre-commit
 
       - name: Check formatting with black
-        run: black --check engine/ tests/ main.py benchmark.py
+        run: black --check engine/ tests/ main.py benchmark.py api_server.py dashboard.py
 
       - name: Lint with ruff
-        run: ruff check engine/ tests/ main.py benchmark.py
+        run: ruff check engine/ tests/ main.py benchmark.py api_server.py dashboard.py
 
       - name: Type check with mypy
         run: mypy engine/ --ignore-missing-imports
+
+      - name: Pre-commit hooks
+        run: pre-commit run --all-files --show-diff-on-failure
 
   # ─────────────────────────────────────────────────────────────
   # Unit Tests
@@ -45,13 +48,16 @@ jobs:
   test-unit:
     runs-on: ubuntu-latest
     needs: lint
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
@@ -68,9 +74,9 @@ jobs:
           fail_ci_if_error: false
 
   # ─────────────────────────────────────────────────────────────
-  # Integration Tests
+  # WebSocket Tests
   # ─────────────────────────────────────────────────────────────
-  test-integration:
+  test-websocket:
     runs-on: ubuntu-latest
     needs: lint
     steps:
@@ -84,10 +90,44 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -e .
-          pip install pytest pytest-asyncio
+          pip install pytest pytest-asyncio fastapi uvicorn aiohttp redis
+
+      - name: Run WebSocket tests
+        run: pytest tests/test_websocket_stream.py -v --tb=short
+
+  # ─────────────────────────────────────────────────────────────
+  # Integration Tests
+  # ─────────────────────────────────────────────────────────────
+  test-integration:
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          pip install pytest pytest-asyncio redis
 
       - name: Run integration tests
         run: pytest tests/test_integration.py -v --tb=short
+        env:
+          REDIS_URL: redis://localhost:6379/0
 
   # ─────────────────────────────────────────────────────────────
   # Benchmark
@@ -121,7 +161,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   docker-build:
     runs-on: ubuntu-latest
-    needs: [test-unit, test-integration]
+    needs: [test-unit, test-integration, test-websocket]
     permissions:
       contents: read
       packages: write
@@ -183,12 +223,57 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
+      - name: Run Bandit security scan
+        run: |
+          pip install bandit
+          bandit -r engine/ -f json -o bandit-report.json || true
+
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: bandit-report.json
+
+  # ─────────────────────────────────────────────────────────────
+  # Load Testing
+  # ─────────────────────────────────────────────────────────────
+  load-test:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1E69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Run smoke test
+        run: |
+          k6 run --env BASE_URL=http://localhost:8000 --env API_KEY=test-key \
+            -i 10 tests/load/k6_load_test.js
+
+      - name: Run load test
+        run: |
+          k6 run --env BASE_URL=http://localhost:8000 --env API_KEY=test-key \
+            tests/load/k6_load_test.js
+
+      - name: Upload load test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-results
+          path: load-test-results.json
+
   # ─────────────────────────────────────────────────────────────
   # Release
   # ─────────────────────────────────────────────────────────────
   release:
     runs-on: ubuntu-latest
-    needs: [docker-build, benchmark]
+    needs: [docker-build, benchmark, security-scan]
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
@@ -202,7 +287,18 @@ jobs:
             benchmark_results.json
           generate_release_notes: true
           body: |
-            ## ComfyUI Engine v2.0 Release
+            ## ComfyUI Engine v5.0 Release
+
+            ### New Features
+            - OpenTelemetry distributed tracing with Jaeger integration
+            - WebSocket streaming for real-time job progress updates
+            - Advanced Redis caching layer (models, prompts, results, sessions)
+            - k6 load testing suite (smoke, load, stress, spike, soak)
+            - Chaos engineering tests for resilience validation
+            - Kubernetes manifests with HPA, PDB, NetworkPolicy
+            - Helm chart for configurable deployments
+            - Terraform modules for AWS, GCP, Azure infrastructure
+            - Comprehensive v5.0 documentation
 
             ### Docker Images
             ```bash
@@ -223,17 +319,17 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   deploy-staging:
     runs-on: ubuntu-latest
-    needs: docker-build
+    needs: [docker-build, test-integration, test-websocket]
     if: github.ref == 'refs/heads/develop'
     environment: staging
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to staging server
+      - name: Deploy to staging Kubernetes
         run: |
           echo "Deploying to staging..."
-          # Add your deployment commands here
-          # ssh staging-server "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:develop && docker-compose up -d"
+          kubectl apply -k k8s/base/
+          kubectl rollout status deployment/comfyui-engine -n comfyui-engine
 
   # ─────────────────────────────────────────────────────────────
   # Deploy to Production
@@ -246,8 +342,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to production server
+      - name: Deploy to production Kubernetes
         run: |
           echo "Deploying to production..."
-          # Add your deployment commands here
-          # ssh production-server "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} && docker-compose up -d"
+          kubectl apply -k k8s/base/
+          kubectl rollout status deployment/comfyui-engine -n comfyui-engine
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n comfyui-engine
+          kubectl get svc -n comfyui-engine

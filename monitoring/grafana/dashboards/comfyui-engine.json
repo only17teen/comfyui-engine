@@ -1,8 +1,8 @@
 {
   "dashboard": {
     "id": null,
-    "title": "ComfyUI Engine v2.0 - Generation Metrics",
-    "tags": ["comfyui", "ai-generation", "mlops"],
+    "title": "ComfyUI Engine v5.0 - Production Metrics",
+    "tags": ["comfyui", "ai-generation", "mlops", "v5.0"],
     "timezone": "browser",
     "panels": [
       {
@@ -108,6 +108,134 @@
           }
         ],
         "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32}
+      },
+      {
+        "id": 9,
+        "title": "WebSocket Connections",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "comfyui_engine_websocket_connections_total",
+            "legendFormat": "Total Connections"
+          },
+          {
+            "expr": "comfyui_engine_websocket_connections_active",
+            "legendFormat": "Active Connections"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 40}
+      },
+      {
+        "id": 10,
+        "title": "WebSocket Messages",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(comfyui_engine_websocket_messages_sent[5m])",
+            "legendFormat": "Sent/sec"
+          },
+          {
+            "expr": "rate(comfyui_engine_websocket_messages_received[5m])",
+            "legendFormat": "Received/sec"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 40}
+      },
+      {
+        "id": 11,
+        "title": "Redis Cache Hit Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "comfyui_engine_redis_cache_hits / (comfyui_engine_redis_cache_hits + comfyui_engine_redis_cache_misses)",
+            "legendFormat": "Hit Rate"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 48}
+      },
+      {
+        "id": 12,
+        "title": "Redis Cache Size",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "comfyui_engine_redis_cache_size",
+            "legendFormat": "Cache Size"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 48}
+      },
+      {
+        "id": 13,
+        "title": "Tracing Spans",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(comfyui_engine_tracing_spans_total[5m])",
+            "legendFormat": "Spans/sec"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 56}
+      },
+      {
+        "id": 14,
+        "title": "Tracing Errors",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(comfyui_engine_tracing_errors_total[5m])",
+            "legendFormat": "Errors/sec"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 56}
+      },
+      {
+        "id": 15,
+        "title": "API Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(comfyui_engine_api_requests_total[5m])",
+            "legendFormat": "Requests/sec"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 64}
+      },
+      {
+        "id": 16,
+        "title": "API Response Time (p95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "comfyui_engine_api_response_time_p95",
+            "legendFormat": "p95"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 64}
+      },
+      {
+        "id": 17,
+        "title": "GPU Utilization",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "comfyui_engine_gpu_utilization",
+            "legendFormat": "GPU %"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 72}
+      },
+      {
+        "id": 18,
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "comfyui_engine_memory_usage_bytes",
+            "legendFormat": "Memory"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 72}
       }
     ],
     "time": {"from": "now-1h", "to": "now"},
