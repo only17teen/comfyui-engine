@@ -703,7 +703,7 @@ class ClusterCoordinator:
                 "node_id": self.node_id,
                 "timestamp": time.time(),
             }))
-        except:
+        except Exception:
             pass
         
         # Close Redis

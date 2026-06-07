@@ -273,7 +273,7 @@ class NodeDiscovery:
                     info.author = config.get("author", "")
                     info.description = config.get("description", "")
                     info.repository_url = config.get("repository", "")
-            except:
+            except Exception:
                 pass
         
         # Check for known node info
@@ -468,7 +468,7 @@ class NodeDiscovery:
                 )
                 if result.returncode == 0:
                     return result.stdout.strip()
-            except:
+            except Exception:
                 pass
         
         # Try version file

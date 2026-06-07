@@ -190,7 +190,7 @@ class ModelCache:
                     if model_type in self._unloaders:
                         try:
                             self._unloaders[model_type](model)
-                        except:
+                        except Exception:
                             pass
                     return self._cache[name].model
                 
@@ -347,7 +347,7 @@ class ModelCache:
             size = sys.getsizeof(model)
             # Rough estimate for nested objects
             return size / (1024 * 1024) * 2
-        except:
+        except Exception:
             pass
         
         return 500.0  # Default 500MB estimate
@@ -403,8 +403,8 @@ class ModelCache:
                     if victim:
                         await self._unload_model(victim)
                 
-        except Exception as e:
-            logger.error(f"Memory monitor error: {e}")
+            except Exception as e:
+                logger.error(f"Memory monitor error: {e}")
     
     def _update_hit_rate(self) -> None:
         """Update cache hit rate statistic."""

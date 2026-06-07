@@ -160,7 +160,7 @@ class WelcomeStep(WizardStep):
                         if line.startswith('PRETTY_NAME='):
                             info['distro'] = line.split('=')[1].strip().strip('"')
                             break
-            except:
+            except Exception:
                 pass
         
         return info

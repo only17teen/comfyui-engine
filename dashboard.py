@@ -585,7 +585,7 @@ class DashboardServer:
         # Try to get GPU metrics
         try:
             metrics.gpu_utilization = await self._get_gpu_utilization()
-        except:
+        except Exception:
             pass
         
         metrics.timestamp = time.time()
@@ -609,7 +609,7 @@ class DashboardServer:
             )
             if result.returncode == 0:
                 return float(result.stdout.strip().split('\n')[0])
-        except:
+        except Exception:
             pass
         return 0.0
     
@@ -719,7 +719,7 @@ class DashboardServer:
                     try:
                         await ws.send_json(message)
                         await ws.send_json(queue_message)
-                    except:
+                    except Exception:
                         disconnected.add(ws)
                 
                 self.connected_clients -= disconnected
@@ -752,7 +752,7 @@ class DashboardServer:
         for ws in self.connected_clients:
             try:
                 await ws.send_json(message)
-            except:
+            except Exception:
                 disconnected.add(ws)
         
         self.connected_clients -= disconnected
@@ -789,7 +789,7 @@ class DashboardServer:
         for ws in list(self.connected_clients):
             try:
                 await ws.close()
-            except:
+            except Exception:
                 pass
         
         self.connected_clients.clear()

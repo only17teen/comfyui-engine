@@ -20,7 +20,7 @@ import traceback
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union
 
 logger = logging.getLogger(__name__)
 
@@ -343,7 +343,7 @@ class PluginManager:
                     with open(json_file) as f:
                         data = json.load(f)
                     return PluginMetadata(**data)
-                except:
+                except Exception:
                     pass
         
         # Try to extract from Python file
@@ -353,7 +353,7 @@ class PluginManager:
                 # Simple extraction of metadata from docstring or variables
                 name = path.stem
                 return PluginMetadata(name=name)
-            except:
+            except Exception:
                 pass
         
         # Default metadata
@@ -513,7 +513,7 @@ class PluginManager:
                 with open(config_path) as f:
                     user_config = json.load(f)
                 config.update(user_config)
-            except:
+            except Exception:
                 pass
         
         return config
@@ -565,7 +565,7 @@ class PluginManager:
             del self._contexts[name]
             
             if name in self._loaded_modules:
-                del sys.modules.get(f"plugins.{name}", None)
+                sys.modules.pop(f"plugins.{name}", None)
                 del self._loaded_modules[name]
             
             logger.info(f"Unloaded plugin: {name}")
