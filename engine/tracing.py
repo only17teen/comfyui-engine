@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v5.0 - OpenTelemetry Tracing
+"""ComfyUI Async Generation Engine v5.0 - OpenTelemetry Tracing
 Distributed tracing integration for request observability.
 """
 
@@ -12,7 +11,12 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
-from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_VERSION, DEPLOYMENT_ENVIRONMENT
+from opentelemetry.sdk.resources import (
+    Resource,
+    SERVICE_NAME,
+    SERVICE_VERSION,
+    DEPLOYMENT_ENVIRONMENT,
+)
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from opentelemetry.trace import Status, StatusCode, SpanKind
@@ -31,7 +35,7 @@ class TracingConfig:
         service_name: str = "comfyui-engine",
         service_version: str = "5.0.0",
         environment: str = "production",
-        otlp_endpoint: Optional[str] = None,
+        otlp_endpoint: str | None = None,
         sampler_ratio: float = 0.1,
         console_exporter: bool = False,
     ):
@@ -44,8 +48,7 @@ class TracingConfig:
 
 
 class TracingManager:
-    """
-    Manages OpenTelemetry tracing for the ComfyUI Engine.
+    """Manages OpenTelemetry tracing for the ComfyUI Engine.
 
     Features:
     - Automatic span creation for async operations
@@ -58,7 +61,7 @@ class TracingManager:
 
     def __init__(self, config: TracingConfig):
         self.config = config
-        self._provider: Optional[TracerProvider] = None
+        self._provider: TracerProvider | None = None
         self._tracer = None
         self._propagator = TraceContextTextMapPropagator()
         self._initialized = False
@@ -68,11 +71,13 @@ class TracingManager:
         if self._initialized:
             return
 
-        resource = Resource.create({
-            SERVICE_NAME: self.config.service_name,
-            SERVICE_VERSION: self.config.service_version,
-            DEPLOYMENT_ENVIRONMENT: self.config.environment,
-        })
+        resource = Resource.create(
+            {
+                SERVICE_NAME: self.config.service_name,
+                SERVICE_VERSION: self.config.service_version,
+                DEPLOYMENT_ENVIRONMENT: self.config.environment,
+            }
+        )
 
         self._provider = TracerProvider(resource=resource)
 
@@ -82,17 +87,13 @@ class TracingManager:
                 endpoint=self.config.otlp_endpoint,
                 insecure=True,
             )
-            self._provider.add_span_processor(
-                BatchSpanProcessor(otlp_exporter)
-            )
+            self._provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
             logger.info(f"OTLP exporter configured: {self.config.otlp_endpoint}")
 
         # Console exporter for debugging
         if self.config.console_exporter:
             console_exporter = ConsoleSpanExporter()
-            self._provider.add_span_processor(
-                BatchSpanProcessor(console_exporter)
-            )
+            self._provider.add_span_processor(BatchSpanProcessor(console_exporter))
             logger.info("Console span exporter enabled")
 
         trace.set_tracer_provider(self._provider)
@@ -116,7 +117,7 @@ class TracingManager:
         self,
         name: str,
         kind: SpanKind = SpanKind.INTERNAL,
-        attributes: Optional[Dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ):
         """Context manager for creating a span."""
         if not self._initialized or not self._tracer:
@@ -134,7 +135,7 @@ class TracingManager:
         self,
         name: str,
         kind: SpanKind = SpanKind.INTERNAL,
-        attributes: Optional[Dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ):
         """Async context manager for creating a span."""
         if not self._initialized or not self._tracer:
@@ -148,10 +149,11 @@ class TracingManager:
 
     def trace_method(
         self,
-        name: Optional[str] = None,
+        name: str | None = None,
         kind: SpanKind = SpanKind.INTERNAL,
     ) -> Callable:
         """Decorator for tracing method calls."""
+
         def decorator(func: Callable[..., T]) -> Callable[..., T]:
             span_name = name or func.__qualname__
 
@@ -172,9 +174,7 @@ class TracingManager:
                         return result
                     except Exception as e:
                         if span:
-                            span.set_status(
-                                Status(StatusCode.ERROR, str(e))
-                            )
+                            span.set_status(Status(StatusCode.ERROR, str(e)))
                             span.record_exception(e)
                         raise
 
@@ -195,9 +195,7 @@ class TracingManager:
                         return result
                     except Exception as e:
                         if span:
-                            span.set_status(
-                                Status(StatusCode.ERROR, str(e))
-                            )
+                            span.set_status(Status(StatusCode.ERROR, str(e)))
                             span.record_exception(e)
                         raise
 
@@ -207,16 +205,16 @@ class TracingManager:
 
         return decorator
 
-    def extract_context(self, carrier: Dict[str, str]) -> trace.Context:
+    def extract_context(self, carrier: dict[str, str]) -> trace.Context:
         """Extract trace context from carrier (e.g., HTTP headers)."""
         return self._propagator.extract(carrier)
 
-    def inject_context(self, carrier: Dict[str, str]) -> Dict[str, str]:
+    def inject_context(self, carrier: dict[str, str]) -> dict[str, str]:
         """Inject trace context into carrier (e.g., HTTP headers)."""
         self._propagator.inject(carrier)
         return carrier
 
-    def get_current_span(self) -> Optional[trace.Span]:
+    def get_current_span(self) -> trace.Span | None:
         """Get the current active span."""
         if not self._initialized:
             return None
@@ -225,7 +223,7 @@ class TracingManager:
     def add_event(
         self,
         name: str,
-        attributes: Optional[Dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> None:
         """Add event to current span."""
         span = self.get_current_span()
@@ -269,7 +267,7 @@ class _NullSpan:
 
 
 # Global tracing manager instance
-_global_tracing_manager: Optional[TracingManager] = None
+_global_tracing_manager: TracingManager | None = None
 
 
 def get_tracing_manager() -> TracingManager:
@@ -284,7 +282,7 @@ def initialize_tracing(
     service_name: str = "comfyui-engine",
     service_version: str = "5.0.0",
     environment: str = "production",
-    otlp_endpoint: Optional[str] = None,
+    otlp_endpoint: str | None = None,
     sampler_ratio: float = 0.1,
     console_exporter: bool = False,
 ) -> TracingManager:
@@ -313,6 +311,7 @@ def trace_span(name: str, kind: SpanKind = SpanKind.INTERNAL):
 
 def trace_async(name: str, kind: SpanKind = SpanKind.INTERNAL):
     """Decorator for tracing async functions."""
+
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
@@ -321,8 +320,10 @@ def trace_async(name: str, kind: SpanKind = SpanKind.INTERNAL):
                 return await func(*args, **kwargs)
 
             async with manager.async_span(name, kind) as span:
-                if span and hasattr(span, 'set_attribute'):
+                if span and hasattr(span, "set_attribute"):
                     span.set_attribute("function.name", func.__qualname__)
                 return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator

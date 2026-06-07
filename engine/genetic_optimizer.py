@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - Genetic Algorithm Prompt Optimizer
+"""ComfyUI Async Generation Engine v2.0 - Genetic Algorithm Prompt Optimizer
 Evolutionary optimization of prompts for maximum generation quality.
 """
 
@@ -18,12 +17,12 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from engine.config import EngineConfig
 from engine.prompt_manager import PromptManager, GenerationConfig
 
-
 logger = logging.getLogger(__name__)
 
 
 class FitnessMetric(Enum):
     """Metrics for evaluating prompt fitness."""
+
     SUCCESS_RATE = auto()
     GENERATION_SPEED = auto()
     PROMPT_DIVERSITY = auto()
@@ -35,8 +34,9 @@ class FitnessMetric(Enum):
 @dataclass
 class Chromosome:
     """A single chromosome representing a prompt configuration."""
-    genes: Dict[str, Any]  # Prompt components: triggers, clothing, poses, etc.
-    lora_weights: Dict[str, float]
+
+    genes: dict[str, Any]  # Prompt components: triggers, clothing, poses, etc.
+    lora_weights: dict[str, float]
     cfg_scale: float
     steps: int
     sampler: str
@@ -45,7 +45,7 @@ class Chromosome:
     generation_count: int = 0
     success_count: int = 0
     avg_time: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_generation_config(self, config: EngineConfig) -> GenerationConfig:
         """Convert chromosome to GenerationConfig."""
@@ -67,7 +67,7 @@ class Chromosome:
     def _build_prompt(self) -> str:
         """Build positive prompt from genes."""
         parts = []
-        for key, value in self.genes.items():
+        for _key, value in self.genes.items():
             if isinstance(value, list):
                 parts.extend(value)
             elif isinstance(value, str):
@@ -94,24 +94,26 @@ class Chromosome:
 @dataclass
 class GenerationResult:
     """Result of evaluating a generation."""
+
     chromosome_id: str
     success: bool
     generation_time: float
-    image_quality_score: Optional[float] = None
-    user_rating: Optional[float] = None
-    error: Optional[str] = None
+    image_quality_score: float | None = None
+    user_rating: float | None = None
+    error: str | None = None
 
 
 @dataclass
 class Population:
     """A population of chromosomes."""
-    chromosomes: List[Chromosome]
+
+    chromosomes: list[Chromosome]
     generation: int = 0
     best_fitness: float = 0.0
     avg_fitness: float = 0.0
     diversity_score: float = 0.0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "generation": self.generation,
             "population_size": len(self.chromosomes),
@@ -164,15 +166,15 @@ class GeneticAlgorithmConfig:
 
 
 class PromptFitnessEvaluator:
-    """
-    Evaluates fitness of prompt chromosomes based on generation results.
-    """
+    """Evaluates fitness of prompt chromosomes based on generation results."""
 
     def __init__(self, metric: FitnessMetric = FitnessMetric.COMBINED):
         self.metric = metric
-        self.history: List[GenerationResult] = []
+        self.history: list[GenerationResult] = []
 
-    def evaluate(self, chromosome: Chromosome, results: List[GenerationResult]) -> float:
+    def evaluate(
+        self, chromosome: Chromosome, results: list[GenerationResult]
+    ) -> float:
         """Calculate fitness score from generation results."""
         if not results:
             return 0.0
@@ -180,7 +182,9 @@ class PromptFitnessEvaluator:
         # Update chromosome statistics
         chromosome.generation_count = len(results)
         chromosome.success_count = sum(1 for r in results if r.success)
-        chromosome.avg_time = statistics.mean(r.generation_time for r in results) if results else 0.0
+        chromosome.avg_time = (
+            statistics.mean(r.generation_time for r in results) if results else 0.0
+        )
 
         if self.metric == FitnessMetric.SUCCESS_RATE:
             return chromosome.success_count / max(chromosome.generation_count, 1)
@@ -198,7 +202,9 @@ class PromptFitnessEvaluator:
             return statistics.mean(ratings) if ratings else 0.0
 
         elif self.metric == FitnessMetric.COMBINED:
-            success_rate = chromosome.success_count / max(chromosome.generation_count, 1)
+            success_rate = chromosome.success_count / max(
+                chromosome.generation_count, 1
+            )
             speed_score = 1.0 / max(chromosome.avg_time, 1.0)
             diversity = self._calculate_diversity(chromosome, results)
             ratings = [r.user_rating for r in results if r.user_rating is not None]
@@ -206,10 +212,10 @@ class PromptFitnessEvaluator:
 
             # Weighted combination
             return (
-                success_rate * 0.4 +
-                speed_score * 0.2 +
-                diversity * 0.2 +
-                rating_score * 0.2
+                success_rate * 0.4
+                + speed_score * 0.2
+                + diversity * 0.2
+                + rating_score * 0.2
             )
 
         return 0.0
@@ -217,7 +223,7 @@ class PromptFitnessEvaluator:
     def _calculate_diversity(
         self,
         chromosome: Chromosome,
-        results: List[GenerationResult],
+        results: list[GenerationResult],
     ) -> float:
         """Calculate prompt diversity score."""
         if not results:
@@ -225,7 +231,7 @@ class PromptFitnessEvaluator:
 
         # Measure unique words in genes
         all_words = set()
-        for key, value in chromosome.genes.items():
+        for _key, value in chromosome.genes.items():
             if isinstance(value, list):
                 for item in value:
                     all_words.update(str(item).lower().split())
@@ -237,8 +243,7 @@ class PromptFitnessEvaluator:
 
 
 class GeneticPromptOptimizer:
-    """
-    Genetic algorithm for optimizing prompt configurations.
+    """Genetic algorithm for optimizing prompt configurations.
 
     Features:
     - Tournament selection
@@ -253,15 +258,15 @@ class GeneticPromptOptimizer:
     def __init__(
         self,
         config: EngineConfig,
-        ga_config: Optional[GeneticAlgorithmConfig] = None,
+        ga_config: GeneticAlgorithmConfig | None = None,
     ):
         self.engine_config = config
         self.prompt_manager = PromptManager(config)
         self.ga_config = ga_config or GeneticAlgorithmConfig()
         self.evaluator = PromptFitnessEvaluator(self.ga_config.fitness_metric)
 
-        self._population: Optional[Population] = None
-        self._best_chromosome: Optional[Chromosome] = None
+        self._population: Population | None = None
+        self._best_chromosome: Chromosome | None = None
         self._stagnation_count: int = 0
         self._last_best_fitness: float = 0.0
 
@@ -303,7 +308,7 @@ class GeneticPromptOptimizer:
             seed=gen_config.seed,
         )
 
-    def _extract_triggers(self, prompt: str) -> List[str]:
+    def _extract_triggers(self, prompt: str) -> list[str]:
         """Extract trigger words from prompt."""
         triggers = []
         for word in self.engine_config.prompts.trigger_words:
@@ -311,7 +316,7 @@ class GeneticPromptOptimizer:
                 triggers.append(word)
         return triggers
 
-    def _extract_clothing(self, prompt: str) -> List[str]:
+    def _extract_clothing(self, prompt: str) -> list[str]:
         """Extract clothing items from prompt."""
         clothing = []
         for category in ["tops", "bottoms", "accessories", "full_body"]:
@@ -361,9 +366,7 @@ class GeneticPromptOptimizer:
             generation=0,
         )
 
-        self.logger.info(
-            f"Initialized population with {len(chromosomes)} chromosomes"
-        )
+        self.logger.info(f"Initialized population with {len(chromosomes)} chromosomes")
         return self._population
 
     def _tournament_select(self) -> Chromosome:
@@ -378,7 +381,7 @@ class GeneticPromptOptimizer:
         self,
         parent1: Chromosome,
         parent2: Chromosome,
-    ) -> Tuple[Chromosome, Chromosome]:
+    ) -> tuple[Chromosome, Chromosome]:
         """Perform multi-point crossover."""
         if random.random() > self.ga_config.crossover_rate:
             return parent1.copy(), parent2.copy()
@@ -421,7 +424,9 @@ class GeneticPromptOptimizer:
         # Adaptive mutation rate based on stagnation
         mutation_rate = self.ga_config.mutation_rate
         if self._stagnation_count > 2:
-            mutation_rate = min(mutation_rate * 1.5, 0.5)  # Increase mutation when stuck
+            mutation_rate = min(
+                mutation_rate * 1.5, 0.5
+            )  # Increase mutation when stuck
 
         # Mutate genes
         for key in chromosome.genes:
@@ -468,7 +473,7 @@ class GeneticPromptOptimizer:
         # Always new seed
         chromosome.seed = random.randint(1, 2**32 - 1)
 
-    def _random_clothing(self) -> List[str]:
+    def _random_clothing(self) -> list[str]:
         """Generate random clothing combination."""
         clothing = []
         categories = ["tops", "bottoms", "accessories"]
@@ -530,7 +535,10 @@ class GeneticPromptOptimizer:
 
     def _check_convergence(self, population: Population) -> bool:
         """Check if population has converged."""
-        if population.best_fitness - self._last_best_fitness < self.ga_config.convergence_threshold:
+        if (
+            population.best_fitness - self._last_best_fitness
+            < self.ga_config.convergence_threshold
+        ):
             self._stagnation_count += 1
         else:
             self._stagnation_count = 0
@@ -542,7 +550,7 @@ class GeneticPromptOptimizer:
     async def evaluate_population(
         self,
         population: Population,
-        evaluation_func: Optional[Callable[[Chromosome], List[GenerationResult]]] = None,
+        evaluation_func: Callable[[Chromosome], list[GenerationResult]] | None = None,
     ) -> None:
         """Evaluate fitness of all chromosomes in population."""
         if evaluation_func is None:
@@ -559,9 +567,7 @@ class GeneticPromptOptimizer:
                 results = await evaluation_func(chromosome)
                 chromosome.fitness = self.evaluator.evaluate(chromosome, results)
 
-        await asyncio.gather(*[
-            evaluate_single(c) for c in population.chromosomes
-        ])
+        await asyncio.gather(*[evaluate_single(c) for c in population.chromosomes])
 
         # Update population statistics
         fitnesses = [c.fitness for c in population.chromosomes]
@@ -583,7 +589,7 @@ class GeneticPromptOptimizer:
 
         # Elitism: keep best chromosomes
         new_chromosomes = [
-            c.copy() for c in sorted_chromosomes[:self.ga_config.elite_count]
+            c.copy() for c in sorted_chromosomes[: self.ga_config.elite_count]
         ]
 
         # Generate offspring
@@ -599,7 +605,7 @@ class GeneticPromptOptimizer:
             new_chromosomes.extend([child1, child2])
 
         # Trim to population size
-        new_chromosomes = new_chromosomes[:self.ga_config.population_size]
+        new_chromosomes = new_chromosomes[: self.ga_config.population_size]
 
         self._population = Population(
             chromosomes=new_chromosomes,
@@ -610,11 +616,10 @@ class GeneticPromptOptimizer:
 
     async def run(
         self,
-        evaluation_func: Optional[Callable[[Chromosome], List[GenerationResult]]] = None,
-        progress_callback: Optional[Callable[[int, Population], None]] = None,
-    ) -> Tuple[Chromosome, Population]:
-        """
-        Run complete genetic algorithm optimization.
+        evaluation_func: Callable[[Chromosome], list[GenerationResult]] | None = None,
+        progress_callback: Callable[[int, Population], None] | None = None,
+    ) -> tuple[Chromosome, Population]:
+        """Run complete genetic algorithm optimization.
 
         Args:
             evaluation_func: Function to evaluate chromosome fitness.
@@ -675,9 +680,7 @@ class GeneticPromptOptimizer:
                 )
                 break
 
-        self.logger.info(
-            f"GA complete. Best fitness: {best_chromosome.fitness:.4f}"
-        )
+        self.logger.info(f"GA complete. Best fitness: {best_chromosome.fitness:.4f}")
 
         return best_chromosome, population
 
@@ -696,11 +699,19 @@ class GeneticPromptOptimizer:
             "population": self._population.to_dict(),
             "best_chromosome": {
                 "genes": self._best_chromosome.genes if self._best_chromosome else {},
-                "lora_weights": self._best_chromosome.lora_weights if self._best_chromosome else {},
-                "cfg_scale": self._best_chromosome.cfg_scale if self._best_chromosome else 0,
+                "lora_weights": (
+                    self._best_chromosome.lora_weights if self._best_chromosome else {}
+                ),
+                "cfg_scale": (
+                    self._best_chromosome.cfg_scale if self._best_chromosome else 0
+                ),
                 "steps": self._best_chromosome.steps if self._best_chromosome else 0,
-                "sampler": self._best_chromosome.sampler if self._best_chromosome else "",
-                "fitness": self._best_chromosome.fitness if self._best_chromosome else 0,
+                "sampler": (
+                    self._best_chromosome.sampler if self._best_chromosome else ""
+                ),
+                "fitness": (
+                    self._best_chromosome.fitness if self._best_chromosome else 0
+                ),
             },
             "stagnation_count": self._stagnation_count,
         }
@@ -748,7 +759,7 @@ class GeneticPromptOptimizer:
             self.logger.error(f"Failed to load GA state: {e}")
             return False
 
-    def get_best_prompt(self) -> Optional[GenerationConfig]:
+    def get_best_prompt(self) -> GenerationConfig | None:
         """Get best prompt as GenerationConfig."""
         if not self._best_chromosome:
             return None

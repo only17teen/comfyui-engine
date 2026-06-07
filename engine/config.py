@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - Configuration System
+"""ComfyUI Async Generation Engine v2.0 - Configuration System
 Pydantic-based validation with env var override and YAML merging.
 """
 
@@ -16,35 +15,41 @@ from pydantic import BaseModel, Field, validator, field_validator
 # ───────────────────────────────────────────────────────────────
 class LoRAModelConfig(BaseModel):
     """Single LoRA model specification."""
+
     name: str
     path: str
-    weight_range: Tuple[float, float] = (0.3, 1.0)
+    weight_range: tuple[float, float] = (0.3, 1.0)
 
     @field_validator("weight_range")
     @classmethod
-    def validate_range(cls, v: Tuple[float, float]) -> Tuple[float, float]:
+    def validate_range(cls, v: tuple[float, float]) -> tuple[float, float]:
         if v[0] < 0 or v[1] > 2.0 or v[0] > v[1]:
-            raise ValueError(f"Invalid weight range: {v}. Must be 0 <= min <= max <= 2.0")
+            raise ValueError(
+                f"Invalid weight range: {v}. Must be 0 <= min <= max <= 2.0"
+            )
         return v
 
 
 class SamplingConfig(BaseModel):
     """Sampling parameter configuration."""
-    steps_range: Tuple[int, int] = (20, 40)
-    cfg_scale_range: Tuple[float, float] = (5.0, 9.0)
-    sampler_names: List[str] = Field(default_factory=lambda: ["DPM++ 2M Karras", "Euler a"])
+
+    steps_range: tuple[int, int] = (20, 40)
+    cfg_scale_range: tuple[float, float] = (5.0, 9.0)
+    sampler_names: list[str] = Field(
+        default_factory=lambda: ["DPM++ 2M Karras", "Euler a"]
+    )
     scheduler: str = "Karras"
 
     @field_validator("steps_range")
     @classmethod
-    def validate_steps(cls, v: Tuple[int, int]) -> Tuple[int, int]:
+    def validate_steps(cls, v: tuple[int, int]) -> tuple[int, int]:
         if v[0] < 1 or v[1] > 150 or v[0] > v[1]:
             raise ValueError(f"Invalid steps range: {v}")
         return v
 
     @field_validator("cfg_scale_range")
     @classmethod
-    def validate_cfg(cls, v: Tuple[float, float]) -> Tuple[float, float]:
+    def validate_cfg(cls, v: tuple[float, float]) -> tuple[float, float]:
         if v[0] < 1.0 or v[1] > 30.0 or v[0] > v[1]:
             raise ValueError(f"Invalid CFG range: {v}")
         return v
@@ -52,34 +57,37 @@ class SamplingConfig(BaseModel):
 
 class ClothingConfig(BaseModel):
     """Clothing category dictionaries."""
-    tops: List[str] = Field(default_factory=list)
-    bottoms: List[str] = Field(default_factory=list)
-    accessories: List[str] = Field(default_factory=list)
-    full_body: List[str] = Field(default_factory=list)
+
+    tops: list[str] = Field(default_factory=list)
+    bottoms: list[str] = Field(default_factory=list)
+    accessories: list[str] = Field(default_factory=list)
+    full_body: list[str] = Field(default_factory=list)
 
 
 class PromptDictionary(BaseModel):
     """Complete prompt dictionary configuration."""
-    trigger_words: List[str] = Field(default_factory=list)
+
+    trigger_words: list[str] = Field(default_factory=list)
     clothing: ClothingConfig = Field(default_factory=ClothingConfig)
-    poses: List[str] = Field(default_factory=list)
-    locations: List[str] = Field(default_factory=list)
-    expressions: List[str] = Field(default_factory=list)
-    lighting: List[str] = Field(default_factory=list)
+    poses: list[str] = Field(default_factory=list)
+    locations: list[str] = Field(default_factory=list)
+    expressions: list[str] = Field(default_factory=list)
+    lighting: list[str] = Field(default_factory=list)
     negative_prompt: str = ""
 
 
 class LoRAConfig(BaseModel):
     """LoRA configuration section."""
-    models: List[LoRAModelConfig] = Field(default_factory=list)
+
+    models: list[LoRAModelConfig] = Field(default_factory=list)
     sampling: SamplingConfig = Field(default_factory=SamplingConfig)
-    resolutions: List[Tuple[int, int]] = Field(default_factory=list)
+    resolutions: list[tuple[int, int]] = Field(default_factory=list)
     batch_size: int = 1
     max_concurrent: int = 3
 
     @field_validator("resolutions")
     @classmethod
-    def validate_resolutions(cls, v: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
+    def validate_resolutions(cls, v: list[tuple[int, int]]) -> list[tuple[int, int]]:
         for w, h in v:
             if w < 64 or h < 64 or w > 4096 or h > 4096:
                 raise ValueError(f"Invalid resolution: {w}x{h}")
@@ -95,6 +103,7 @@ class LoRAConfig(BaseModel):
 
 class EngineConfig(BaseModel):
     """Root engine configuration."""
+
     prompts: PromptDictionary = Field(default_factory=PromptDictionary)
     lora: LoRAConfig = Field(default_factory=LoRAConfig)
 
@@ -107,9 +116,11 @@ class EngineConfig(BaseModel):
     retry_max: int = Field(default=3, env="ENGINE_RETRY_MAX")
     retry_base_delay: float = Field(default=1.0, env="ENGINE_RETRY_BASE_DELAY")
     circuit_failure_threshold: int = Field(default=5, env="ENGINE_CB_FAILURE_THRESHOLD")
-    circuit_recovery_timeout: float = Field(default=30.0, env="ENGINE_CB_RECOVERY_TIMEOUT")
+    circuit_recovery_timeout: float = Field(
+        default=30.0, env="ENGINE_CB_RECOVERY_TIMEOUT"
+    )
     queue_max_size: int = Field(default=100, env="ENGINE_QUEUE_MAX_SIZE")
-    queue_rate_limit: Optional[float] = Field(default=None, env="ENGINE_QUEUE_RATE_LIMIT")
+    queue_rate_limit: float | None = Field(default=None, env="ENGINE_QUEUE_RATE_LIMIT")
     log_level: str = Field(default="INFO", env="ENGINE_LOG_LEVEL")
     json_logging: bool = Field(default=True, env="ENGINE_JSON_LOGGING")
     metrics_window: int = Field(default=1000, env="ENGINE_METRICS_WINDOW")
@@ -135,18 +146,16 @@ class EngineConfig(BaseModel):
 # Configuration Loader with Env Override
 # ───────────────────────────────────────────────────────────────
 class ConfigLoader:
-    """
-    Loads configuration from YAML with Pydantic validation
+    """Loads configuration from YAML with Pydantic validation
     and environment variable overrides.
     """
 
     @staticmethod
     def load(
-        yaml_path: Union[str, Path] = "config/prompts.yaml",
+        yaml_path: str | Path = "config/prompts.yaml",
         env_prefix: str = "ENGINE_",
     ) -> EngineConfig:
-        """
-        Load configuration from YAML and override with environment variables.
+        """Load configuration from YAML and override with environment variables.
 
         Priority: env vars > YAML > defaults.
 
@@ -157,11 +166,11 @@ class ConfigLoader:
         Returns:
             Validated EngineConfig instance.
         """
-        yaml_data: Dict[str, Any] = {}
+        yaml_data: dict[str, Any] = {}
         path = Path(yaml_path)
 
         if path.exists():
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 yaml_data = yaml.safe_load(f) or {}
         else:
             print(f"Warning: Config file not found: {path}. Using defaults.")
@@ -175,9 +184,9 @@ class ConfigLoader:
         return EngineConfig(**merged)
 
     @staticmethod
-    def _extract_env_overrides(prefix: str) -> Dict[str, Any]:
+    def _extract_env_overrides(prefix: str) -> dict[str, Any]:
         """Extract ENGINE_* environment variables as typed overrides."""
-        overrides: Dict[str, Any] = {}
+        overrides: dict[str, Any] = {}
         mapping = {
             "COMFYUI_URL": "base_url",
             "COMFYUI_MAX_CONCURRENT": "max_concurrent",
@@ -199,11 +208,21 @@ class ConfigLoader:
             value = os.environ.get(env_name)
             if value is not None:
                 # Type inference
-                if config_key in ("max_concurrent", "retry_max", "circuit_failure_threshold",
-                                  "queue_max_size", "metrics_window"):
+                if config_key in (
+                    "max_concurrent",
+                    "retry_max",
+                    "circuit_failure_threshold",
+                    "queue_max_size",
+                    "metrics_window",
+                ):
                     overrides[config_key] = int(value)
-                elif config_key in ("timeout", "poll_interval", "retry_base_delay",
-                                    "circuit_recovery_timeout", "queue_rate_limit"):
+                elif config_key in (
+                    "timeout",
+                    "poll_interval",
+                    "retry_base_delay",
+                    "circuit_recovery_timeout",
+                    "queue_rate_limit",
+                ):
                     overrides[config_key] = float(value)
                 elif config_key == "json_logging":
                     overrides[config_key] = value.lower() in ("true", "1", "yes", "on")
@@ -213,18 +232,22 @@ class ConfigLoader:
         return overrides
 
     @staticmethod
-    def _deep_merge(base: Dict, override: Dict) -> Dict:
+    def _deep_merge(base: dict, override: dict) -> dict:
         """Deep merge two dictionaries. Override wins on conflicts."""
         result = base.copy()
         for key, value in override.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
                 result[key] = ConfigLoader._deep_merge(result[key], value)
             else:
                 result[key] = value
         return result
 
     @staticmethod
-    def save_example(path: Union[str, Path] = "config/prompts.yaml") -> None:
+    def save_example(path: str | Path = "config/prompts.yaml") -> None:
         """Generate an example configuration file."""
         example = EngineConfig()
         # Convert to dict, excluding runtime-only fields
@@ -254,6 +277,8 @@ class ConfigLoader:
 
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
-            yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+            yaml.dump(
+                data, f, default_flow_style=False, allow_unicode=True, sort_keys=False
+            )
 
         print(f"Example config saved to: {path}")

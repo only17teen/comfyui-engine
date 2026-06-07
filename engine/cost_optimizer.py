@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v6.0 - Cost Optimization and Resource Scheduling
+"""ComfyUI Async Generation Engine v6.0 - Cost Optimization and Resource Scheduling
 Cloud cost optimization with intelligent resource scheduling and spot instance management.
 """
 
@@ -16,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class InstanceType(Enum):
+    """Instance pricing type enumeration."""
+
     ON_DEMAND = auto()
     SPOT = auto()
     PREEMPTIBLE = auto()
@@ -23,6 +24,8 @@ class InstanceType(Enum):
 
 
 class SchedulePriority(Enum):
+    """Job scheduling priority levels."""
+
     CRITICAL = 0
     HIGH = 1
     NORMAL = 2
@@ -33,6 +36,7 @@ class SchedulePriority(Enum):
 @dataclass
 class ResourceSpec:
     """Resource specification for a job."""
+
     gpu_type: str
     gpu_count: int = 1
     memory_gb: float = 16.0
@@ -45,6 +49,7 @@ class ResourceSpec:
 @dataclass
 class InstancePricing:
     """Pricing information for an instance type."""
+
     instance_type: str
     provider: str
     region: str
@@ -59,20 +64,20 @@ class InstancePricing:
 @dataclass
 class ScheduledJob:
     """A job scheduled for execution."""
+
     job_id: str
     resource_spec: ResourceSpec
     priority: SchedulePriority
     estimated_duration_minutes: float
-    deadline: Optional[float] = None  # Unix timestamp
+    deadline: float | None = None  # Unix timestamp
     created_at: float = field(default_factory=time.time)
-    scheduled_at: Optional[float] = None
-    instance_id: Optional[str] = None
+    scheduled_at: float | None = None
+    instance_id: str | None = None
     cost_estimate: float = 0.0
 
 
 class CostOptimizer:
-    """
-    Cloud cost optimization with intelligent resource scheduling.
+    """Cloud cost optimization with intelligent resource scheduling.
 
     Features:
     - Spot instance management with fallback to on-demand
@@ -86,19 +91,21 @@ class CostOptimizer:
 
     def __init__(self, budget_usd_per_hour: float = 100.0):
         self.budget_usd_per_hour = budget_usd_per_hour
-        self._pricing: Dict[str, InstancePricing] = {}
-        self._scheduled_jobs: Dict[str, ScheduledJob] = {}
-        self._running_instances: Dict[str, Dict[str, Any]] = {}
-        self._cost_history: List[Dict[str, Any]] = []
+        self._pricing: dict[str, InstancePricing] = {}
+        self._scheduled_jobs: dict[str, ScheduledJob] = {}
+        self._running_instances: dict[str, dict[str, Any]] = {}
+        self._cost_history: list[dict[str, Any]] = []
         self._lock = asyncio.Lock()
         self._running = False
-        self._optimization_task: Optional[asyncio.Task] = None
+        self._optimization_task: asyncio.Task | None = None
 
     async def start(self) -> None:
         """Start cost optimization loop."""
         self._running = True
         self._optimization_task = asyncio.create_task(self._optimization_loop())
-        logger.info(f"Cost optimizer started (budget: ${self.budget_usd_per_hour}/hour)")
+        logger.info(
+            f"Cost optimizer started (budget: ${self.budget_usd_per_hour}/hour)"
+        )
 
     async def stop(self) -> None:
         """Stop cost optimization loop."""
@@ -117,9 +124,8 @@ class CostOptimizer:
         self._pricing[key] = pricing
         logger.info(f"Added pricing: {key} (on-demand: ${pricing.on_demand_price}/hr)")
 
-    async def schedule_job(self, job: ScheduledJob) -> Tuple[bool, Optional[str], float]:
-        """
-        Schedule a job with cost optimization.
+    async def schedule_job(self, job: ScheduledJob) -> tuple[bool, str | None, float]:
+        """Schedule a job with cost optimization.
 
         Returns:
             Tuple of (success, instance_id, estimated_cost).
@@ -127,7 +133,7 @@ class CostOptimizer:
         async with self._lock:
             # Find best instance type based on cost and availability
             best_instance = await self._find_best_instance(job)
-            
+
             if not best_instance:
                 logger.warning(f"No suitable instance found for job {job.job_id}")
                 return False, None, 0.0
@@ -146,7 +152,9 @@ class CostOptimizer:
                 cheaper_instance = await self._find_cheaper_instance(job, cost_per_hour)
                 if cheaper_instance:
                     instance_id, cost_per_hour = cheaper_instance
-                    estimated_cost = cost_per_hour * (job.estimated_duration_minutes / 60)
+                    estimated_cost = cost_per_hour * (
+                        job.estimated_duration_minutes / 60
+                    )
                 else:
                     return False, None, 0.0
 
@@ -173,8 +181,7 @@ class CostOptimizer:
             return True, instance_id, estimated_cost
 
     async def complete_job(self, job_id: str, actual_duration_minutes: float) -> float:
-        """
-        Mark a job as complete and record actual cost.
+        """Mark a job as complete and record actual cost.
 
         Returns:
             Actual cost of the job.
@@ -193,20 +200,22 @@ class CostOptimizer:
 
                 # Remove job from instance
                 instance["jobs"].remove(job_id)
-                
+
                 # Check if instance is idle
                 if not instance["jobs"]:
                     await self._terminate_idle_instance(job.instance_id)
 
                 # Record cost
-                self._cost_history.append({
-                    "job_id": job_id,
-                    "instance_id": job.instance_id,
-                    "estimated_cost": job.cost_estimate,
-                    "actual_cost": actual_cost,
-                    "duration_minutes": actual_duration_minutes,
-                    "timestamp": time.time(),
-                })
+                self._cost_history.append(
+                    {
+                        "job_id": job_id,
+                        "instance_id": job.instance_id,
+                        "estimated_cost": job.cost_estimate,
+                        "actual_cost": actual_cost,
+                        "duration_minutes": actual_duration_minutes,
+                        "timestamp": time.time(),
+                    }
+                )
 
                 logger.info(
                     f"Job {job_id} completed. Actual cost: ${actual_cost:.2f} "
@@ -218,11 +227,10 @@ class CostOptimizer:
 
     async def get_cost_report(
         self,
-        start_time: Optional[float] = None,
-        end_time: Optional[float] = None,
-    ) -> Dict[str, Any]:
-        """
-        Generate cost report for a time period.
+        start_time: float | None = None,
+        end_time: float | None = None,
+    ) -> dict[str, Any]:
+        """Generate cost report for a time period.
 
         Returns:
             Dictionary with cost breakdown and statistics.
@@ -233,8 +241,7 @@ class CostOptimizer:
             end_time = time.time()
 
         relevant_costs = [
-            c for c in self._cost_history
-            if start_time <= c["timestamp"] <= end_time
+            c for c in self._cost_history if start_time <= c["timestamp"] <= end_time
         ]
 
         total_estimated = sum(c["estimated_cost"] for c in relevant_costs)
@@ -244,10 +251,10 @@ class CostOptimizer:
         # Cost by instance type
         by_instance = {}
         for cost in relevant_costs:
-            instance_type = self._running_instances.get(
-                cost["instance_id"], {}
-            ).get("instance_type", "unknown")
-            
+            instance_type = self._running_instances.get(cost["instance_id"], {}).get(
+                "instance_type", "unknown"
+            )
+
             if instance_type not in by_instance:
                 by_instance[instance_type] = {"cost": 0.0, "jobs": 0}
             by_instance[instance_type]["cost"] += cost["actual_cost"]
@@ -262,63 +269,75 @@ class CostOptimizer:
             "total_estimated_cost": total_estimated,
             "total_actual_cost": total_actual,
             "cost_efficiency": efficiency,
-            "average_cost_per_job": total_actual / total_jobs if total_jobs > 0 else 0.0,
+            "average_cost_per_job": (
+                total_actual / total_jobs if total_jobs > 0 else 0.0
+            ),
             "cost_by_instance_type": by_instance,
-            "budget_utilization": total_actual / (self.budget_usd_per_hour * (end_time - start_time) / 3600),
+            "budget_utilization": total_actual
+            / (self.budget_usd_per_hour * (end_time - start_time) / 3600),
         }
 
-    async def get_right_sizing_recommendations(self) -> List[Dict[str, Any]]:
-        """
-        Get right-sizing recommendations for running instances.
+    async def get_right_sizing_recommendations(self) -> list[dict[str, Any]]:
+        """Get right-sizing recommendations for running instances.
 
         Returns:
             List of recommendations with potential savings.
         """
         recommendations = []
-        
+
         for instance_id, instance in self._running_instances.items():
             if not instance["jobs"]:
                 continue
 
             # Analyze utilization
-            avg_duration = np.mean([
-                self._scheduled_jobs[job_id].estimated_duration_minutes
-                for job_id in instance["jobs"]
-                if job_id in self._scheduled_jobs
-            ]) if instance["jobs"] else 0
+            avg_duration = (
+                np.mean(
+                    [
+                        self._scheduled_jobs[job_id].estimated_duration_minutes
+                        for job_id in instance["jobs"]
+                        if job_id in self._scheduled_jobs
+                    ]
+                )
+                if instance["jobs"]
+                else 0
+            )
 
             # Check if instance is underutilized
             if avg_duration < 30:  # Less than 30 minutes average
-                recommendations.append({
-                    "instance_id": instance_id,
-                    "current_type": instance["instance_type"],
-                    "recommendation": "downsize",
-                    "reason": f"Low average job duration ({avg_duration:.1f} min)",
-                    "potential_savings_percent": 30,
-                })
+                recommendations.append(
+                    {
+                        "instance_id": instance_id,
+                        "current_type": instance["instance_type"],
+                        "recommendation": "downsize",
+                        "reason": f"Low average job duration ({avg_duration:.1f} min)",
+                        "potential_savings_percent": 30,
+                    }
+                )
 
             # Check if spot instance would be suitable
             if instance["cost_per_hour"] > 0 and not instance.get("is_spot", False):
                 spot_savings = instance["cost_per_hour"] * 0.7
-                recommendations.append({
-                    "instance_id": instance_id,
-                    "current_type": instance["instance_type"],
-                    "recommendation": "use_spot",
-                    "reason": "Jobs are fault-tolerant, spot instances would reduce cost",
-                    "potential_savings_percent": 70,
-                    "potential_savings_hourly": spot_savings,
-                })
+                recommendations.append(
+                    {
+                        "instance_id": instance_id,
+                        "current_type": instance["instance_type"],
+                        "recommendation": "use_spot",
+                        "reason": "Jobs are fault-tolerant, spot instances would reduce cost",
+                        "potential_savings_percent": 70,
+                        "potential_savings_hourly": spot_savings,
+                    }
+                )
 
         return recommendations
 
     async def _find_best_instance(
         self,
         job: ScheduledJob,
-    ) -> Optional[Tuple[str, float]]:
+    ) -> tuple[str, float] | None:
         """Find the best instance for a job based on cost and requirements."""
         suitable_instances = []
 
-        for key, pricing in self._pricing.items():
+        for _key, pricing in self._pricing.items():
             if pricing.instance_type == job.resource_spec.gpu_type:
                 # Use spot if job allows preemptible
                 if job.resource_spec.preemptible:
@@ -342,14 +361,17 @@ class CostOptimizer:
         self,
         job: ScheduledJob,
         max_cost: float,
-    ) -> Optional[Tuple[str, float]]:
+    ) -> tuple[str, float] | None:
         """Find a cheaper instance that meets requirements."""
         suitable_instances = []
 
-        for key, pricing in self._pricing.items():
+        for _key, pricing in self._pricing.items():
             if pricing.instance_type == job.resource_spec.gpu_type:
                 # Try preemptible first
-                if job.resource_spec.preemptible and pricing.preemptible_price < max_cost:
+                if (
+                    job.resource_spec.preemptible
+                    and pricing.preemptible_price < max_cost
+                ):
                     instance_id = f"preemptible-{pricing.region}-{pricing.instance_type}-{int(time.time())}"
                     suitable_instances.append((instance_id, pricing.preemptible_price))
                 # Then spot
@@ -366,8 +388,7 @@ class CostOptimizer:
     async def _get_current_hourly_cost(self) -> float:
         """Calculate current hourly cost of all running instances."""
         return sum(
-            instance["cost_per_hour"]
-            for instance in self._running_instances.values()
+            instance["cost_per_hour"] for instance in self._running_instances.values()
         )
 
     async def _terminate_idle_instance(self, instance_id: str) -> None:
@@ -400,7 +421,8 @@ class CostOptimizer:
         async with self._lock:
             # Check for idle instances
             idle_instances = [
-                instance_id for instance_id, instance in self._running_instances.items()
+                instance_id
+                for instance_id, instance in self._running_instances.items()
                 if not instance["jobs"] and (time.time() - instance["start_time"]) > 600
             ]
 
@@ -417,7 +439,7 @@ class CostOptimizer:
                     f"(${current_cost:.2f}/${self.budget_usd_per_hour:.2f})"
                 )
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cost optimizer statistics."""
         return {
             "budget_usd_per_hour": self.budget_usd_per_hour,
@@ -430,15 +452,17 @@ class CostOptimizer:
 
 
 # Global cost optimizer instance
-_global_cost_optimizer: Optional[CostOptimizer] = None
+_global_cost_optimizer: CostOptimizer | None = None
 
 
-def get_cost_optimizer() -> Optional[CostOptimizer]:
+def get_cost_optimizer() -> CostOptimizer | None:
     """Get global cost optimizer instance."""
     return _global_cost_optimizer
 
 
-async def initialize_cost_optimizer(budget_usd_per_hour: float = 100.0) -> CostOptimizer:
+async def initialize_cost_optimizer(
+    budget_usd_per_hour: float = 100.0,
+) -> CostOptimizer:
     """Initialize global cost optimizer."""
     global _global_cost_optimizer
     _global_cost_optimizer = CostOptimizer(budget_usd_per_hour)
@@ -447,29 +471,34 @@ async def initialize_cost_optimizer(budget_usd_per_hour: float = 100.0) -> CostO
 
 
 if __name__ == "__main__":
+
     async def main():
         optimizer = await initialize_cost_optimizer(budget_usd_per_hour=50.0)
 
         # Add pricing
-        optimizer.add_pricing(InstancePricing(
-            instance_type="nvidia-tesla-t4",
-            provider="aws",
-            region="us-east-1",
-            on_demand_price=0.35,
-            spot_price=0.10,
-            preemptible_price=0.07,
-            reserved_price=0.20,
-        ))
+        optimizer.add_pricing(
+            InstancePricing(
+                instance_type="nvidia-tesla-t4",
+                provider="aws",
+                region="us-east-1",
+                on_demand_price=0.35,
+                spot_price=0.10,
+                preemptible_price=0.07,
+                reserved_price=0.20,
+            )
+        )
 
-        optimizer.add_pricing(InstancePricing(
-            instance_type="nvidia-tesla-v100",
-            provider="aws",
-            region="us-east-1",
-            on_demand_price=2.48,
-            spot_price=0.74,
-            preemptible_price=0.50,
-            reserved_price=1.50,
-        ))
+        optimizer.add_pricing(
+            InstancePricing(
+                instance_type="nvidia-tesla-v100",
+                provider="aws",
+                region="us-east-1",
+                on_demand_price=2.48,
+                spot_price=0.74,
+                preemptible_price=0.50,
+                reserved_price=1.50,
+            )
+        )
 
         # Schedule a job
         job = ScheduledJob(

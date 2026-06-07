@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v5.0 - WebSocket Streaming Integration
+"""ComfyUI Async Generation Engine v5.0 - WebSocket Streaming Integration
 WebSocket endpoint for real-time job progress and status updates.
 Integrates with the WebSocketStreamManager and REST API server.
 """
@@ -23,19 +22,18 @@ logger = logging.getLogger(__name__)
 
 
 class WebSocketHandler:
-    """
-    Handles WebSocket connections for the API server.
+    """Handles WebSocket connections for the API server.
     Bridges FastAPI WebSocket with WebSocketStreamManager.
     """
 
-    def __init__(self, stream_manager: Optional[WebSocketStreamManager] = None):
+    def __init__(self, stream_manager: WebSocketStreamManager | None = None):
         self.stream_manager = stream_manager or get_stream_manager()
         self._connection_counter = 0
 
     async def handle_connection(
         self,
         websocket: WebSocket,
-        connection_id: Optional[str] = None,
+        connection_id: str | None = None,
     ) -> None:
         """Handle a WebSocket connection lifecycle."""
         self._connection_counter += 1
@@ -125,7 +123,7 @@ class WebSocketHandler:
     async def _handle_subscribe(
         self,
         connection_id: str,
-        data: Dict[str, Any],
+        data: dict[str, Any],
     ) -> None:
         """Handle subscription request."""
         event_types = data.get("event_types", [])
@@ -155,7 +153,7 @@ class WebSocketHandler:
     async def _handle_unsubscribe(
         self,
         connection_id: str,
-        data: Dict[str, Any],
+        data: dict[str, Any],
     ) -> None:
         """Handle unsubscription request."""
         await self.stream_manager.update_subscription(
@@ -170,7 +168,7 @@ class WebSocketHandler:
         self,
         connection_id: str,
         websocket: WebSocket,
-        data: Dict[str, Any],
+        data: dict[str, Any],
     ) -> None:
         """Handle ping message."""
         pong_event = StreamEvent(
@@ -194,7 +192,7 @@ class WebSocketHandler:
 
 
 # Global handler instance
-_global_ws_handler: Optional[WebSocketHandler] = None
+_global_ws_handler: WebSocketHandler | None = None
 
 
 def get_ws_handler() -> WebSocketHandler:
@@ -206,7 +204,7 @@ def get_ws_handler() -> WebSocketHandler:
 
 
 async def initialize_ws_handler(
-    stream_manager: Optional[WebSocketStreamManager] = None,
+    stream_manager: WebSocketStreamManager | None = None,
 ) -> WebSocketHandler:
     """Initialize global WebSocket handler."""
     global _global_ws_handler

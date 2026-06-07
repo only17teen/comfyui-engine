@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v6.0 - Multi-Region Deployment Manager
+"""ComfyUI Async Generation Engine v6.0 - Multi-Region Deployment Manager
 Cross-region replication, failover, and global load balancing.
 """
 
@@ -17,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 class RegionStatus(Enum):
+    """Region health status enumeration."""
+
     HEALTHY = auto()
     DEGRADED = auto()
     UNAVAILABLE = auto()
@@ -24,31 +25,35 @@ class RegionStatus(Enum):
 
 
 class ReplicationStrategy(Enum):
-    SYNC = auto()      # Synchronous replication
-    ASYNC = auto()     # Asynchronous replication
+    """Data replication strategy enumeration."""
+
+    SYNC = auto()  # Synchronous replication
+    ASYNC = auto()  # Asynchronous replication
     EVENTUAL = auto()  # Eventual consistency
 
 
 @dataclass
 class RegionConfig:
     """Configuration for a deployment region."""
-    name: str                          # Region identifier (e.g., us-east-1)
-    provider: str                      # Cloud provider (aws, gcp, azure)
-    endpoint: str                      # API endpoint URL
-    weight: float = 1.0                # Load balancing weight
-    priority: int = 1                  # Failover priority (lower = primary)
+
+    name: str  # Region identifier (e.g., us-east-1)
+    provider: str  # Cloud provider (aws, gcp, azure)
+    endpoint: str  # API endpoint URL
+    weight: float = 1.0  # Load balancing weight
+    priority: int = 1  # Failover priority (lower = primary)
     health_check_interval: float = 30.0
     health_check_timeout: float = 10.0
     replication_strategy: ReplicationStrategy = ReplicationStrategy.ASYNC
     is_active: bool = True
-    max_capacity: int = 100            # Max concurrent jobs
-    gpu_types: List[str] = field(default_factory=lambda: ["nvidia-tesla-t4"])
-    cost_per_hour: float = 0.0         # Cost per GPU hour
+    max_capacity: int = 100  # Max concurrent jobs
+    gpu_types: list[str] = field(default_factory=lambda: ["nvidia-tesla-t4"])
+    cost_per_hour: float = 0.0  # Cost per GPU hour
 
 
 @dataclass
 class RegionHealth:
     """Health status for a region."""
+
     region_name: str
     status: RegionStatus
     last_check: float
@@ -64,17 +69,17 @@ class RegionHealth:
 @dataclass
 class ReplicationRule:
     """Data replication rule between regions."""
+
     source_region: str
     target_region: str
-    data_types: List[str]            # jobs, models, sessions, configs
+    data_types: list[str]  # jobs, models, sessions, configs
     strategy: ReplicationStrategy
     sync_interval_seconds: float = 60.0
     conflict_resolution: str = "last_write_wins"  # last_write_wins, source_wins, merge
 
 
 class MultiRegionManager:
-    """
-    Manages multi-region deployment with cross-region replication and failover.
+    """Manages multi-region deployment with cross-region replication and failover.
 
     Features:
     - Health monitoring across regions
@@ -85,22 +90,20 @@ class MultiRegionManager:
     - Cost optimization across regions
     """
 
-    def __init__(self, regions: List[RegionConfig]):
+    def __init__(self, regions: list[RegionConfig]):
         self.regions = {r.name: r for r in regions}
-        self._health: Dict[str, RegionHealth] = {}
-        self._replication_rules: List[ReplicationRule] = []
+        self._health: dict[str, RegionHealth] = {}
+        self._replication_rules: list[ReplicationRule] = []
         self._running = False
-        self._health_check_task: Optional[asyncio.Task] = None
-        self._replication_task: Optional[asyncio.Task] = None
+        self._health_check_task: asyncio.Task | None = None
+        self._replication_task: asyncio.Task | None = None
         self._lock = asyncio.Lock()
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._session: aiohttp.ClientSession | None = None
 
     async def start(self) -> None:
         """Start multi-region management."""
         self._running = True
-        self._session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=30)
-        )
+        self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
         self._health_check_task = asyncio.create_task(self._health_check_loop())
         self._replication_task = asyncio.create_task(self._replication_loop())
         logger.info(f"Multi-region manager started with {len(self.regions)} regions")
@@ -136,9 +139,10 @@ class MultiRegionManager:
             f"({rule.strategy.name})"
         )
 
-    async def get_best_region(self, job_requirements: Optional[Dict[str, Any]] = None) -> Optional[str]:
-        """
-        Get the best region for job execution based on health, capacity, and cost.
+    async def get_best_region(
+        self, job_requirements: dict[str, Any] | None = None
+    ) -> str | None:
+        """Get the best region for job execution based on health, capacity, and cost.
 
         Args:
             job_requirements: Optional job requirements (gpu_type, priority, etc.)
@@ -184,9 +188,8 @@ class MultiRegionManager:
             healthy_regions.sort(key=lambda x: (x[2], -x[1]))
             return healthy_regions[0][0]
 
-    async def route_job(self, job_data: Dict[str, Any]) -> Tuple[Optional[str], bool]:
-        """
-        Route a job to the best available region.
+    async def route_job(self, job_data: dict[str, Any]) -> tuple[str | None, bool]:
+        """Route a job to the best available region.
 
         Returns:
             Tuple of (region_name, success).
@@ -202,11 +205,10 @@ class MultiRegionManager:
     async def replicate_data(
         self,
         data_type: str,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         source_region: str,
     ) -> int:
-        """
-        Replicate data to target regions based on replication rules.
+        """Replicate data to target regions based on replication rules.
 
         Returns:
             Number of successful replications.
@@ -223,15 +225,17 @@ class MultiRegionManager:
                 await self._replicate_to_region(rule, data)
                 success_count += 1
             except Exception as e:
-                logger.error(f"Replication failed {source_region} -> {rule.target_region}: {e}")
+                logger.error(
+                    f"Replication failed {source_region} -> {rule.target_region}: {e}"
+                )
 
         return success_count
 
-    async def get_region_health(self, region_name: str) -> Optional[RegionHealth]:
+    async def get_region_health(self, region_name: str) -> RegionHealth | None:
         """Get health status for a specific region."""
         return self._health.get(region_name)
 
-    async def get_all_health(self) -> Dict[str, RegionHealth]:
+    async def get_all_health(self) -> dict[str, RegionHealth]:
         """Get health status for all regions."""
         return dict(self._health)
 
@@ -357,7 +361,9 @@ class MultiRegionManager:
         # For now, this is a placeholder for the replication logic
         pass
 
-    async def _replicate_to_region(self, rule: ReplicationRule, data: Dict[str, Any]) -> None:
+    async def _replicate_to_region(
+        self, rule: ReplicationRule, data: dict[str, Any]
+    ) -> None:
         """Replicate data to a target region."""
         target_config = self.regions.get(rule.target_region)
         if not target_config:
@@ -379,7 +385,7 @@ class MultiRegionManager:
             if response.status >= 400:
                 raise RuntimeError(f"Replication failed: {response.status}")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get multi-region manager statistics."""
         return {
             "total_regions": len(self.regions),
@@ -399,15 +405,17 @@ class MultiRegionManager:
 
 
 # Global multi-region manager instance
-_global_multi_region_manager: Optional[MultiRegionManager] = None
+_global_multi_region_manager: MultiRegionManager | None = None
 
 
-def get_multi_region_manager() -> Optional[MultiRegionManager]:
+def get_multi_region_manager() -> MultiRegionManager | None:
     """Get or create global multi-region manager."""
     return _global_multi_region_manager
 
 
-async def initialize_multi_region_manager(regions: List[RegionConfig]) -> MultiRegionManager:
+async def initialize_multi_region_manager(
+    regions: list[RegionConfig],
+) -> MultiRegionManager:
     """Initialize global multi-region manager."""
     global _global_multi_region_manager
     _global_multi_region_manager = MultiRegionManager(regions)
@@ -416,6 +424,7 @@ async def initialize_multi_region_manager(regions: List[RegionConfig]) -> MultiR
 
 
 if __name__ == "__main__":
+
     async def main():
         # Example configuration
         regions = [
@@ -451,12 +460,14 @@ if __name__ == "__main__":
         manager = await initialize_multi_region_manager(regions)
 
         # Add replication rules
-        manager.add_replication_rule(ReplicationRule(
-            source_region="us-east-1",
-            target_region="us-west-2",
-            data_types=["jobs", "sessions"],
-            strategy=ReplicationStrategy.ASYNC,
-        ))
+        manager.add_replication_rule(
+            ReplicationRule(
+                source_region="us-east-1",
+                target_region="us-west-2",
+                data_types=["jobs", "sessions"],
+                strategy=ReplicationStrategy.ASYNC,
+            )
+        )
 
         # Wait for health checks
         await asyncio.sleep(2)

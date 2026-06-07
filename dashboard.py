@@ -475,52 +475,52 @@ class JobInfo:
     status: str  # pending, running, completed, failed
     prompt: str = ""
     progress: float = 0.0
-    start_time: Optional[float] = None
+    start_time: float | None = None
     elapsed: float = 0.0
 
 
 class DashboardServer:
     """FastAPI-based dashboard server with WebSocket support."""
-    
+
     def __init__(
         self,
         host: str = "0.0.0.0",
         port: int = 8080,
-        engine_client: Optional[Any] = None,
-        metrics_endpoint: Optional[str] = None,
+        engine_client: Any | None = None,
+        metrics_endpoint: str | None = None,
     ):
         self.host = host
         self.port = port
         self.engine_client = engine_client
         self.metrics_endpoint = metrics_endpoint
-        
+
         self.app = FastAPI(title="ComfyUI Engine Dashboard")
-        self.connected_clients: Set[WebSocket] = set()
-        self._metrics_history: List[DashboardMetrics] = []
-        self._queue_history: List[JobInfo] = []
-        self._log_buffer: List[Dict[str, Any]] = []
+        self.connected_clients: set[WebSocket] = set()
+        self._metrics_history: list[DashboardMetrics] = []
+        self._queue_history: list[JobInfo] = []
+        self._log_buffer: list[dict[str, Any]] = []
         self._shutdown_event = asyncio.Event()
-        self._broadcast_task: Optional[asyncio.Task] = None
-        
+        self._broadcast_task: asyncio.Task | None = None
+
         self._setup_routes()
-    
+
     def _setup_routes(self) -> None:
         """Configure FastAPI routes."""
-        
+
         @self.app.get("/", response_class=HTMLResponse)
         async def dashboard():
             return DASHBOARD_HTML
-        
+
         @self.app.get("/api/metrics")
         async def get_metrics():
             metrics = await self._fetch_current_metrics()
             return JSONResponse(content=asdict(metrics))
-        
+
         @self.app.get("/api/queue")
         async def get_queue():
             queue = await self._fetch_queue()
             return JSONResponse(content=[asdict(j) for j in queue])
-        
+
         @self.app.get("/api/history")
         async def get_history(minutes: int = 60):
             cutoff = time.time() - minutes * 60
@@ -530,25 +530,25 @@ class DashboardServer:
                 "errors": [100 - h.success_rate for h in history],
                 "timestamps": [h.timestamp for h in history],
             })
-        
+
         @self.app.get("/api/logs")
         async def get_logs(level: str = "INFO", limit: int = 100):
             filtered = [l for l in self._log_buffer if l.get("level") == level]
             return JSONResponse(content=filtered[-limit:])
-        
+
         @self.app.post("/api/control/{action}")
         async def control(action: str):
             result = await self._handle_control(action)
             return JSONResponse(content={"success": result, "action": action})
-        
+
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
             self.connected_clients.add(websocket)
-            
+
             # Send initial state
             await self._send_initial_state(websocket)
-            
+
             try:
                 while not self._shutdown_event.is_set():
                     try:
@@ -566,11 +566,11 @@ class DashboardServer:
                 logger.debug(f"WebSocket error: {e}")
             finally:
                 self.connected_clients.discard(websocket)
-    
+
     async def _fetch_current_metrics(self) -> DashboardMetrics:
         """Fetch current metrics from engine or metrics endpoint."""
         metrics = DashboardMetrics()
-        
+
         if self.engine_client and hasattr(self.engine_client, 'get_metrics'):
             try:
                 engine_metrics = await self.engine_client.get_metrics()
@@ -581,22 +581,22 @@ class DashboardServer:
                 metrics.success_rate = engine_metrics.get('success_rate', 100.0)
             except Exception as e:
                 logger.warning(f"Failed to fetch engine metrics: {e}")
-        
+
         # Try to get GPU metrics
         try:
             metrics.gpu_utilization = await self._get_gpu_utilization()
         except Exception:
             pass
-        
+
         metrics.timestamp = time.time()
         self._metrics_history.append(metrics)
-        
+
         # Trim history
         cutoff = time.time() - 24 * 3600
         self._metrics_history = [m for m in self._metrics_history if m.timestamp > cutoff]
-        
+
         return metrics
-    
+
     async def _get_gpu_utilization(self) -> float:
         """Get GPU utilization via nvidia-smi or similar."""
         try:
@@ -612,8 +612,8 @@ class DashboardServer:
         except Exception:
             pass
         return 0.0
-    
-    async def _fetch_queue(self) -> List[JobInfo]:
+
+    async def _fetch_queue(self) -> list[JobInfo]:
         """Fetch current job queue."""
         if self.engine_client and hasattr(self.engine_client, 'get_queue'):
             try:
@@ -629,14 +629,14 @@ class DashboardServer:
                 ]
             except Exception as e:
                 logger.warning(f"Failed to fetch queue: {e}")
-        
+
         return []
-    
+
     async def _handle_control(self, action: str) -> bool:
         """Handle control actions from dashboard."""
         if not self.engine_client:
             return False
-        
+
         try:
             if action == "pause":
                 if hasattr(self.engine_client, 'pause'):
@@ -651,17 +651,17 @@ class DashboardServer:
                 pass  # Just triggers refresh
             else:
                 return False
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(f"Control action failed: {e}")
             return False
-    
-    async def _handle_websocket_message(self, websocket: WebSocket, data: Dict[str, Any]) -> None:
+
+    async def _handle_websocket_message(self, websocket: WebSocket, data: dict[str, Any]) -> None:
         """Handle incoming WebSocket messages."""
         msg_type = data.get("type")
-        
+
         if msg_type == "command":
             action = data.get("action")
             success = await self._handle_control(action)
@@ -670,15 +670,15 @@ class DashboardServer:
                 "action": action,
                 "success": success,
             })
-        
+
         elif msg_type == "pong":
             pass  # Heartbeat response
-    
+
     async def _send_initial_state(self, websocket: WebSocket) -> None:
         """Send initial state to newly connected client."""
         metrics = await self._fetch_current_metrics()
         queue = await self._fetch_queue()
-        
+
         await websocket.send_json({
             "type": "metrics",
             "payload": asdict(metrics),
@@ -687,7 +687,7 @@ class DashboardServer:
             "type": "queue",
             "payload": [asdict(j) for j in queue],
         })
-    
+
     async def _broadcast_metrics(self) -> None:
         """Background task to broadcast metrics to all connected clients."""
         while not self._shutdown_event.is_set():
@@ -700,10 +700,10 @@ class DashboardServer:
             except asyncio.TimeoutError:
                 if not self.connected_clients:
                     continue
-                
+
                 metrics = await self._fetch_current_metrics()
                 queue = await self._fetch_queue()
-                
+
                 message = {
                     "type": "metrics",
                     "payload": asdict(metrics),
@@ -712,7 +712,7 @@ class DashboardServer:
                     "type": "queue",
                     "payload": [asdict(j) for j in queue],
                 }
-                
+
                 # Send to all connected clients
                 disconnected = set()
                 for ws in self.connected_clients:
@@ -721,9 +721,9 @@ class DashboardServer:
                         await ws.send_json(queue_message)
                     except Exception:
                         disconnected.add(ws)
-                
+
                 self.connected_clients -= disconnected
-    
+
     def log(self, level: str, message: str) -> None:
         """Add a log entry to be broadcast to dashboard clients."""
         entry = {
@@ -732,37 +732,37 @@ class DashboardServer:
             "message": message,
         }
         self._log_buffer.append(entry)
-        
+
         # Trim buffer
         if len(self._log_buffer) > 10000:
             self._log_buffer = self._log_buffer[-5000:]
-        
+
         # Broadcast to connected clients
         if self.connected_clients:
             asyncio.create_task(self._broadcast_log(entry))
-    
-    async def _broadcast_log(self, entry: Dict[str, Any]) -> None:
+
+    async def _broadcast_log(self, entry: dict[str, Any]) -> None:
         """Broadcast log entry to all clients."""
         message = {
             "type": "log",
             "payload": entry,
         }
-        
+
         disconnected = set()
         for ws in self.connected_clients:
             try:
                 await ws.send_json(message)
             except Exception:
                 disconnected.add(ws)
-        
+
         self.connected_clients -= disconnected
-    
+
     async def start(self) -> None:
         """Start the dashboard server."""
         import uvicorn
-        
+
         self._broadcast_task = asyncio.create_task(self._broadcast_metrics())
-        
+
         config = uvicorn.Config(
             self.app,
             host=self.host,
@@ -770,28 +770,28 @@ class DashboardServer:
             log_level="warning",
         )
         server = uvicorn.Server(config)
-        
+
         logger.info(f"Dashboard server starting on http://{self.host}:{self.port}")
         await server.serve()
-    
+
     async def shutdown(self) -> None:
         """Gracefully shutdown the dashboard server."""
         self._shutdown_event.set()
-        
+
         if self._broadcast_task:
             self._broadcast_task.cancel()
             try:
                 await self._broadcast_task
             except asyncio.CancelledError:
                 pass
-        
+
         # Close all WebSocket connections
         for ws in list(self.connected_clients):
             try:
                 await ws.close()
             except Exception:
                 pass
-        
+
         self.connected_clients.clear()
         logger.info("Dashboard server shutdown complete")
 
@@ -799,18 +799,18 @@ class DashboardServer:
 # Integration with main engine
 class EngineDashboardBridge:
     """Bridge between the engine and dashboard for seamless integration."""
-    
+
     def __init__(self, engine: Any, dashboard: DashboardServer):
         self.engine = engine
         self.dashboard = dashboard
         self._running = False
-        self._monitor_task: Optional[asyncio.Task] = None
-    
+        self._monitor_task: asyncio.Task | None = None
+
     async def start(self) -> None:
         """Start monitoring and forwarding to dashboard."""
         self._running = True
         self._monitor_task = asyncio.create_task(self._monitor_loop())
-    
+
     async def _monitor_loop(self) -> None:
         """Monitor engine and forward logs/metrics to dashboard."""
         while self._running:
@@ -820,15 +820,15 @@ class EngineDashboardBridge:
                     logs = await self.engine.get_recent_logs()
                     for log in logs:
                         self.dashboard.log(log.get('level', 'INFO'), log.get('message', ''))
-                
+
                 await asyncio.sleep(1)
-                
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.error(f"Monitor loop error: {e}")
                 await asyncio.sleep(5)
-    
+
     async def shutdown(self) -> None:
         """Stop the bridge."""
         self._running = False
@@ -841,17 +841,17 @@ class EngineDashboardBridge:
 
 
 async def create_dashboard(
-    engine: Optional[Any] = None,
+    engine: Any | None = None,
     host: str = "0.0.0.0",
     port: int = 8080,
 ) -> DashboardServer:
     """Factory function to create and start a dashboard server."""
     dashboard = DashboardServer(host=host, port=port, engine_client=engine)
-    
+
     if engine:
         bridge = EngineDashboardBridge(engine, dashboard)
         await bridge.start()
-    
+
     return dashboard
 
 

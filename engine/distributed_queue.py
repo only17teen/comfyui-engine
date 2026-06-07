@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - Distributed Queue
+"""ComfyUI Async Generation Engine v2.0 - Distributed Queue
 Redis-backed queue for multi-GPU scaling across multiple engine instances.
 """
 
@@ -17,40 +16,43 @@ logger = logging.getLogger(__name__)
 # Try to import redis, provide fallback if not available
 try:
     import redis.asyncio as aioredis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    logger.warning("redis not installed, distributed queue unavailable. "
-                   "Install: pip install redis")
+    logger.warning(
+        "redis not installed, distributed queue unavailable. "
+        "Install: pip install redis"
+    )
 
 
 @dataclass
 class DistributedJob:
     """Job representation for distributed queue."""
+
     job_id: str
-    payload: Dict[str, Any]
-    config_meta: Dict[str, Any]
+    payload: dict[str, Any]
+    config_meta: dict[str, Any]
     priority: int = 2
     created_at: float = field(default_factory=time.time)
-    worker_id: Optional[str] = None
-    started_at: Optional[float] = None
-    completed_at: Optional[float] = None
+    worker_id: str | None = None
+    started_at: float | None = None
+    completed_at: float | None = None
     status: str = "pending"  # pending | claimed | running | completed | failed
-    result: Optional[Dict] = None
-    error: Optional[str] = None
+    result: dict | None = None
+    error: str | None = None
     retry_count: int = 0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "DistributedJob":
+    def from_dict(cls, data: dict) -> "DistributedJob":
         return cls(**data)
 
 
 class RedisQueue:
-    """
-    Redis-backed distributed queue for multi-GPU scaling.
+    """Redis-backed distributed queue for multi-GPU scaling.
 
     Features:
     - Priority queue with Redis sorted sets
@@ -64,7 +66,7 @@ class RedisQueue:
         self,
         redis_url: str = "redis://localhost:6379/0",
         queue_name: str = "comfyui:jobs",
-        worker_id: Optional[str] = None,
+        worker_id: str | None = None,
         claim_timeout: float = 300.0,  # Job claimed but not completed
         max_retries: int = 3,
     ):
@@ -77,12 +79,12 @@ class RedisQueue:
         self.claim_timeout = claim_timeout
         self.max_retries = max_retries
 
-        self._redis: Optional[aioredis.Redis] = None
-        self._pubsub: Optional[aioredis.client.PubSub] = None
-        self._listener_task: Optional[asyncio.Task] = None
+        self._redis: aioredis.Redis | None = None
+        self._pubsub: aioredis.client.PubSub | None = None
+        self._listener_task: asyncio.Task | None = None
         self._shutdown: bool = False
 
-        self._handlers: Dict[str, List[Callable]] = {}
+        self._handlers: dict[str, list[Callable]] = {}
 
         self.logger = logging.getLogger(f"{__name__}.RedisQueue")
 
@@ -115,12 +117,11 @@ class RedisQueue:
 
     async def enqueue(
         self,
-        payload: Dict[str, Any],
-        config_meta: Dict[str, Any],
+        payload: dict[str, Any],
+        config_meta: dict[str, Any],
         priority: int = 2,
     ) -> str:
-        """
-        Add job to distributed queue.
+        """Add job to distributed queue.
 
         Returns:
             job_id: Unique job identifier.
@@ -155,9 +156,8 @@ class RedisQueue:
         self.logger.debug(f"Enqueued job: {job.job_id}")
         return job.job_id
 
-    async def claim_job(self) -> Optional[DistributedJob]:
-        """
-        Claim next available job from queue.
+    async def claim_job(self) -> DistributedJob | None:
+        """Claim next available job from queue.
 
         Returns:
             DistributedJob or None if queue empty.
@@ -212,8 +212,8 @@ class RedisQueue:
     async def complete_job(
         self,
         job_id: str,
-        result: Optional[Dict] = None,
-        error: Optional[str] = None,
+        result: dict | None = None,
+        error: str | None = None,
     ) -> None:
         """Mark job as completed or failed."""
         job_data = await self._redis.hget(f"{self.queue_name}:jobs", job_id)
@@ -263,15 +263,17 @@ class RedisQueue:
         # Publish completion
         await self._redis.publish(
             f"{self.queue_name}:notifications",
-            json.dumps({
-                "type": "job_completed",
-                "job_id": job_id,
-                "status": job.status,
-                "worker_id": self.worker_id,
-            }),
+            json.dumps(
+                {
+                    "type": "job_completed",
+                    "job_id": job_id,
+                    "status": job.status,
+                    "worker_id": self.worker_id,
+                }
+            ),
         )
 
-    async def get_queue_depth(self) -> Dict[str, int]:
+    async def get_queue_depth(self) -> dict[str, int]:
         """Get queue statistics."""
         pending = await self._redis.zcard(f"{self.queue_name}:pending")
         claimed = await self._redis.zcard(f"{self.queue_name}:claimed")
@@ -284,7 +286,7 @@ class RedisQueue:
             "total": pending + claimed + dead,
         }
 
-    async def get_job_status(self, job_id: str) -> Optional[Dict]:
+    async def get_job_status(self, job_id: str) -> dict | None:
         """Get job status."""
         job_data = await self._redis.hget(f"{self.queue_name}:jobs", job_id)
         if job_data:
@@ -328,6 +330,7 @@ class RedisQueue:
 
     async def start_cleanup_task(self, interval: float = 60.0) -> None:
         """Start background task to clean up stale claims."""
+
         async def _cleanup_loop():
             while not self._shutdown:
                 await self.cleanup_stale_claims()
@@ -353,7 +356,7 @@ class RedisQueue:
 
         self._listener_task = asyncio.create_task(_listen())
 
-    async def _dispatch_event(self, event_type: str, data: Dict) -> None:
+    async def _dispatch_event(self, event_type: str, data: dict) -> None:
         """Dispatch to registered handlers."""
         handlers = self._handlers.get(event_type, [])
         for handler in handlers:
@@ -385,8 +388,7 @@ class RedisQueue:
 
 
 class DistributedWorker:
-    """
-    Worker that processes jobs from distributed queue.
+    """Worker that processes jobs from distributed queue.
 
     Usage:
         worker = DistributedWorker(redis_url="redis://localhost:6379")
@@ -408,7 +410,7 @@ class DistributedWorker:
         self.poll_interval = poll_interval
         self.max_concurrent = max_concurrent
         self._shutdown = False
-        self._processing_func: Optional[Callable] = None
+        self._processing_func: Callable | None = None
 
     async def connect(self) -> None:
         await self.queue.connect()

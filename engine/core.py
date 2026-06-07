@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - Core Infrastructure
+"""ComfyUI Async Generation Engine v2.0 - Core Infrastructure
 Fundamental improvements: structured logging, metrics, circuit breaker, retry logic.
 Optimized for Arch Linux / Python 3.11+
 """
@@ -76,6 +75,7 @@ def setup_logging(
 @dataclass
 class MetricsSnapshot:
     """Point-in-time metrics snapshot."""
+
     timestamp: float
     jobs_submitted: int = 0
     jobs_completed: int = 0
@@ -93,16 +93,15 @@ class MetricsSnapshot:
 
 
 class MetricsCollector:
-    """
-    Thread-safe (asyncio-safe) metrics collector.
+    """Thread-safe (asyncio-safe) metrics collector.
     Tracks counters, histograms, and gauges for observability.
     """
 
     def __init__(self, window_size: int = 1000):
         self._lock = asyncio.Lock()
-        self._counters: Dict[str, int] = {}
-        self._gauges: Dict[str, float] = {}
-        self._histograms: Dict[str, deque] = {}
+        self._counters: dict[str, int] = {}
+        self._gauges: dict[str, float] = {}
+        self._histograms: dict[str, deque] = {}
         self._window_size = window_size
         self._start_time = time.time()
 
@@ -143,7 +142,7 @@ class MetricsCollector:
                 active_workers=self._gauges.get("active_workers", 0),
             )
 
-    async def report(self) -> Dict[str, Any]:
+    async def report(self) -> dict[str, Any]:
         """Generate a full metrics report with histogram percentiles."""
         async with self._lock:
             report = {
@@ -173,13 +172,17 @@ class MetricsCollector:
 # Circuit Breaker Pattern
 # ───────────────────────────────────────────────────────────────
 class CircuitState(Enum):
-    CLOSED = auto()      # Normal operation
-    OPEN = auto()        # Failing, reject requests
-    HALF_OPEN = auto()   # Testing if service recovered
+    """Circuit breaker state enumeration."""
+
+    CLOSED = auto()  # Normal operation
+    OPEN = auto()  # Failing, reject requests
+    HALF_OPEN = auto()  # Testing if service recovered
 
 
 @dataclass
 class CircuitBreakerConfig:
+    """Configuration for circuit breaker behavior."""
+
     failure_threshold: int = 5
     recovery_timeout: float = 30.0
     half_open_max_calls: int = 3
@@ -187,12 +190,13 @@ class CircuitBreakerConfig:
 
 
 class CircuitBreaker:
-    """
-    Circuit breaker for ComfyUI API resilience.
+    """Circuit breaker for ComfyUI API resilience.
     Prevents cascading failures when GPU server is overloaded or down.
     """
 
-    def __init__(self, name: str, config: CircuitBreakerConfig, metrics: MetricsCollector):
+    def __init__(
+        self, name: str, config: CircuitBreakerConfig, metrics: MetricsCollector
+    ):
         self.name = name
         self.config = config
         self.metrics = metrics
@@ -200,7 +204,7 @@ class CircuitBreaker:
         self._failures = 0
         self._successes = 0
         self._half_open_calls = 0
-        self._last_failure_time: Optional[float] = None
+        self._last_failure_time: float | None = None
         self._lock = asyncio.Lock()
 
     async def call(self, coro_factory: Callable[[], Any], *args, **kwargs) -> Any:
@@ -278,6 +282,7 @@ class CircuitBreaker:
 
 class CircuitBreakerOpenError(Exception):
     """Raised when circuit breaker is open."""
+
     pass
 
 
@@ -289,6 +294,8 @@ T = TypeVar("T")
 
 @dataclass
 class RetryConfig:
+    """Configuration for retry behavior with exponential backoff."""
+
     max_retries: int = 3
     base_delay: float = 1.0
     max_delay: float = 60.0
@@ -303,14 +310,14 @@ async def with_retry(
     *args,
     **kwargs,
 ) -> Any:
-    """
-    Execute coroutine with exponential backoff retry.
+    """Execute coroutine with exponential backoff retry.
 
     Args:
         coro: Async callable to execute.
         config: Retry configuration.
         metrics: Metrics collector for retry tracking.
-        *args, **kwargs: Arguments for coro.
+        *args: Positional arguments for coro.
+        **kwargs: Keyword arguments for coro.
 
     Returns:
         Result of coro execution.
@@ -318,7 +325,7 @@ async def with_retry(
     Raises:
         Last exception after all retries exhausted.
     """
-    last_exception: Optional[Exception] = None
+    last_exception: Exception | None = None
 
     for attempt in range(config.max_retries + 1):
         try:
@@ -329,7 +336,7 @@ async def with_retry(
                 break
 
             delay = min(
-                config.base_delay * (config.exponential_base ** attempt),
+                config.base_delay * (config.exponential_base**attempt),
                 config.max_delay,
             )
             jitter = delay * 0.1 * (2 * (time.time() % 1) - 1)  # ±10% jitter
@@ -350,42 +357,41 @@ async def with_retry(
 @dataclass(order=True)
 class PrioritizedJob:
     """Queue item with priority (lower = higher priority)."""
+
     priority: int
     created_at: float = field(compare=True)
     job_id: str = field(compare=False)
-    payload: Dict = field(compare=False)
-    meta: Dict = field(compare=False)
+    payload: dict = field(compare=False)
+    meta: dict = field(compare=False)
     future: asyncio.Future = field(compare=False)
 
 
 class JobQueue:
-    """
-    Async priority queue with backpressure and rate limiting.
+    """Async priority queue with backpressure and rate limiting.
     Supports priority levels: CRITICAL(0), HIGH(1), NORMAL(2), LOW(3).
     """
 
     def __init__(
         self,
         max_size: int = 100,
-        rate_limit: Optional[float] = None,  # jobs per second
-        metrics: Optional[MetricsCollector] = None,
+        rate_limit: float | None = None,  # jobs per second
+        metrics: MetricsCollector | None = None,
     ):
         self._queue: asyncio.PriorityQueue = asyncio.PriorityQueue(maxsize=max_size)
         self.max_size = max_size
         self.rate_limit = rate_limit
         self.metrics = metrics
-        self._last_dequeue_time: Optional[float] = None
+        self._last_dequeue_time: float | None = None
         self._lock = asyncio.Lock()
 
     async def enqueue(
         self,
-        payload: Dict,
-        meta: Dict,
+        payload: dict,
+        meta: dict,
         priority: int = 2,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
     ) -> asyncio.Future:
-        """
-        Add job to queue. Blocks if queue is full (backpressure).
+        """Add job to queue. Blocks if queue is full (backpressure).
 
         Args:
             payload: ComfyUI workflow payload.
@@ -442,6 +448,7 @@ class JobQueue:
 
 class QueueFullError(Exception):
     """Raised when job queue is at capacity."""
+
     pass
 
 
@@ -451,18 +458,21 @@ class QueueFullError(Exception):
 @dataclass
 class SessionState:
     """Persistent session state for resumable operations."""
+
     session_id: str
     started_at: float
-    completed_jobs: List[str] = field(default_factory=list)
-    failed_jobs: List[str] = field(default_factory=list)
-    pending_jobs: List[str] = field(default_factory=list)
+    completed_jobs: list[str] = field(default_factory=list)
+    failed_jobs: list[str] = field(default_factory=list)
+    pending_jobs: list[str] = field(default_factory=list)
     total_images: int = 0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
     def save(self, path: Path) -> None:
-        path.write_text(json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8")
+        path.write_text(
+            json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8"
+        )
 
     @classmethod
     def load(cls, path: Path) -> "SessionState":

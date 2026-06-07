@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - Workflow Validator
+"""ComfyUI Async Generation Engine v2.0 - Workflow Validator
 JSON schema validation and automatic node ID mapping for ComfyUI workflows.
 """
 
@@ -10,12 +9,12 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-
 logger = logging.getLogger(__name__)
 
 
 class NodeType(Enum):
     """Known ComfyUI node types."""
+
     KSAMPLER = "KSampler"
     KSAMPLER_ADVANCED = "KSamplerAdvanced"
     EMPTY_LATENT = "EmptyLatentImage"
@@ -42,28 +41,29 @@ class NodeType(Enum):
 @dataclass
 class NodeInfo:
     """Information about a workflow node."""
+
     node_id: str
     class_type: str
-    inputs: Dict[str, Any] = field(default_factory=dict)
-    outputs: List[str] = field(default_factory=list)
-    connections: List[str] = field(default_factory=list)
+    inputs: dict[str, Any] = field(default_factory=dict)
+    outputs: list[str] = field(default_factory=list)
+    connections: list[str] = field(default_factory=list)
     node_type: NodeType = NodeType.UNKNOWN
 
 
 @dataclass
 class ValidationResult:
     """Workflow validation result."""
+
     is_valid: bool
-    errors: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
-    nodes: Dict[str, NodeInfo] = field(default_factory=dict)
-    required_nodes: Dict[str, Optional[str]] = field(default_factory=dict)
-    suggested_mappings: Dict[str, str] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    nodes: dict[str, NodeInfo] = field(default_factory=dict)
+    required_nodes: dict[str, str | None] = field(default_factory=dict)
+    suggested_mappings: dict[str, str] = field(default_factory=dict)
 
 
 class WorkflowValidator:
-    """
-    Validates ComfyUI workflow JSON and provides automatic node mapping.
+    """Validates ComfyUI workflow JSON and provides automatic node mapping.
 
     Features:
     - Schema validation (required nodes, connections)
@@ -127,21 +127,20 @@ class WorkflowValidator:
         """Detect node type from class_type string."""
         return self.NODE_TYPE_MAP.get(class_type, NodeType.UNKNOWN)
 
-    def _extract_connections(self, node: Dict) -> List[str]:
+    def _extract_connections(self, node: dict) -> list[str]:
         """Extract connected node IDs from inputs."""
         connections = []
         inputs = node.get("inputs", {})
 
-        for key, value in inputs.items():
+        for _key, value in inputs.items():
             if isinstance(value, list) and len(value) == 2:
                 # ComfyUI connections are [node_id, output_index]
                 connections.append(str(value[0]))
 
         return connections
 
-    def validate(self, workflow: Dict) -> ValidationResult:
-        """
-        Validate ComfyUI workflow JSON.
+    def validate(self, workflow: dict) -> ValidationResult:
+        """Validate ComfyUI workflow JSON.
 
         Args:
             workflow: ComfyUI workflow dict (node_id -> node_data).
@@ -163,7 +162,7 @@ class WorkflowValidator:
             return result
 
         # 2. Parse all nodes
-        node_types_found: Set[NodeType] = set()
+        node_types_found: set[NodeType] = set()
 
         for node_id, node_data in workflow.items():
             if not isinstance(node_data, dict):
@@ -196,7 +195,9 @@ class WorkflowValidator:
             result.is_valid = False
 
         # 4. Check for positive/negative prompt nodes
-        clip_nodes = [n for n in result.nodes.values() if n.node_type == NodeType.CLIP_TEXT_ENCODE]
+        clip_nodes = [
+            n for n in result.nodes.values() if n.node_type == NodeType.CLIP_TEXT_ENCODE
+        ]
         if len(clip_nodes) < 2:
             result.warnings.append(
                 f"Found {len(clip_nodes)} CLIPTextEncode nodes, expected 2 (positive + negative)"
@@ -204,7 +205,8 @@ class WorkflowValidator:
 
         # 5. Check for save/preview output
         output_nodes = [
-            n for n in result.nodes.values()
+            n
+            for n in result.nodes.values()
             if n.node_type in (NodeType.SAVE_IMAGE, NodeType.PREVIEW_IMAGE)
         ]
         if not output_nodes:
@@ -223,35 +225,56 @@ class WorkflowValidator:
 
         return result
 
-    def _generate_mappings(self, nodes: Dict[str, NodeInfo]) -> Dict[str, str]:
+    def _generate_mappings(self, nodes: dict[str, NodeInfo]) -> dict[str, str]:
         """Generate automatic node ID mappings."""
         mappings = {}
 
         # Find nodes by type and suggest IDs
-        for purpose, candidate_ids in self.STANDARD_MAPPINGS.items():
+        for purpose, _candidate_ids in self.STANDARD_MAPPINGS.items():
             for node_id, node_info in nodes.items():
-                if purpose == "positive_prompt" and node_info.node_type == NodeType.CLIP_TEXT_ENCODE:
+                if (
+                    purpose == "positive_prompt"
+                    and node_info.node_type == NodeType.CLIP_TEXT_ENCODE
+                ):
                     # Check if connected to positive side of sampler
                     if self._is_positive_clip(node_info, nodes):
                         mappings[purpose] = node_id
                         break
-                elif purpose == "negative_prompt" and node_info.node_type == NodeType.CLIP_TEXT_ENCODE:
+                elif (
+                    purpose == "negative_prompt"
+                    and node_info.node_type == NodeType.CLIP_TEXT_ENCODE
+                ):
                     if self._is_negative_clip(node_info, nodes):
                         mappings[purpose] = node_id
                         break
-                elif purpose == "ksampler" and node_info.node_type in (NodeType.KSAMPLER, NodeType.KSAMPLER_ADVANCED):
+                elif purpose == "ksampler" and node_info.node_type in (
+                    NodeType.KSAMPLER,
+                    NodeType.KSAMPLER_ADVANCED,
+                ):
                     mappings[purpose] = node_id
                     break
-                elif purpose == "checkpoint" and node_info.node_type == NodeType.CHECKPOINT_LOADER:
+                elif (
+                    purpose == "checkpoint"
+                    and node_info.node_type == NodeType.CHECKPOINT_LOADER
+                ):
                     mappings[purpose] = node_id
                     break
-                elif purpose == "empty_latent" and node_info.node_type == NodeType.EMPTY_LATENT:
+                elif (
+                    purpose == "empty_latent"
+                    and node_info.node_type == NodeType.EMPTY_LATENT
+                ):
                     mappings[purpose] = node_id
                     break
-                elif purpose == "vae_decode" and node_info.node_type == NodeType.VAE_DECODE:
+                elif (
+                    purpose == "vae_decode"
+                    and node_info.node_type == NodeType.VAE_DECODE
+                ):
                     mappings[purpose] = node_id
                     break
-                elif purpose == "save_image" and node_info.node_type == NodeType.SAVE_IMAGE:
+                elif (
+                    purpose == "save_image"
+                    and node_info.node_type == NodeType.SAVE_IMAGE
+                ):
                     mappings[purpose] = node_id
                     break
                 elif purpose.startswith("lora_") and "Lora" in node_info.class_type:
@@ -262,7 +285,7 @@ class WorkflowValidator:
 
         return mappings
 
-    def _is_positive_clip(self, node: NodeInfo, all_nodes: Dict[str, NodeInfo]) -> bool:
+    def _is_positive_clip(self, node: NodeInfo, all_nodes: dict[str, NodeInfo]) -> bool:
         """Check if CLIPTextEncode node is connected to positive input."""
         # In standard workflows, positive is often connected first or to specific inputs
         for conn_id in node.connections:
@@ -273,11 +296,14 @@ class WorkflowValidator:
                     inputs = target.inputs
                     if "positive" in inputs:
                         pos_input = inputs["positive"]
-                        if isinstance(pos_input, list) and str(pos_input[0]) == node.node_id:
+                        if (
+                            isinstance(pos_input, list)
+                            and str(pos_input[0]) == node.node_id
+                        ):
                             return True
         return False
 
-    def _is_negative_clip(self, node: NodeInfo, all_nodes: Dict[str, NodeInfo]) -> bool:
+    def _is_negative_clip(self, node: NodeInfo, all_nodes: dict[str, NodeInfo]) -> bool:
         """Check if CLIPTextEncode node is connected to negative input."""
         for conn_id in node.connections:
             if conn_id in all_nodes:
@@ -286,7 +312,10 @@ class WorkflowValidator:
                     inputs = target.inputs
                     if "negative" in inputs:
                         neg_input = inputs["negative"]
-                        if isinstance(neg_input, list) and str(neg_input[0]) == node.node_id:
+                        if (
+                            isinstance(neg_input, list)
+                            and str(neg_input[0]) == node.node_id
+                        ):
                             return True
         return False
 
@@ -295,25 +324,37 @@ class WorkflowValidator:
         # Check for orphaned nodes (no connections)
         for node_id, node_info in result.nodes.items():
             if not node_info.connections and node_info.node_type not in (
-                NodeType.SAVE_IMAGE, NodeType.PREVIEW_IMAGE
+                NodeType.SAVE_IMAGE,
+                NodeType.PREVIEW_IMAGE,
             ):
                 # Some nodes like checkpoint loaders may have no inputs
-                if node_info.node_type not in (NodeType.CHECKPOINT_LOADER, NodeType.CONTROL_NET):
-                    result.warnings.append(f"Node {node_id} ({node_info.class_type}) has no connections")
+                if node_info.node_type not in (
+                    NodeType.CHECKPOINT_LOADER,
+                    NodeType.CONTROL_NET,
+                ):
+                    result.warnings.append(
+                        f"Node {node_id} ({node_info.class_type}) has no connections"
+                    )
 
         # Check for disconnected outputs
-        ksampler_nodes = [n for n in result.nodes.values() if n.node_type in (NodeType.KSAMPLER, NodeType.KSAMPLER_ADVANCED)]
+        ksampler_nodes = [
+            n
+            for n in result.nodes.values()
+            if n.node_type in (NodeType.KSAMPLER, NodeType.KSAMPLER_ADVANCED)
+        ]
         for ksampler in ksampler_nodes:
             # KSampler should output to VAE decode or image save
             has_output = False
-            for node_id, node_info in result.nodes.items():
+            for _node_id, node_info in result.nodes.items():
                 if ksampler.node_id in node_info.connections:
                     has_output = True
                     break
             if not has_output:
-                result.warnings.append(f"KSampler {ksampler.node_id} has no output connections")
+                result.warnings.append(
+                    f"KSampler {ksampler.node_id} has no output connections"
+                )
 
-    def get_node_summary(self, workflow: Dict) -> Dict[str, any]:
+    def get_node_summary(self, workflow: dict) -> dict[str, any]:
         """Get human-readable summary of workflow nodes."""
         result = self.validate(workflow)
 
@@ -330,9 +371,8 @@ class WorkflowValidator:
             "suggested_mappings": result.suggested_mappings,
         }
 
-    def apply_mappings(self, workflow: Dict, mappings: Dict[str, str]) -> Dict:
-        """
-        Apply node mappings to workflow for consistent injection.
+    def apply_mappings(self, workflow: dict, mappings: dict[str, str]) -> dict:
+        """Apply node mappings to workflow for consistent injection.
 
         Args:
             workflow: Original workflow dict.
@@ -360,7 +400,7 @@ class WorkflowValidator:
 
             # Update connections in inputs
             inputs = node_data.get("inputs", {})
-            for key, value in inputs.items():
+            for _key, value in inputs.items():
                 if isinstance(value, list) and len(value) == 2:
                     old_conn_id = str(value[0])
                     if old_conn_id in id_mapping:
@@ -377,7 +417,7 @@ class WorkflowValidator:
             return result
 
         try:
-            with open(p, "r", encoding="utf-8") as f:
+            with open(p, encoding="utf-8") as f:
                 workflow = json.load(f)
             return self.validate(workflow)
         except json.JSONDecodeError as e:

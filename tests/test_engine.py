@@ -165,7 +165,7 @@ class TestCircuitBreaker:
         assert result == "ok"
         # With success_threshold=2, need 2 successes to close
         assert cb.state.name == "HALF_OPEN"
-        
+
         # Second success should close it
         result = await cb.call(success)
         assert result == "ok"

@@ -45,7 +45,7 @@ MOBILE_APP_HTML = """
             --border: #334155;
             --shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
         }
-        
+
         * {
             margin: 0;
             padding: 0;
@@ -53,7 +53,7 @@ MOBILE_APP_HTML = """
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg);
@@ -62,7 +62,7 @@ MOBILE_APP_HTML = """
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
         }
-        
+
         /* Header */
         .app-header {
             position: fixed;
@@ -80,13 +80,13 @@ MOBILE_APP_HTML = """
             justify-content: space-between;
             height: 56px;
         }
-        
+
         .app-header h1 {
             font-size: 1.125rem;
             font-weight: 600;
             letter-spacing: -0.025em;
         }
-        
+
         .connection-status {
             display: flex;
             align-items: center;
@@ -94,7 +94,7 @@ MOBILE_APP_HTML = """
             font-size: 0.75rem;
             color: var(--text-secondary);
         }
-        
+
         .status-dot {
             width: 8px;
             height: 8px;
@@ -102,18 +102,18 @@ MOBILE_APP_HTML = """
             background: var(--danger);
             transition: background 0.3s;
         }
-        
+
         .status-dot.connected {
             background: var(--success);
         }
-        
+
         /* Main content */
         .app-content {
             padding: 72px 1rem 80px;
             max-width: 600px;
             margin: 0 auto;
         }
-        
+
         /* Cards */
         .card {
             background: var(--surface);
@@ -123,14 +123,14 @@ MOBILE_APP_HTML = """
             box-shadow: var(--shadow);
             border: 1px solid var(--border);
         }
-        
+
         .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1rem;
         }
-        
+
         .card-title {
             font-size: 0.875rem;
             font-weight: 600;
@@ -138,7 +138,7 @@ MOBILE_APP_HTML = """
             letter-spacing: 0.05em;
             color: var(--text-secondary);
         }
-        
+
         .card-action {
             background: none;
             border: none;
@@ -147,47 +147,47 @@ MOBILE_APP_HTML = """
             cursor: pointer;
             padding: 0.25rem 0.5rem;
         }
-        
+
         /* Metrics grid */
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 0.75rem;
         }
-        
+
         .metric-card {
             background: var(--surface-elevated);
             border-radius: 12px;
             padding: 1rem;
             text-align: center;
         }
-        
+
         .metric-value {
             font-size: 1.75rem;
             font-weight: 700;
             color: var(--accent);
             line-height: 1.2;
         }
-        
+
         .metric-label {
             font-size: 0.75rem;
             color: var(--text-secondary);
             margin-top: 0.25rem;
         }
-        
+
         .metric-delta {
             font-size: 0.75rem;
             margin-top: 0.25rem;
         }
-        
+
         .metric-delta.positive { color: var(--success); }
         .metric-delta.negative { color: var(--danger); }
-        
+
         /* Queue list */
         .queue-list {
             list-style: none;
         }
-        
+
         .queue-item {
             display: flex;
             align-items: center;
@@ -197,11 +197,11 @@ MOBILE_APP_HTML = """
             margin-bottom: 0.5rem;
             transition: transform 0.2s;
         }
-        
+
         .queue-item:active {
             transform: scale(0.98);
         }
-        
+
         .queue-item-icon {
             width: 40px;
             height: 40px;
@@ -213,17 +213,17 @@ MOBILE_APP_HTML = """
             margin-right: 0.875rem;
             flex-shrink: 0;
         }
-        
+
         .queue-item-icon.pending { background: rgba(245, 158, 11, 0.2); }
         .queue-item-icon.running { background: rgba(59, 130, 246, 0.2); }
         .queue-item-icon.completed { background: rgba(34, 197, 94, 0.2); }
         .queue-item-icon.failed { background: rgba(239, 68, 68, 0.2); }
-        
+
         .queue-item-info {
             flex: 1;
             min-width: 0;
         }
-        
+
         .queue-item-title {
             font-size: 0.875rem;
             font-weight: 500;
@@ -231,13 +231,13 @@ MOBILE_APP_HTML = """
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        
+
         .queue-item-meta {
             font-size: 0.75rem;
             color: var(--text-secondary);
             margin-top: 0.125rem;
         }
-        
+
         .queue-item-status {
             font-size: 0.75rem;
             font-weight: 600;
@@ -245,19 +245,19 @@ MOBILE_APP_HTML = """
             border-radius: 9999px;
             text-transform: uppercase;
         }
-        
+
         .status-pending { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
         .status-running { background: rgba(59, 130, 246, 0.2); color: var(--accent-light); }
         .status-completed { background: rgba(34, 197, 94, 0.2); color: var(--success); }
         .status-failed { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
-        
+
         /* Controls */
         .controls-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 0.75rem;
         }
-        
+
         .control-btn {
             background: var(--surface-elevated);
             border: 1px solid var(--border);
@@ -273,22 +273,22 @@ MOBILE_APP_HTML = """
             gap: 0.5rem;
             transition: all 0.2s;
         }
-        
+
         .control-btn:active {
             transform: scale(0.96);
             background: var(--accent);
         }
-        
+
         .control-btn.danger {
             border-color: var(--danger);
             color: var(--danger);
         }
-        
+
         .control-btn.danger:active {
             background: var(--danger);
             color: white;
         }
-        
+
         /* Bottom nav */
         .bottom-nav {
             position: fixed;
@@ -305,7 +305,7 @@ MOBILE_APP_HTML = """
             padding: 0.5rem 0;
             padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
         }
-        
+
         .nav-item {
             display: flex;
             flex-direction: column;
@@ -317,16 +317,16 @@ MOBILE_APP_HTML = """
             font-size: 0.625rem;
             transition: color 0.2s;
         }
-        
+
         .nav-item.active {
             color: var(--accent);
         }
-        
+
         .nav-item svg {
             width: 24px;
             height: 24px;
         }
-        
+
         /* Pull to refresh */
         .ptr-indicator {
             text-align: center;
@@ -336,11 +336,11 @@ MOBILE_APP_HTML = """
             opacity: 0;
             transition: opacity 0.3s;
         }
-        
+
         .ptr-indicator.visible {
             opacity: 1;
         }
-        
+
         /* Toast notifications */
         .toast-container {
             position: fixed;
@@ -350,7 +350,7 @@ MOBILE_APP_HTML = """
             z-index: 2000;
             pointer-events: none;
         }
-        
+
         .toast {
             background: var(--surface-elevated);
             border-radius: 12px;
@@ -362,23 +362,23 @@ MOBILE_APP_HTML = """
             opacity: 0;
             transition: all 0.3s;
         }
-        
+
         .toast.show {
             transform: translateY(0);
             opacity: 1;
         }
-        
+
         .toast-title {
             font-weight: 600;
             font-size: 0.875rem;
         }
-        
+
         .toast-message {
             font-size: 0.75rem;
             color: var(--text-secondary);
             margin-top: 0.25rem;
         }
-        
+
         /* Settings panel */
         .settings-item {
             display: flex;
@@ -389,16 +389,16 @@ MOBILE_APP_HTML = """
             border-radius: 12px;
             margin-bottom: 0.5rem;
         }
-        
+
         .settings-label {
             font-size: 0.875rem;
         }
-        
+
         .settings-value {
             font-size: 0.875rem;
             color: var(--text-secondary);
         }
-        
+
         /* Toggle switch */
         .toggle {
             width: 48px;
@@ -409,11 +409,11 @@ MOBILE_APP_HTML = """
             cursor: pointer;
             transition: background 0.3s;
         }
-        
+
         .toggle.active {
             background: var(--accent);
         }
-        
+
         .toggle::after {
             content: '';
             position: absolute;
@@ -426,35 +426,35 @@ MOBILE_APP_HTML = """
             transition: transform 0.3s;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-        
+
         .toggle.active::after {
             transform: translateX(20px);
         }
-        
+
         /* Animations */
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
-        
+
         .pulse {
             animation: pulse 2s infinite;
         }
-        
+
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
-        
+
         .slide-in {
             animation: slideIn 0.3s ease-out;
         }
-        
+
         /* Hide scrollbar */
         ::-webkit-scrollbar {
             display: none;
         }
-        
+
         body {
             -ms-overflow-style: none;
             scrollbar-width: none;
@@ -476,7 +476,7 @@ MOBILE_APP_HTML = """
             <div class="ptr-indicator" id="ptr-indicator">
                 Pull to refresh
             </div>
-            
+
             <div class="card">
                 <div class="metrics-grid">
                     <div class="metric-card">
@@ -497,7 +497,7 @@ MOBILE_APP_HTML = """
                     </div>
                 </div>
             </div>
-            
+
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">Queue</span>
@@ -513,7 +513,7 @@ MOBILE_APP_HTML = """
                     </li>
                 </ul>
             </div>
-            
+
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">Controls</span>
@@ -549,7 +549,7 @@ MOBILE_APP_HTML = """
                 </div>
             </div>
         </div>
-        
+
         <!-- Settings View -->
         <div id="view-settings" class="view" style="display:none">
             <div class="card">
@@ -569,7 +569,7 @@ MOBILE_APP_HTML = """
                     <div class="toggle" id="toggle-notifications" onclick="toggleSetting(this)"></div>
                 </div>
             </div>
-            
+
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">About</span>
@@ -667,7 +667,7 @@ MOBILE_APP_HTML = """
         function updateConnectionStatus(connected) {
             const dot = document.getElementById('status-dot');
             const text = document.getElementById('status-text');
-            
+
             if (connected) {
                 dot.classList.add('connected');
                 text.textContent = 'Live';
@@ -703,7 +703,7 @@ MOBILE_APP_HTML = """
 
         function updateQueue(jobs) {
             const list = document.getElementById('queue-list');
-            
+
             if (!jobs || jobs.length === 0) {
                 list.innerHTML = `
                     <li class="queue-item">
@@ -783,7 +783,7 @@ MOBILE_APP_HTML = """
 
         async function clearQueue() {
             if (!confirm('Clear all jobs?')) return;
-            
+
             try {
                 const response = await fetch(`${CONFIG.apiUrl}/api/v1/jobs`, { method: 'DELETE' });
                 if (response.ok) {
@@ -798,7 +798,7 @@ MOBILE_APP_HTML = """
         function submitJob() {
             const prompt = prompt('Enter prompt:');
             if (!prompt) return;
-            
+
             fetch(`${CONFIG.apiUrl}/api/v1/jobs`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -818,10 +818,10 @@ MOBILE_APP_HTML = """
         function showView(view) {
             document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
             document.getElementById(`view-${view}`).style.display = 'block';
-            
+
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             event.target.closest('.nav-item').classList.add('active');
-            
+
             currentView = view;
         }
 
@@ -835,7 +835,7 @@ MOBILE_APP_HTML = """
                 <div class="toast-message">${message}</div>
             `;
             container.appendChild(toast);
-            
+
             setTimeout(() => toast.classList.add('show'), 10);
             setTimeout(() => {
                 toast.classList.remove('show');
@@ -847,24 +847,24 @@ MOBILE_APP_HTML = """
         function setupPullToRefresh() {
             const content = document.getElementById('app-content');
             const indicator = document.getElementById('ptr-indicator');
-            
+
             content.addEventListener('touchstart', (e) => {
                 if (content.scrollTop === 0) {
                     pullStartY = e.touches[0].clientY;
                     isPulling = true;
                 }
             });
-            
+
             content.addEventListener('touchmove', (e) => {
                 if (!isPulling) return;
-                
+
                 const pull = e.touches[0].clientY - pullStartY;
                 if (pull > 0 && pull < 100) {
                     indicator.classList.add('visible');
                     indicator.style.transform = `translateY(${pull * 0.5}px)`;
                 }
             });
-            
+
             content.addEventListener('touchend', () => {
                 if (!isPulling) return;
                 isPulling = false;
@@ -878,7 +878,7 @@ MOBILE_APP_HTML = """
         function toggleSetting(element) {
             element.classList.toggle('active');
             const id = element.id;
-            
+
             if (id === 'toggle-autoconnect') {
                 CONFIG.autoConnect = element.classList.contains('active');
                 localStorage.setItem('autoConnect', CONFIG.autoConnect);
@@ -983,25 +983,25 @@ WEB_MANIFEST = {
 
 class MobileAppServer:
     """FastAPI server that serves the mobile PWA app."""
-    
+
     def __init__(self, api_url: str = "http://localhost:8000"):
         self.api_url = api_url
         self.app = FastAPI(title="ComfyUI Engine Mobile")
         self._setup_routes()
-    
+
     def _setup_routes(self) -> None:
         """Configure mobile app routes."""
-        
+
         @self.app.get("/", response_class=HTMLResponse)
         async def mobile_app():
             """Serve the mobile app HTML."""
             return MOBILE_APP_HTML
-        
+
         @self.app.get("/manifest.json")
         async def manifest():
             """Serve web manifest."""
             return JSONResponse(content=WEB_MANIFEST)
-        
+
         @self.app.get("/sw.js", response_class=HTMLResponse)
         async def service_worker():
             """Serve service worker."""
@@ -1009,7 +1009,7 @@ class MobileAppServer:
                 content=SERVICE_WORKER_JS,
                 media_type="application/javascript",
             )
-        
+
         @self.app.get("/icon-192.png")
         async def icon_192():
             """Serve 192x192 icon."""
@@ -1018,7 +1018,7 @@ class MobileAppServer:
                 content=b"",  # Would be actual PNG bytes
                 media_type="image/png",
             )
-        
+
         @self.app.get("/icon-512.png")
         async def icon_512():
             """Serve 512x512 icon."""
@@ -1026,11 +1026,11 @@ class MobileAppServer:
                 content=b"",  # Would be actual PNG bytes
                 media_type="image/png",
             )
-    
+
     async def start(self, host: str = "0.0.0.0", port: int = 8080) -> None:
         """Start the mobile app server."""
         import uvicorn
-        
+
         config = uvicorn.Config(
             self.app,
             host=host,
@@ -1038,7 +1038,7 @@ class MobileAppServer:
             log_level="info",
         )
         server = uvicorn.Server(config)
-        
+
         logger.info(f"Mobile app server starting on http://{host}:{port}")
         await server.serve()
 
@@ -1047,23 +1047,23 @@ class MobileAppServer:
 def write_mobile_app_files(output_dir: Path = Path("mobile_app")) -> None:
     """Write mobile app files to disk."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Write HTML
     (output_dir / "index.html").write_text(MOBILE_APP_HTML)
-    
+
     # Write service worker
     (output_dir / "sw.js").write_text(SERVICE_WORKER_JS)
-    
+
     # Write manifest
     (output_dir / "manifest.json").write_text(json.dumps(WEB_MANIFEST, indent=2))
-    
+
     logger.info(f"Mobile app files written to {output_dir}")
 
 
 if __name__ == "__main__":
     # Write files
     write_mobile_app_files()
-    
+
     # Start server
     server = MobileAppServer()
     asyncio.run(server.start())

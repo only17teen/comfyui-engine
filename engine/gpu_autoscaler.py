@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v6.0 - GPU Autoscaler
+"""ComfyUI Async Generation Engine v6.0 - GPU Autoscaler
 Custom metrics-based GPU autoscaling with node pool management.
 """
 
@@ -14,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class ScalingAction(Enum):
+    """GPU scaling action enumeration."""
+
     SCALE_UP = auto()
     SCALE_DOWN = auto()
     MAINTAIN = auto()
@@ -21,6 +22,8 @@ class ScalingAction(Enum):
 
 
 class GPUMetricType(Enum):
+    """GPU metric types for autoscaling decisions."""
+
     UTILIZATION = "gpu_utilization"
     MEMORY = "gpu_memory_usage"
     TEMPERATURE = "gpu_temperature"
@@ -33,6 +36,7 @@ class GPUMetricType(Enum):
 @dataclass
 class GPUScaleMetric:
     """GPU scaling metric threshold."""
+
     metric_type: GPUMetricType
     target_value: float
     current_value: float = 0.0
@@ -45,33 +49,34 @@ class GPUScaleMetric:
 @dataclass
 class NodePoolConfig:
     """Configuration for a GPU node pool."""
+
     name: str
-    gpu_type: str                          # e.g., nvidia-tesla-t4
+    gpu_type: str  # e.g., nvidia-tesla-t4
     min_nodes: int = 1
     max_nodes: int = 10
     target_utilization: float = 0.7
-    scale_up_cooldown: float = 120.0       # seconds
-    scale_down_cooldown: float = 300.0      # seconds
+    scale_up_cooldown: float = 120.0  # seconds
+    scale_down_cooldown: float = 300.0  # seconds
     cost_per_hour: float = 0.0
     preemptible: bool = False
-    labels: Dict[str, str] = field(default_factory=dict)
-    taints: List[str] = field(default_factory=list)
+    labels: dict[str, str] = field(default_factory=dict)
+    taints: list[str] = field(default_factory=list)
 
 
 @dataclass
 class ScalingDecision:
     """Scaling decision with reasoning."""
+
     action: ScalingAction
     current_nodes: int
     target_nodes: int
     reason: str
-    metrics: Dict[str, float]
+    metrics: dict[str, float]
     timestamp: float = field(default_factory=time.time)
 
 
 class GPUAutoscaler:
-    """
-    GPU autoscaling manager with custom metrics and node pool management.
+    """GPU autoscaling manager with custom metrics and node pool management.
 
     Features:
     - Custom metric-based scaling (GPU utilization, queue depth, wait time)
@@ -83,14 +88,14 @@ class GPUAutoscaler:
     - Predictive scaling based on historical patterns
     """
 
-    def __init__(self, node_pools: List[NodePoolConfig]):
+    def __init__(self, node_pools: list[NodePoolConfig]):
         self.node_pools = {p.name: p for p in node_pools}
-        self._current_nodes: Dict[str, int] = {p.name: p.min_nodes for p in node_pools}
-        self._metrics: Dict[str, Dict[GPUMetricType, float]] = {}
-        self._last_scale_time: Dict[str, float] = {p.name: 0 for p in node_pools}
-        self._scaling_history: List[ScalingDecision] = []
+        self._current_nodes: dict[str, int] = {p.name: p.min_nodes for p in node_pools}
+        self._metrics: dict[str, dict[GPUMetricType, float]] = {}
+        self._last_scale_time: dict[str, float] = {p.name: 0 for p in node_pools}
+        self._scaling_history: list[ScalingDecision] = []
         self._running = False
-        self._scale_task: Optional[asyncio.Task] = None
+        self._scale_task: asyncio.Task | None = None
         self._lock = asyncio.Lock()
 
     async def start(self) -> None:
@@ -113,15 +118,14 @@ class GPUAutoscaler:
     async def update_metrics(
         self,
         pool_name: str,
-        metrics: Dict[GPUMetricType, float],
+        metrics: dict[GPUMetricType, float],
     ) -> None:
         """Update metrics for a node pool."""
         async with self._lock:
             self._metrics[pool_name] = metrics
 
     async def get_scaling_decision(self, pool_name: str) -> ScalingDecision:
-        """
-        Get scaling decision for a node pool based on current metrics.
+        """Get scaling decision for a node pool based on current metrics.
 
         Returns:
             ScalingDecision with action and reasoning.
@@ -157,11 +161,15 @@ class GPUAutoscaler:
                 if time_since_scale < pool.scale_up_cooldown:
                     action = ScalingAction.MAINTAIN
                     target_nodes = current_nodes
-                    reason = f"Scale up cooldown active ({time_since_scale:.0f}s remaining)"
+                    reason = (
+                        f"Scale up cooldown active ({time_since_scale:.0f}s remaining)"
+                    )
                 else:
                     action = ScalingAction.SCALE_UP
                     target_nodes = min(current_nodes + 1, pool.max_nodes)
-                    reason = f"High load: {load_score:.2f} > {pool.target_utilization:.2f}"
+                    reason = (
+                        f"High load: {load_score:.2f} > {pool.target_utilization:.2f}"
+                    )
 
             elif load_score <= pool.target_utilization - 0.2:
                 if time_since_scale < pool.scale_down_cooldown:
@@ -171,7 +179,9 @@ class GPUAutoscaler:
                 else:
                     action = ScalingAction.SCALE_DOWN
                     target_nodes = max(current_nodes - 1, pool.min_nodes)
-                    reason = f"Low load: {load_score:.2f} < {pool.target_utilization:.2f}"
+                    reason = (
+                        f"Low load: {load_score:.2f} < {pool.target_utilization:.2f}"
+                    )
 
             else:
                 action = ScalingAction.MAINTAIN
@@ -188,9 +198,10 @@ class GPUAutoscaler:
 
             return decision
 
-    async def apply_scaling_decision(self, pool_name: str, decision: ScalingDecision) -> bool:
-        """
-        Apply a scaling decision to a node pool.
+    async def apply_scaling_decision(
+        self, pool_name: str, decision: ScalingDecision
+    ) -> bool:
+        """Apply a scaling decision to a node pool.
 
         Returns:
             True if scaling was applied.
@@ -222,7 +233,7 @@ class GPUAutoscaler:
             )
             return True
 
-    async def get_node_pool_status(self, pool_name: str) -> Optional[Dict[str, Any]]:
+    async def get_node_pool_status(self, pool_name: str) -> dict[str, Any] | None:
         """Get current status of a node pool."""
         pool = self.node_pools.get(pool_name)
         if not pool:
@@ -245,7 +256,7 @@ class GPUAutoscaler:
             "preemptible": pool.preemptible,
         }
 
-    async def get_all_status(self) -> Dict[str, Dict[str, Any]]:
+    async def get_all_status(self) -> dict[str, dict[str, Any]]:
         """Get status for all node pools."""
         return {
             name: await self.get_node_pool_status(name)
@@ -254,16 +265,16 @@ class GPUAutoscaler:
 
     async def get_scaling_history(
         self,
-        pool_name: Optional[str] = None,
+        pool_name: str | None = None,
         limit: int = 100,
-    ) -> List[ScalingDecision]:
+    ) -> list[ScalingDecision]:
         """Get scaling history, optionally filtered by pool."""
         history = self._scaling_history
         if pool_name:
             history = [d for d in history if pool_name in d.reason]
         return history[-limit:]
 
-    async def get_cost_estimate(self, hours: float = 1.0) -> Dict[str, float]:
+    async def get_cost_estimate(self, hours: float = 1.0) -> dict[str, float]:
         """Estimate cost for all node pools."""
         costs = {}
         for name, pool in self.node_pools.items():
@@ -274,7 +285,7 @@ class GPUAutoscaler:
     def _calculate_load_score(
         self,
         pool: NodePoolConfig,
-        metrics: Dict[GPUMetricType, float],
+        metrics: dict[GPUMetricType, float],
     ) -> float:
         """Calculate composite load score from metrics."""
         if not metrics:
@@ -332,30 +343,29 @@ class GPUAutoscaler:
                 logger.error(f"Scaling loop error: {e}")
                 await asyncio.sleep(60)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get autoscaler statistics."""
         return {
             "node_pools": len(self.node_pools),
             "total_nodes": sum(self._current_nodes.values()),
-            "scaling_decisions_1h": len([
-                d for d in self._scaling_history
-                if time.time() - d.timestamp < 3600
-            ]),
+            "scaling_decisions_1h": len(
+                [d for d in self._scaling_history if time.time() - d.timestamp < 3600]
+            ),
             "total_scaling_decisions": len(self._scaling_history),
             "running": self._running,
         }
 
 
 # Global autoscaler instance
-_global_autoscaler: Optional[GPUAutoscaler] = None
+_global_autoscaler: GPUAutoscaler | None = None
 
 
-def get_autoscaler() -> Optional[GPUAutoscaler]:
+def get_autoscaler() -> GPUAutoscaler | None:
     """Get global autoscaler instance."""
     return _global_autoscaler
 
 
-async def initialize_autoscaler(node_pools: List[NodePoolConfig]) -> GPUAutoscaler:
+async def initialize_autoscaler(node_pools: list[NodePoolConfig]) -> GPUAutoscaler:
     """Initialize global autoscaler."""
     global _global_autoscaler
     _global_autoscaler = GPUAutoscaler(node_pools)
@@ -364,6 +374,7 @@ async def initialize_autoscaler(node_pools: List[NodePoolConfig]) -> GPUAutoscal
 
 
 if __name__ == "__main__":
+
     async def main():
         # Example node pools
         pools = [
@@ -390,12 +401,15 @@ if __name__ == "__main__":
         autoscaler = await initialize_autoscaler(pools)
 
         # Simulate metrics
-        await autoscaler.update_metrics("gpu-t4-pool", {
-            GPUMetricType.UTILIZATION: 0.85,
-            GPUMetricType.QUEUE_DEPTH: 15,
-            GPUMetricType.JOB_WAIT_TIME: 45.0,
-            GPUMetricType.ERROR_RATE: 0.02,
-        })
+        await autoscaler.update_metrics(
+            "gpu-t4-pool",
+            {
+                GPUMetricType.UTILIZATION: 0.85,
+                GPUMetricType.QUEUE_DEPTH: 15,
+                GPUMetricType.JOB_WAIT_TIME: 45.0,
+                GPUMetricType.ERROR_RATE: 0.02,
+            },
+        )
 
         # Get decision
         decision = await autoscaler.get_scaling_decision("gpu-t4-pool")

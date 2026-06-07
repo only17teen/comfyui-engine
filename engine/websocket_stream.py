@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v5.0 - WebSocket Streaming
+"""ComfyUI Async Generation Engine v5.0 - WebSocket Streaming
 Real-time job progress updates and notifications via WebSocket.
 """
 
@@ -16,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class StreamEventType(Enum):
     """Types of WebSocket stream events."""
+
     JOB_CREATED = "job.created"
     JOB_QUEUED = "job.queued"
     JOB_STARTED = "job.started"
@@ -34,13 +34,14 @@ class StreamEventType(Enum):
 @dataclass
 class StreamEvent:
     """A single WebSocket stream event."""
+
     event_type: StreamEventType
     timestamp: float = field(default_factory=time.time)
-    data: Dict[str, Any] = field(default_factory=dict)
-    job_id: Optional[str] = None
-    session_id: Optional[str] = None
+    data: dict[str, Any] = field(default_factory=dict)
+    job_id: str | None = None
+    session_id: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "event": self.event_type.value,
             "timestamp": self.timestamp,
@@ -54,8 +55,7 @@ class StreamEvent:
 
 
 class WebSocketStreamManager:
-    """
-    Manages WebSocket connections for real-time streaming.
+    """Manages WebSocket connections for real-time streaming.
 
     Features:
     - Multi-client connection management
@@ -78,15 +78,19 @@ class WebSocketStreamManager:
         self.max_connections = max_connections
         self.rate_limit_per_second = rate_limit_per_second
 
-        self._connections: Dict[str, Any] = {}  # connection_id -> websocket
-        self._subscriptions: Dict[str, Set[StreamEventType]] = {}  # connection_id -> event types
-        self._job_subscriptions: Dict[str, Set[str]] = {}  # connection_id -> job_ids
-        self._session_subscriptions: Dict[str, Set[str]] = {}  # connection_id -> session_ids
-        self._last_activity: Dict[str, float] = {}  # connection_id -> timestamp
-        self._message_count: Dict[str, int] = {}  # connection_id -> count
+        self._connections: dict[str, Any] = {}  # connection_id -> websocket
+        self._subscriptions: dict[str, set[StreamEventType]] = (
+            {}
+        )  # connection_id -> event types
+        self._job_subscriptions: dict[str, set[str]] = {}  # connection_id -> job_ids
+        self._session_subscriptions: dict[str, set[str]] = (
+            {}
+        )  # connection_id -> session_ids
+        self._last_activity: dict[str, float] = {}  # connection_id -> timestamp
+        self._message_count: dict[str, int] = {}  # connection_id -> count
         self._lock = asyncio.Lock()
         self._running = False
-        self._heartbeat_task: Optional[asyncio.Task] = None
+        self._heartbeat_task: asyncio.Task | None = None
         self._event_queue: asyncio.Queue = asyncio.Queue()
 
     async def start(self) -> None:
@@ -108,7 +112,7 @@ class WebSocketStreamManager:
                 pass
 
         async with self._lock:
-            for conn_id, websocket in list(self._connections.items()):
+            for _conn_id, websocket in list(self._connections.items()):
                 try:
                     await websocket.close()
                 except Exception:
@@ -124,9 +128,9 @@ class WebSocketStreamManager:
         self,
         connection_id: str,
         websocket: Any,
-        event_types: Optional[List[StreamEventType]] = None,
-        job_ids: Optional[List[str]] = None,
-        session_ids: Optional[List[str]] = None,
+        event_types: list[StreamEventType] | None = None,
+        job_ids: list[str] | None = None,
+        session_ids: list[str] | None = None,
     ) -> bool:
         """Register a new WebSocket connection."""
         async with self._lock:
@@ -165,9 +169,9 @@ class WebSocketStreamManager:
     async def update_subscription(
         self,
         connection_id: str,
-        event_types: Optional[List[StreamEventType]] = None,
-        job_ids: Optional[List[str]] = None,
-        session_ids: Optional[List[str]] = None,
+        event_types: list[StreamEventType] | None = None,
+        job_ids: list[str] | None = None,
+        session_ids: list[str] | None = None,
     ) -> bool:
         """Update subscription filters for a connection."""
         async with self._lock:
@@ -184,8 +188,7 @@ class WebSocketStreamManager:
         return True
 
     async def broadcast_event(self, event: StreamEvent) -> int:
-        """
-        Broadcast an event to all subscribed connections.
+        """Broadcast an event to all subscribed connections.
 
         Returns:
             Number of connections that received the event.
@@ -207,7 +210,11 @@ class WebSocketStreamManager:
 
                 # Check if connection is subscribed to this session
                 session_subs = self._session_subscriptions.get(conn_id, set())
-                if session_subs and event.session_id and event.session_id not in session_subs:
+                if (
+                    session_subs
+                    and event.session_id
+                    and event.session_id not in session_subs
+                ):
                     continue
 
                 # Check rate limit
@@ -216,7 +223,9 @@ class WebSocketStreamManager:
 
                 try:
                     await websocket.send_text(event.to_json())
-                    self._message_count[conn_id] = self._message_count.get(conn_id, 0) + 1
+                    self._message_count[conn_id] = (
+                        self._message_count.get(conn_id, 0) + 1
+                    )
                     self._last_activity[conn_id] = time.time()
                     sent_count += 1
                 except Exception as e:
@@ -306,7 +315,7 @@ class WebSocketStreamManager:
             except Exception as e:
                 logger.error(f"Heartbeat loop error: {e}")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get stream manager statistics."""
         return {
             "total_connections": len(self._connections),
@@ -318,14 +327,13 @@ class WebSocketStreamManager:
             "event_queue_size": self._event_queue.qsize(),
             "subscriptions_by_type": {
                 event_type.value: sum(
-                    1 for subs in self._subscriptions.values()
-                    if event_type in subs
+                    1 for subs in self._subscriptions.values() if event_type in subs
                 )
                 for event_type in StreamEventType
             },
         }
 
-    async def handle_pong(self, connection_id: str, data: Dict[str, Any]) -> None:
+    async def handle_pong(self, connection_id: str, data: dict[str, Any]) -> None:
         """Handle pong response from client."""
         async with self._lock:
             self._last_activity[connection_id] = time.time()
@@ -334,8 +342,8 @@ class WebSocketStreamManager:
     def create_job_event(
         event_type: StreamEventType,
         job_id: str,
-        session_id: Optional[str] = None,
-        data: Optional[Dict[str, Any]] = None,
+        session_id: str | None = None,
+        data: dict[str, Any] | None = None,
     ) -> StreamEvent:
         """Factory method for creating job-related events."""
         return StreamEvent(
@@ -350,8 +358,8 @@ class WebSocketStreamManager:
         job_id: str,
         progress: float,
         stage: str,
-        session_id: Optional[str] = None,
-        extra_data: Optional[Dict[str, Any]] = None,
+        session_id: str | None = None,
+        extra_data: dict[str, Any] | None = None,
     ) -> StreamEvent:
         """Factory method for creating progress events."""
         data = {
@@ -368,7 +376,7 @@ class WebSocketStreamManager:
 
 
 # Global stream manager instance
-_global_stream_manager: Optional[WebSocketStreamManager] = None
+_global_stream_manager: WebSocketStreamManager | None = None
 
 
 def get_stream_manager() -> WebSocketStreamManager:

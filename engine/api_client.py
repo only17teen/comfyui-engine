@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - Async API Client
+"""ComfyUI Async Generation Engine v2.0 - Async API Client
 Resilient client with circuit breaker, retry logic, metrics, and WebSocket support.
 """
 
@@ -22,27 +21,34 @@ from engine.core import (
     CircuitBreakerOpenError,
 )
 
-
 logger = logging.getLogger(__name__)
 
 
 class ComfyUIJob:
     """Represents a single queued generation job with full lifecycle tracking."""
 
-    def __init__(self, prompt_id: str, payload: Dict, config_meta: Dict, job_id: Optional[str] = None):
+    def __init__(
+        self,
+        prompt_id: str,
+        payload: dict,
+        config_meta: dict,
+        job_id: str | None = None,
+    ):
         self.prompt_id = prompt_id
         self.job_id = job_id or f"job_{uuid.uuid4().hex[:8]}"
         self.payload = payload
         self.config_meta = config_meta
-        self.status = "pending"  # pending | queued | running | completed | error | cancelled
-        self.outputs: List[Dict] = []
-        self.error_msg: Optional[str] = None
+        self.status = (
+            "pending"  # pending | queued | running | completed | error | cancelled
+        )
+        self.outputs: list[dict] = []
+        self.error_msg: str | None = None
         self.created_at = time.time()
-        self.queued_at: Optional[float] = None
-        self.started_at: Optional[float] = None
-        self.completed_at: Optional[float] = None
+        self.queued_at: float | None = None
+        self.started_at: float | None = None
+        self.completed_at: float | None = None
         self.retry_count: int = 0
-        self.downloaded_files: List[Path] = []
+        self.downloaded_files: list[Path] = []
 
     @property
     def wait_time(self) -> float:
@@ -64,7 +70,7 @@ class ComfyUIJob:
         end = self.completed_at or time.time()
         return end - self.created_at
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "job_id": self.job_id,
             "prompt_id": self.prompt_id,
@@ -84,8 +90,7 @@ class ComfyUIJob:
 
 
 class ComfyUIAsyncClient:
-    """
-    Production-grade async client for ComfyUI API.
+    """Production-grade async client for ComfyUI API.
 
     Features:
     - Circuit breaker for API resilience
@@ -102,9 +107,9 @@ class ComfyUIAsyncClient:
         max_concurrent: int = 3,
         poll_interval: float = 1.0,
         timeout: float = 300.0,
-        retry_config: Optional[RetryConfig] = None,
-        circuit_config: Optional[CircuitBreakerConfig] = None,
-        metrics: Optional[MetricsCollector] = None,
+        retry_config: RetryConfig | None = None,
+        circuit_config: CircuitBreakerConfig | None = None,
+        metrics: MetricsCollector | None = None,
         use_websocket: bool = True,
     ):
         self.base_url = base_url.rstrip("/")
@@ -121,11 +126,11 @@ class ComfyUIAsyncClient:
             metrics=self.metrics,
         )
 
-        self._session: Optional[aiohttp.ClientSession] = None
-        self._semaphore: Optional[asyncio.Semaphore] = None
-        self._jobs: Dict[str, ComfyUIJob] = {}
-        self._ws_task: Optional[asyncio.Task] = None
-        self._ws_queue: Optional[asyncio.Queue] = None
+        self._session: aiohttp.ClientSession | None = None
+        self._semaphore: asyncio.Semaphore | None = None
+        self._jobs: dict[str, ComfyUIJob] = {}
+        self._ws_task: asyncio.Task | None = None
+        self._ws_queue: asyncio.Queue | None = None
         self._shutdown: bool = False
 
     async def _get_session(self) -> aiohttp.ClientSession:
@@ -158,13 +163,16 @@ class ComfyUIAsyncClient:
         """Quick health check against ComfyUI server."""
         try:
             session = await self._get_session()
-            async with session.get(f"{self.base_url}/system_stats", timeout=5.0) as resp:
+            async with session.get(
+                f"{self.base_url}/system_stats", timeout=5.0
+            ) as resp:
                 return resp.status == 200
         except Exception:
             return False
 
-    async def _post_prompt(self, payload: Dict) -> str:
+    async def _post_prompt(self, payload: dict) -> str:
         """Submit workflow with circuit breaker and retry protection."""
+
         async def _do_post():
             session = await self._get_session()
             url = f"{self.base_url}/prompt"
@@ -178,19 +186,25 @@ class ComfyUIAsyncClient:
                     # Rate limited - raise for retry
                     text = await resp.text()
                     raise aiohttp.ClientResponseError(
-                        resp.request_info, resp.history,
-                        status=429, message=f"Rate limited: {text}"
+                        resp.request_info,
+                        resp.history,
+                        status=429,
+                        message=f"Rate limited: {text}",
                     )
                 if resp.status == 503:
                     # Server overloaded - raise for retry
                     text = await resp.text()
                     raise aiohttp.ClientResponseError(
-                        resp.request_info, resp.history,
-                        status=503, message=f"Server overloaded: {text}"
+                        resp.request_info,
+                        resp.history,
+                        status=503,
+                        message=f"Server overloaded: {text}",
                     )
                 if resp.status != 200:
                     text = await resp.text()
-                    raise RuntimeError(f"Prompt submission failed: {resp.status} - {text}")
+                    raise RuntimeError(
+                        f"Prompt submission failed: {resp.status} - {text}"
+                    )
 
                 data = await resp.json()
                 prompt_id = data.get("prompt_id")
@@ -204,8 +218,9 @@ class ComfyUIAsyncClient:
             metrics=self.metrics,
         )
 
-    async def _fetch_history(self, prompt_id: str) -> Optional[Dict]:
+    async def _fetch_history(self, prompt_id: str) -> dict | None:
         """Fetch execution history with retry."""
+
         async def _do_fetch():
             session = await self._get_session()
             url = f"{self.base_url}/history/{prompt_id}"
@@ -298,23 +313,30 @@ class ComfyUIAsyncClient:
                     if msg.type == aiohttp.WSMsgType.TEXT:
                         data = json.loads(msg.data)
                         await self._handle_ws_message(data)
-                    elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
+                    elif msg.type in (
+                        aiohttp.WSMsgType.CLOSED,
+                        aiohttp.WSMsgType.ERROR,
+                    ):
                         logger.warning("WebSocket closed")
                         break
         except Exception as e:
             logger.debug(f"WebSocket error: {e}")
 
-    async def _handle_ws_message(self, data: Dict) -> None:
+    async def _handle_ws_message(self, data: dict) -> None:
         """Process WebSocket message for job status updates."""
         msg_type = data.get("type")
         if msg_type == "status":
             status_data = data.get("data", {})
             # Could track queue depth here
-            queue_remaining = status_data.get("status", {}).get("exec_info", {}).get("queue_remaining", 0)
+            queue_remaining = (
+                status_data.get("status", {})
+                .get("exec_info", {})
+                .get("queue_remaining", 0)
+            )
             if queue_remaining > 0:
                 await self.metrics.gauge("comfyui_queue_depth", float(queue_remaining))
 
-    async def submit_job(self, payload: Dict, config_meta: Dict) -> ComfyUIJob:
+    async def submit_job(self, payload: dict, config_meta: dict) -> ComfyUIJob:
         """Submit job with circuit breaker protection."""
         try:
             prompt_id = await self.circuit.call(self._post_prompt, payload)
@@ -336,7 +358,7 @@ class ComfyUIAsyncClient:
             await self.metrics.inc("jobs_failed")
             return job
 
-    async def run_job(self, payload: Dict, config_meta: Dict) -> ComfyUIJob:
+    async def run_job(self, payload: dict, config_meta: dict) -> ComfyUIJob:
         """Submit and fully process a single job (semaphore-guarded)."""
         if self._semaphore is None:
             self._semaphore = asyncio.Semaphore(self.max_concurrent)
@@ -351,10 +373,10 @@ class ComfyUIAsyncClient:
 
     async def run_batch(
         self,
-        payloads: List[Dict],
-        config_metas: List[Dict],
-        progress_callback: Optional[Callable[[int, int, str], None]] = None,
-    ) -> List[ComfyUIJob]:
+        payloads: list[dict],
+        config_metas: list[dict],
+        progress_callback: Callable[[int, int, str], None] | None = None,
+    ) -> list[ComfyUIJob]:
         """Run batch with concurrent execution and progress tracking."""
         if len(payloads) != len(config_metas):
             raise ValueError("payloads and config_metas must have same length")
@@ -362,7 +384,7 @@ class ComfyUIAsyncClient:
         total = len(payloads)
         completed = 0
 
-        async def _wrapped_run(idx: int, payload: Dict, meta: Dict) -> ComfyUIJob:
+        async def _wrapped_run(idx: int, payload: dict, meta: dict) -> ComfyUIJob:
             nonlocal completed
             try:
                 job = await self.run_job(payload, meta)
@@ -418,6 +440,7 @@ class ComfyUIAsyncClient:
         max_retries: int = 3,
     ) -> Path:
         """Download with retry and byte counting."""
+
         async def _do_download():
             session = await self._get_session()
             url = f"{self.base_url}/view"
@@ -447,7 +470,7 @@ class ComfyUIAsyncClient:
             metrics=self.metrics,
         )
 
-    def _extract_outputs(self, outputs: Dict) -> List[Dict]:
+    def _extract_outputs(self, outputs: dict) -> list[dict]:
         """Extract image references from ComfyUI history."""
         results = []
         for node_id, node_outputs in outputs.items():
@@ -455,12 +478,14 @@ class ComfyUIAsyncClient:
                 images = node_outputs.get("images", [])
                 for img in images:
                     if isinstance(img, dict):
-                        results.append({
-                            "node_id": node_id,
-                            "filename": img.get("filename"),
-                            "subfolder": img.get("subfolder", ""),
-                            "type": img.get("type", "output"),
-                        })
+                        results.append(
+                            {
+                                "node_id": node_id,
+                                "filename": img.get("filename"),
+                                "subfolder": img.get("subfolder", ""),
+                                "type": img.get("type", "output"),
+                            }
+                        )
         return results
 
     async def start_ws_listener(self) -> None:
@@ -486,13 +511,13 @@ class ComfyUIAsyncClient:
             await self._session.close()
             logger.info("API client session closed")
 
-    def get_job(self, job_id: str) -> Optional[ComfyUIJob]:
+    def get_job(self, job_id: str) -> ComfyUIJob | None:
         return self._jobs.get(job_id)
 
-    def get_all_jobs(self) -> List[ComfyUIJob]:
+    def get_all_jobs(self) -> list[ComfyUIJob]:
         return list(self._jobs.values())
 
-    def get_job_stats(self) -> Dict[str, int]:
+    def get_job_stats(self) -> dict[str, int]:
         """Return job statistics by status."""
         stats = {}
         for job in self._jobs.values():

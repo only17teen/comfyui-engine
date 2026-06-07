@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - Git Sync Module
+"""ComfyUI Async Generation Engine v2.0 - Git Sync Module
 Enhanced with atomic operations, branch management, and conflict resolution.
 """
 
@@ -9,7 +8,6 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
-
 
 logger = logging.getLogger(__name__)
 
@@ -110,12 +108,11 @@ custom_nodes/
 async def _run_git(
     repo_path: Path,
     *args: str,
-    cwd: Optional[Path] = None,
+    cwd: Path | None = None,
     check: bool = True,
     capture_output: bool = True,
 ) -> tuple[int, str, str]:
-    """
-    Execute git command with full control.
+    """Execute git command with full control.
 
     Returns:
         (returncode, stdout, stderr)
@@ -127,8 +124,12 @@ async def _run_git(
 
     proc = await asyncio.create_subprocess_exec(
         *cmd,
-        stdout=asyncio.subprocess.PIPE if capture_output else asyncio.subprocess.DEVNULL,
-        stderr=asyncio.subprocess.PIPE if capture_output else asyncio.subprocess.DEVNULL,
+        stdout=(
+            asyncio.subprocess.PIPE if capture_output else asyncio.subprocess.DEVNULL
+        ),
+        stderr=(
+            asyncio.subprocess.PIPE if capture_output else asyncio.subprocess.DEVNULL
+        ),
         cwd=str(working_dir),
         env=os.environ,
     )
@@ -170,7 +171,7 @@ async def ensure_gitignore(repo_path: str) -> Path:
     return gitignore_path
 
 
-async def get_git_status(repo_path: str) -> Dict[str, any]:
+async def get_git_status(repo_path: str) -> dict[str, any]:
     """Get detailed git status."""
     repo = Path(repo_path).resolve()
 
@@ -212,13 +213,12 @@ async def get_git_status(repo_path: str) -> Dict[str, any]:
 
 async def sync_to_git(
     repo_path: str,
-    commit_message: Optional[str] = None,
+    commit_message: str | None = None,
     branch: str = "main",
     auto_create_branch: bool = True,
     push: bool = True,
-) -> Dict[str, str]:
-    """
-    Synchronize with git repository.
+) -> dict[str, str]:
+    """Synchronize with git repository.
 
     Args:
         repo_path: Path to repository.
@@ -257,7 +257,9 @@ async def sync_to_git(
 
     # Commit
     try:
-        rc, stdout, stderr = await _run_git(repo, "commit", "-m", commit_message, check=False)
+        rc, stdout, stderr = await _run_git(
+            repo, "commit", "-m", commit_message, check=False
+        )
         if rc == 0:
             # Extract commit hash
             commit_hash = stdout.split("\n")[0] if stdout else "unknown"
@@ -304,7 +306,7 @@ async def sync_to_git(
 
 async def init_repo(
     repo_path: str,
-    remote_url: Optional[str] = None,
+    remote_url: str | None = None,
     branch: str = "main",
 ) -> None:
     """Initialize new git repository with proper setup."""
@@ -333,7 +335,7 @@ async def init_repo(
         logger.info(f"Added remote: {remote_url}")
 
 
-async def get_repo_info(repo_path: str) -> Dict[str, any]:
+async def get_repo_info(repo_path: str) -> dict[str, any]:
     """Get repository information."""
     repo = Path(repo_path).resolve()
 
@@ -343,10 +345,17 @@ async def get_repo_info(repo_path: str) -> Dict[str, any]:
 
     return {
         "branch": branch.strip() if rc == 0 else "unknown",
-        "remotes": [line.strip() for line in remote.split("\n") if line.strip()] if rc2 == 0 else [],
-        "recent_commits": [line.strip() for line in log.split("\n") if line.strip()] if rc3 == 0 else [],
+        "remotes": (
+            [line.strip() for line in remote.split("\n") if line.strip()]
+            if rc2 == 0
+            else []
+        ),
+        "recent_commits": (
+            [line.strip() for line in log.split("\n") if line.strip()]
+            if rc3 == 0
+            else []
+        ),
     }
 
 
 # Type hints for return
-from typing import Dict

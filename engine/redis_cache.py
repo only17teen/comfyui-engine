@@ -34,7 +34,7 @@ class CacheConfig:
     host: str = "localhost"
     port: int = 6379
     db: int = 0
-    password: Optional[str] = None
+    password: str | None = None
     ssl: bool = False
     socket_timeout: float = 5.0
     socket_connect_timeout: float = 5.0
@@ -56,7 +56,7 @@ class CacheKeyBuilder:
             key = f"{key}:{part}"
         return key
 
-    def hash_key(self, namespace: str, data: Union[str, bytes, dict]) -> str:
+    def hash_key(self, namespace: str, data: str | bytes | dict) -> str:
         """Build a hash-based cache key."""
         if isinstance(data, dict):
             data = json.dumps(data, sort_keys=True)
@@ -80,7 +80,7 @@ class RedisCache(Generic[T]):
         self.default_ttl = default_ttl
         self._serializer = pickle
 
-    async def get(self, key: str) -> Optional[T]:
+    async def get(self, key: str) -> T | None:
         """Get value from cache."""
         try:
             data = await self.redis.get(key)
@@ -95,7 +95,7 @@ class RedisCache(Generic[T]):
         self,
         key: str,
         value: T,
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
         nx: bool = False,
         xx: bool = False,
     ) -> bool:
@@ -144,7 +144,7 @@ class RedisCache(Generic[T]):
         self,
         key: str,
         factory: callable,
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
     ) -> T:
         """Get from cache or compute and store."""
         value = await self.get(key)
@@ -197,11 +197,13 @@ class ModelCache:
     def _key(self, model_name: str) -> str:
         return self.cache.key_builder.build(self.namespace, model_name)
 
-    async def get_model_info(self, model_name: str) -> Optional[dict]:
+    async def get_model_info(self, model_name: str) -> dict | None:
         """Get cached model info."""
         return await self.cache.get(self._key(model_name))
 
-    async def set_model_info(self, model_name: str, info: dict, ttl: int = 86400) -> bool:
+    async def set_model_info(
+        self, model_name: str, info: dict, ttl: int = 86400
+    ) -> bool:
         """Cache model info."""
         return await self.cache.set(self._key(model_name), info, ttl)
 
@@ -231,7 +233,7 @@ class PromptCache:
     def _hash(self, prompt: str) -> str:
         return hashlib.sha256(prompt.encode()).hexdigest()[:16]
 
-    async def get_embedding(self, prompt: str) -> Optional[list[float]]:
+    async def get_embedding(self, prompt: str) -> list[float] | None:
         """Get cached embedding for prompt."""
         key = self._key(self._hash(prompt))
         return await self.cache.get(key)
@@ -246,12 +248,14 @@ class PromptCache:
         key = self._key(self._hash(prompt))
         return await self.cache.set(key, embedding, ttl)
 
-    async def get_template(self, template_id: str) -> Optional[dict]:
+    async def get_template(self, template_id: str) -> dict | None:
         """Get cached prompt template."""
         key = self.cache.key_builder.build(self.namespace, "template", template_id)
         return await self.cache.get(key)
 
-    async def set_template(self, template_id: str, template: dict, ttl: int = 3600) -> bool:
+    async def set_template(
+        self, template_id: str, template: dict, ttl: int = 3600
+    ) -> bool:
         """Cache prompt template."""
         key = self.cache.key_builder.build(self.namespace, "template", template_id)
         return await self.cache.set(key, template, ttl)
@@ -272,7 +276,7 @@ class WorkflowResultCache:
         data = json.dumps(workflow, sort_keys=True) + str(seed)
         return hashlib.sha256(data.encode()).hexdigest()[:16]
 
-    async def get_result(self, workflow: dict, seed: int) -> Optional[dict]:
+    async def get_result(self, workflow: dict, seed: int) -> dict | None:
         """Get cached workflow result."""
         key = self._key(self._hash_workflow(workflow, seed))
         return await self.cache.get(key)
@@ -304,7 +308,7 @@ class SessionCache:
     def _key(self, session_id: str) -> str:
         return self.cache.key_builder.build(self.namespace, session_id)
 
-    async def get_session(self, session_id: str) -> Optional[dict]:
+    async def get_session(self, session_id: str) -> dict | None:
         """Get cached session data."""
         return await self.cache.get(self._key(session_id))
 
@@ -386,15 +390,15 @@ class RateLimiter:
 class CacheManager:
     """Central cache manager for all caching needs."""
 
-    def __init__(self, config: Optional[CacheConfig] = None) -> None:
+    def __init__(self, config: CacheConfig | None = None) -> None:
         self.config = config or CacheConfig()
-        self._redis: Optional[Redis] = None
-        self._cache: Optional[RedisCache[Any]] = None
-        self._model_cache: Optional[ModelCache] = None
-        self._prompt_cache: Optional[PromptCache] = None
-        self._result_cache: Optional[WorkflowResultCache] = None
-        self._session_cache: Optional[SessionCache] = None
-        self._rate_limiter: Optional[RateLimiter] = None
+        self._redis: Redis | None = None
+        self._cache: RedisCache[Any] | None = None
+        self._model_cache: ModelCache | None = None
+        self._prompt_cache: PromptCache | None = None
+        self._result_cache: WorkflowResultCache | None = None
+        self._session_cache: SessionCache | None = None
+        self._rate_limiter: RateLimiter | None = None
         self._key_builder = CacheKeyBuilder(self.config.key_prefix)
 
     async def connect(self) -> None:
@@ -436,7 +440,9 @@ class CacheManager:
     def cache(self) -> RedisCache[Any]:
         """Get generic cache."""
         if self._cache is None:
-            self._cache = RedisCache(self.redis, self._key_builder, self.config.default_ttl)
+            self._cache = RedisCache(
+                self.redis, self._key_builder, self.config.default_ttl
+            )
         return self._cache
 
     @property
@@ -508,7 +514,7 @@ class CacheManager:
 
 
 @asynccontextmanager
-async def cache_context(config: Optional[CacheConfig] = None):
+async def cache_context(config: CacheConfig | None = None):
     """Async context manager for cache operations."""
     manager = CacheManager(config)
     try:

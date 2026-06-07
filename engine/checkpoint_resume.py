@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - Checkpoint Resume System
+"""ComfyUI Async Generation Engine v2.0 - Checkpoint Resume System
 Automatic checkpointing and resumption for long-running batches.
 """
 
@@ -15,47 +14,47 @@ from typing import Any, Dict, List, Optional, Callable
 from engine.session_manager import SessionManager, SessionManifest
 from engine.api_client import ComfyUIJob
 
-
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class BatchCheckpoint:
     """Checkpoint for a specific batch position."""
+
     checkpoint_id: str
     timestamp: float
     batch_index: int
     total_batches: int
-    completed_jobs: List[str] = field(default_factory=list)
-    failed_jobs: List[str] = field(default_factory=list)
-    pending_configs: List[Dict] = field(default_factory=list)
-    generation_params: Dict[str, Any] = field(default_factory=dict)
+    completed_jobs: list[str] = field(default_factory=list)
+    failed_jobs: list[str] = field(default_factory=list)
+    pending_configs: list[dict] = field(default_factory=list)
+    generation_params: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "BatchCheckpoint":
+    def from_dict(cls, data: dict) -> "BatchCheckpoint":
         return cls(**data)
 
 
 @dataclass
 class ResumeState:
     """State needed to resume a batch from checkpoint."""
+
     can_resume: bool
-    session_id: Optional[str] = None
-    checkpoint_id: Optional[str] = None
+    session_id: str | None = None
+    checkpoint_id: str | None = None
     resume_from_index: int = 0
     completed_count: int = 0
     failed_count: int = 0
-    remaining_configs: List[Dict] = field(default_factory=list)
-    original_params: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
+    remaining_configs: list[dict] = field(default_factory=list)
+    original_params: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
 
 
 class CheckpointResumeManager:
-    """
-    Manages automatic checkpointing and resumption for long batches.
+    """Manages automatic checkpointing and resumption for long batches.
 
     Features:
     - Periodic checkpoints during batch execution
@@ -78,9 +77,9 @@ class CheckpointResumeManager:
         self.checkpoints_dir = Path(checkpoints_dir).resolve()
         self.checkpoints_dir.mkdir(parents=True, exist_ok=True)
 
-        self._current_checkpoint: Optional[BatchCheckpoint] = None
+        self._current_checkpoint: BatchCheckpoint | None = None
         self._jobs_since_checkpoint: int = 0
-        self._start_time: Optional[float] = None
+        self._start_time: float | None = None
         self._shutdown: bool = False
 
         if emergency_checkpoint:
@@ -99,7 +98,7 @@ class CheckpointResumeManager:
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(
                 sig,
-                lambda s=sig: asyncio.create_task(self._emergency_checkpoint(s.name))
+                lambda s=sig: asyncio.create_task(self._emergency_checkpoint(s.name)),
             )
 
     async def _emergency_checkpoint(self, signal_name: str) -> None:
@@ -112,7 +111,9 @@ class CheckpointResumeManager:
             self.session_manager.pause_session()
             self.logger.info("Emergency checkpoint saved, session paused")
 
-    def _checkpoint_path(self, session_id: str, checkpoint_id: str, emergency: bool = False) -> Path:
+    def _checkpoint_path(
+        self, session_id: str, checkpoint_id: str, emergency: bool = False
+    ) -> Path:
         """Get path for checkpoint file."""
         prefix = "emergency_" if emergency else ""
         return self.checkpoints_dir / f"{prefix}{session_id}_{checkpoint_id}.json"
@@ -140,7 +141,7 @@ class CheckpointResumeManager:
         )
         return path
 
-    def load_checkpoint(self, path: Path) -> Optional[BatchCheckpoint]:
+    def load_checkpoint(self, path: Path) -> BatchCheckpoint | None:
         """Load checkpoint from disk."""
         if not path.exists():
             return None
@@ -152,13 +153,15 @@ class CheckpointResumeManager:
             self.logger.error(f"Failed to load checkpoint {path}: {e}")
             return None
 
-    def find_latest_checkpoint(self, session_id: str) -> Optional[Path]:
+    def find_latest_checkpoint(self, session_id: str) -> Path | None:
         """Find latest checkpoint for session."""
         # Check emergency first
         emergency = list(self.checkpoints_dir.glob(f"emergency_{session_id}_*.json"))
         regular = list(self.checkpoints_dir.glob(f"{session_id}_*.json"))
 
-        all_checkpoints = sorted(emergency + regular, key=lambda p: p.stat().st_mtime, reverse=True)
+        all_checkpoints = sorted(
+            emergency + regular, key=lambda p: p.stat().st_mtime, reverse=True
+        )
 
         return all_checkpoints[0] if all_checkpoints else None
 
@@ -166,7 +169,7 @@ class CheckpointResumeManager:
         self,
         session_id: str,
         total_batches: int,
-        generation_params: Dict[str, Any],
+        generation_params: dict[str, Any],
     ) -> None:
         """Initialize checkpoint tracking for new batch."""
         self._start_time = time.time()
@@ -197,10 +200,9 @@ class CheckpointResumeManager:
         elif job.status == "error":
             self._current_checkpoint.failed_jobs.append(job.job_id)
 
-        self._current_checkpoint.batch_index = (
-            len(self._current_checkpoint.completed_jobs) +
-            len(self._current_checkpoint.failed_jobs)
-        )
+        self._current_checkpoint.batch_index = len(
+            self._current_checkpoint.completed_jobs
+        ) + len(self._current_checkpoint.failed_jobs)
 
         # Auto-save checkpoint at interval (only if event loop is running)
         if self._jobs_since_checkpoint >= self.checkpoint_interval:
@@ -212,7 +214,7 @@ class CheckpointResumeManager:
                 pass
             self._jobs_since_checkpoint = 0
 
-    def get_progress(self) -> Dict[str, Any]:
+    def get_progress(self) -> dict[str, Any]:
         """Get current progress with ETA."""
         if not self._current_checkpoint or not self._start_time:
             return {"error": "No active batch"}
@@ -245,8 +247,7 @@ class CheckpointResumeManager:
         }
 
     def get_resume_state(self, session_id: str) -> ResumeState:
-        """
-        Check if batch can be resumed from checkpoint.
+        """Check if batch can be resumed from checkpoint.
 
         Returns:
             ResumeState with resume information.
@@ -306,10 +307,9 @@ class CheckpointResumeManager:
     def prepare_resume_batch(
         self,
         resume_state: ResumeState,
-        total_configs: List[Dict],
-    ) -> List[Dict]:
-        """
-        Prepare configs for resumed batch.
+        total_configs: list[dict],
+    ) -> list[dict]:
+        """Prepare configs for resumed batch.
 
         Args:
             resume_state: ResumeState from get_resume_state().
@@ -366,7 +366,7 @@ class CheckpointResumeManager:
             self.logger.info(f"Cleaned up {removed} old checkpoints")
         return removed
 
-    def get_checkpoint_stats(self) -> Dict[str, Any]:
+    def get_checkpoint_stats(self) -> dict[str, Any]:
         """Get checkpoint directory statistics."""
         checkpoints = list(self.checkpoints_dir.glob("*.json"))
         emergency = [c for c in checkpoints if c.name.startswith("emergency_")]

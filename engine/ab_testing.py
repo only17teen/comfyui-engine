@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - A/B Testing Framework
+"""ComfyUI Async Generation Engine v2.0 - A/B Testing Framework
 Statistical comparison of prompt templates, LoRA weights, and generation parameters.
 """
 
@@ -14,24 +13,24 @@ from typing import Any, Dict, List, Optional, Tuple
 from engine.config import EngineConfig
 from engine.prompt_manager import PromptManager, GenerationConfig, PromptTemplate
 
-
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class VariantResult:
     """Results for a single A/B test variant."""
+
     variant_id: str
     template_name: str
-    config_overrides: Dict[str, Any] = field(default_factory=dict)
+    config_overrides: dict[str, Any] = field(default_factory=dict)
     total_generations: int = 0
     successful: int = 0
     failed: int = 0
     avg_processing_time: float = 0.0
-    processing_times: List[float] = field(default_factory=list)
-    seed_values: List[int] = field(default_factory=list)
-    prompt_samples: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    processing_times: list[float] = field(default_factory=list)
+    seed_values: list[int] = field(default_factory=list)
+    prompt_samples: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def success_rate(self) -> float:
@@ -59,7 +58,7 @@ class VariantResult:
             return 0.0
         return statistics.stdev(self.processing_times)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "variant_id": self.variant_id,
             "template_name": self.template_name,
@@ -82,16 +81,17 @@ class VariantResult:
 @dataclass
 class ABTestResult:
     """Complete A/B test results with statistical analysis."""
+
     test_id: str
     test_name: str
     hypothesis: str
-    variants: List[VariantResult] = field(default_factory=list)
-    winner: Optional[str] = None
+    variants: list[VariantResult] = field(default_factory=list)
+    winner: str | None = None
     confidence: float = 0.0
     recommendation: str = ""
     timestamp: float = field(default_factory=time.time)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "test_id": self.test_id,
             "test_name": self.test_name,
@@ -105,8 +105,7 @@ class ABTestResult:
 
 
 class ABTestFramework:
-    """
-    A/B testing framework for comparing prompt templates and generation parameters.
+    """A/B testing framework for comparing prompt templates and generation parameters.
 
     Features:
     - Template comparison (standard vs cinematic vs portrait)
@@ -125,10 +124,9 @@ class ABTestFramework:
     def create_test_variants(
         self,
         test_type: str,
-        base_params: Optional[Dict] = None,
-    ) -> List[Dict[str, Any]]:
-        """
-        Generate test variants based on test type.
+        base_params: dict | None = None,
+    ) -> list[dict[str, Any]]:
+        """Generate test variants based on test type.
 
         Args:
             test_type: Type of test (templates, lora_weights, cfg_scales, samplers)
@@ -140,52 +138,68 @@ class ABTestFramework:
         variants = []
 
         if test_type == "templates":
-            for template in ["standard", "portrait", "cinematic", "fashion", "full_body"]:
-                variants.append({
-                    "variant_id": f"template_{template}",
-                    "template_name": template,
-                    "config_overrides": {"template": template},
-                })
+            for template in [
+                "standard",
+                "portrait",
+                "cinematic",
+                "fashion",
+                "full_body",
+            ]:
+                variants.append(
+                    {
+                        "variant_id": f"template_{template}",
+                        "template_name": template,
+                        "config_overrides": {"template": template},
+                    }
+                )
 
         elif test_type == "lora_weights":
             for weight_range in [(0.3, 0.5), (0.5, 0.7), (0.7, 1.0)]:
-                variants.append({
-                    "variant_id": f"lora_{weight_range[0]}_{weight_range[1]}",
-                    "template_name": "standard",
-                    "config_overrides": {
-                        "lora_weight_range": weight_range,
-                    },
-                })
+                variants.append(
+                    {
+                        "variant_id": f"lora_{weight_range[0]}_{weight_range[1]}",
+                        "template_name": "standard",
+                        "config_overrides": {
+                            "lora_weight_range": weight_range,
+                        },
+                    }
+                )
 
         elif test_type == "cfg_scales":
             for cfg in [5.0, 7.0, 9.0, 12.0]:
-                variants.append({
-                    "variant_id": f"cfg_{cfg}",
-                    "template_name": "standard",
-                    "config_overrides": {
-                        "cfg_scale": cfg,
-                    },
-                })
+                variants.append(
+                    {
+                        "variant_id": f"cfg_{cfg}",
+                        "template_name": "standard",
+                        "config_overrides": {
+                            "cfg_scale": cfg,
+                        },
+                    }
+                )
 
         elif test_type == "samplers":
             for sampler in ["DPM++ 2M Karras", "Euler a", "DPM++ SDE Karras", "UniPC"]:
-                variants.append({
-                    "variant_id": f"sampler_{sampler.replace(' ', '_').replace('+', 'p')}",
-                    "template_name": "standard",
-                    "config_overrides": {
-                        "sampler_name": sampler,
-                    },
-                })
+                variants.append(
+                    {
+                        "variant_id": f"sampler_{sampler.replace(' ', '_').replace('+', 'p')}",
+                        "template_name": "standard",
+                        "config_overrides": {
+                            "sampler_name": sampler,
+                        },
+                    }
+                )
 
         elif test_type == "seed_strategies":
             for strategy in ["random", "time_based", "sequential"]:
-                variants.append({
-                    "variant_id": f"seed_{strategy}",
-                    "template_name": "standard",
-                    "config_overrides": {
-                        "seed_strategy": strategy,
-                    },
-                })
+                variants.append(
+                    {
+                        "variant_id": f"seed_{strategy}",
+                        "template_name": "standard",
+                        "config_overrides": {
+                            "seed_strategy": strategy,
+                        },
+                    }
+                )
 
         elif test_type == "custom":
             # Use provided base_params as variants
@@ -199,9 +213,9 @@ class ABTestFramework:
 
     def generate_variant_configs(
         self,
-        variant: Dict[str, Any],
+        variant: dict[str, Any],
         count: int,
-    ) -> List[GenerationConfig]:
+    ) -> list[GenerationConfig]:
         """Generate configurations for a specific variant."""
         template = variant.get("template_name", "standard")
         overrides = variant.get("config_overrides", {})
@@ -229,9 +243,8 @@ class ABTestFramework:
 
         return configs
 
-    def analyze_results(self, results: List[VariantResult]) -> ABTestResult:
-        """
-        Perform statistical analysis on test results.
+    def analyze_results(self, results: list[VariantResult]) -> ABTestResult:
+        """Perform statistical analysis on test results.
 
         Selects winner based on:
         1. Highest success rate
@@ -273,9 +286,7 @@ class ABTestFramework:
 
             # Weighted composite score
             scores[result.variant_id] = (
-                success_score * 0.5 +
-                speed_score * 0.3 +
-                consistency_score * 0.2
+                success_score * 0.5 + speed_score * 0.3 + consistency_score * 0.2
             )
 
         # Select winner
@@ -287,7 +298,9 @@ class ABTestFramework:
         other_scores = [s for vid, s in scores.items() if vid != winner_id]
         if other_scores:
             second_best = max(other_scores)
-            confidence = (winner_score - second_best) / winner_score if winner_score > 0 else 0.0
+            confidence = (
+                (winner_score - second_best) / winner_score if winner_score > 0 else 0.0
+            )
         else:
             confidence = 1.0
 
@@ -319,7 +332,9 @@ class ABTestFramework:
             recommendation=recommendation,
         )
 
-    def save_results(self, result: ABTestResult, path: str = "ab_test_results.json") -> None:
+    def save_results(
+        self, result: ABTestResult, path: str = "ab_test_results.json"
+    ) -> None:
         """Save A/B test results to JSON."""
         Path(path).write_text(
             json.dumps(result.to_dict(), indent=2, ensure_ascii=False),
@@ -327,7 +342,7 @@ class ABTestFramework:
         )
         self.logger.info(f"A/B test results saved to: {path}")
 
-    def load_results(self, path: str) -> Optional[ABTestResult]:
+    def load_results(self, path: str) -> ABTestResult | None:
         """Load A/B test results from JSON."""
         p = Path(path)
         if not p.exists():
@@ -348,10 +363,14 @@ class ABTestFramework:
         print("=" * 70)
         print(f"  Test ID:     {result.test_id}")
         print(f"  Hypothesis:  {result.hypothesis}")
-        print(f"  Timestamp:   {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(result.timestamp))}")
+        print(
+            f"  Timestamp:   {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(result.timestamp))}"
+        )
         print()
 
-        print(f"  {'Variant':<25} {'Success':>8} {'Avg Time':>10} {'P95 Time':>10} {'StdDev':>10}")
+        print(
+            f"  {'Variant':<25} {'Success':>8} {'Avg Time':>10} {'P95 Time':>10} {'StdDev':>10}"
+        )
         print("  " + "-" * 65)
 
         for variant in result.variants:
@@ -379,9 +398,8 @@ class ABTestFramework:
         template_a: str,
         template_b: str,
         sample_size: int = 100,
-    ) -> Dict[str, Any]:
-        """
-        Compare prompt diversity between two templates.
+    ) -> dict[str, Any]:
+        """Compare prompt diversity between two templates.
 
         Returns:
             Dict with diversity metrics (unique words, overlap, etc.)
@@ -422,9 +440,7 @@ class ABTestFramework:
 
 
 class ABTestRunner:
-    """
-    High-level runner for executing A/B tests with the engine.
-    """
+    """High-level runner for executing A/B tests with the engine."""
 
     def __init__(self, engine_instance=None):
         self.engine = engine_instance
@@ -434,10 +450,9 @@ class ABTestRunner:
         self,
         test_type: str,
         generations_per_variant: int = 10,
-        workflow: Optional[Dict] = None,
+        workflow: dict | None = None,
     ) -> ABTestResult:
-        """
-        Run complete A/B test.
+        """Run complete A/B test.
 
         Args:
             test_type: Type of test (templates, lora_weights, etc.)
@@ -468,7 +483,9 @@ class ABTestRunner:
                 config_overrides=variant.get("config_overrides", {}),
             )
 
-            configs = framework.generate_variant_configs(variant, generations_per_variant)
+            configs = framework.generate_variant_configs(
+                variant, generations_per_variant
+            )
 
             for config in configs:
                 result.total_generations += 1
@@ -480,7 +497,11 @@ class ABTestRunner:
                 result.successful += 1
                 result.processing_times.append(15.0 + (result.total_generations % 10))
 
-            result.avg_processing_time = statistics.mean(result.processing_times) if result.processing_times else 0.0
+            result.avg_processing_time = (
+                statistics.mean(result.processing_times)
+                if result.processing_times
+                else 0.0
+            )
             results.append(result)
 
         analysis = framework.analyze_results(results)

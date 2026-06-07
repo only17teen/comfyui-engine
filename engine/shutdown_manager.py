@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v4.0 - Graceful Shutdown Manager
+"""ComfyUI Async Generation Engine v4.0 - Graceful Shutdown Manager
 Handles SIGTERM/SIGINT with connection draining and cleanup.
 """
 
@@ -13,8 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class GracefulShutdownManager:
-    """
-    Manages graceful shutdown for async services.
+    """Manages graceful shutdown for async services.
 
     Features:
     - Signal handler registration (SIGTERM, SIGINT)
@@ -32,10 +30,10 @@ class GracefulShutdownManager:
         self.grace_period = grace_period_seconds
         self.drain_timeout = drain_timeout_seconds
         self._shutdown_event = asyncio.Event()
-        self._cleanup_callbacks: List[Callable] = []
-        self._drain_callbacks: List[Callable] = []
+        self._cleanup_callbacks: list[Callable] = []
+        self._drain_callbacks: list[Callable] = []
         self._is_shutting_down = False
-        self._shutdown_start_time: Optional[float] = None
+        self._shutdown_start_time: float | None = None
 
     def register_cleanup(self, callback: Callable) -> None:
         """Register a callback to run during shutdown."""
@@ -55,8 +53,7 @@ class GracefulShutdownManager:
 
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(
-                sig,
-                lambda s=sig: asyncio.create_task(self._handle_signal(s.name))
+                sig, lambda s=sig: asyncio.create_task(self._handle_signal(s.name))
             )
             logger.info(f"Registered signal handler for {sig.name}")
 
@@ -144,7 +141,7 @@ class GracefulShutdownManager:
         """Block until shutdown is initiated."""
         await self._shutdown_event.wait()
 
-    def get_shutdown_status(self) -> Dict[str, Any]:
+    def get_shutdown_status(self) -> dict[str, Any]:
         """Get current shutdown status."""
         status = {
             "is_shutting_down": self._is_shutting_down,
@@ -162,7 +159,7 @@ class GracefulShutdownManager:
 
 
 # Global shutdown manager instance
-_global_shutdown_manager: Optional[GracefulShutdownManager] = None
+_global_shutdown_manager: GracefulShutdownManager | None = None
 
 
 def get_shutdown_manager() -> GracefulShutdownManager:

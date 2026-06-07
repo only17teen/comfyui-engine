@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v4.0 - Performance Profiler
+"""ComfyUI Async Generation Engine v4.0 - Performance Profiler
 cProfile and memory profiling integration for performance analysis.
 """
 
@@ -25,6 +24,7 @@ T = TypeVar("T")
 @dataclass
 class ProfileResult:
     """Result of a profiling session."""
+
     function_name: str
     total_time: float
     call_count: int
@@ -33,9 +33,9 @@ class ProfileResult:
     memory_peak_mb: float = 0.0
     memory_current_mb: float = 0.0
     timestamp: float = field(default_factory=time.time)
-    top_calls: List[Dict[str, Any]] = field(default_factory=list)
+    top_calls: list[dict[str, Any]] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "function_name": self.function_name,
             "total_time": self.total_time,
@@ -50,8 +50,7 @@ class ProfileResult:
 
 
 class PerformanceProfiler:
-    """
-    Context manager and decorator for profiling code execution.
+    """Context manager and decorator for profiling code execution.
 
     Features:
     - CPU profiling with cProfile
@@ -73,7 +72,7 @@ class PerformanceProfiler:
         self.slow_threshold_ms = slow_threshold_ms
         self.memory_threshold_mb = memory_threshold_mb
         self.top_n_calls = top_n_calls
-        self._results: List[ProfileResult] = []
+        self._results: list[ProfileResult] = []
 
     @contextmanager
     def profile(self, name: str):
@@ -101,24 +100,31 @@ class PerformanceProfiler:
 
             # Extract top calls
             top_calls = []
-            for func, (cc, nc, tt, ct, callers) in stats.stats.items():
+            for func, (_cc, nc, tt, ct, _callers) in stats.stats.items():
                 if ct > 0.001:  # Only significant calls
-                    top_calls.append({
-                        "function": f"{func[0]}:{func[1]}({func[2]})",
-                        "call_count": nc,
-                        "total_time": tt,
-                        "cumulative_time": ct,
-                    })
+                    top_calls.append(
+                        {
+                            "function": f"{func[0]}:{func[1]}({func[2]})",
+                            "call_count": nc,
+                            "total_time": tt,
+                            "cumulative_time": ct,
+                        }
+                    )
 
             top_calls.sort(key=lambda x: x["cumulative_time"], reverse=True)
-            top_calls = top_calls[:self.top_n_calls]
+            top_calls = top_calls[: self.top_n_calls]
 
             result = ProfileResult(
                 function_name=name,
                 total_time=elapsed,
                 call_count=sum(1 for _ in stats.stats.items()),
-                per_call_time=elapsed / max(sum(nc for _, (cc, nc, tt, ct, callers) in stats.stats.items()), 1),
-                cumulative_time=sum(ct for _, (cc, nc, tt, ct, callers) in stats.stats.items()),
+                per_call_time=elapsed
+                / max(
+                    sum(nc for _, (cc, nc, tt, ct, callers) in stats.stats.items()), 1
+                ),
+                cumulative_time=sum(
+                    ct for _, (cc, nc, tt, ct, callers) in stats.stats.items()
+                ),
                 memory_peak_mb=peak / (1024 * 1024),
                 memory_current_mb=current / (1024 * 1024),
                 top_calls=top_calls,
@@ -168,25 +174,29 @@ class PerformanceProfiler:
 
     def decorator(self, func: Callable[..., T]) -> Callable[..., T]:
         """Decorator for profiling function calls."""
+
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             with self.profile(func.__name__):
                 return func(*args, **kwargs)
+
         return wrapper
 
     def async_decorator(self, func: Callable[..., Any]) -> Callable[..., Any]:
         """Decorator for profiling async function calls."""
+
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
             with self.profile(func.__name__):
                 return await func(*args, **kwargs)
+
         return wrapper
 
-    def get_results(self) -> List[ProfileResult]:
+    def get_results(self) -> list[ProfileResult]:
         """Get all profiling results."""
         return self._results.copy()
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get summary statistics of all profiling sessions."""
         if not self._results:
             return {"total_sessions": 0}
@@ -195,12 +205,10 @@ class PerformanceProfiler:
         total_memory = sum(r.memory_peak_mb for r in self._results)
 
         slow_count = sum(
-            1 for r in self._results
-            if r.total_time > self.slow_threshold_ms / 1000
+            1 for r in self._results if r.total_time > self.slow_threshold_ms / 1000
         )
         high_memory_count = sum(
-            1 for r in self._results
-            if r.memory_peak_mb > self.memory_threshold_mb
+            1 for r in self._results if r.memory_peak_mb > self.memory_threshold_mb
         )
 
         return {
@@ -223,7 +231,7 @@ class PerformanceProfiler:
 
 
 # Global profiler instance for easy access
-_global_profiler: Optional[PerformanceProfiler] = None
+_global_profiler: PerformanceProfiler | None = None
 
 
 def get_profiler() -> PerformanceProfiler:

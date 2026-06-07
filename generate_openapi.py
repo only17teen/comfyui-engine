@@ -15,7 +15,7 @@ openapi_schema = get_openapi(
     version="5.0.0",
     description="""
     Production-grade REST API for ComfyUI Engine - AI model generation pipeline.
-    
+
     Features:
     - Job submission and management
     - Real-time WebSocket streaming
@@ -25,16 +25,16 @@ openapi_schema = get_openapi(
     - Webhook support
     - API key authentication
     - Rate limiting
-    
+
     ## Authentication
     All endpoints (except health checks) require API key authentication via Bearer token:
     ```
     Authorization: Bearer your-api-key
     ```
-    
+
     ## WebSocket Streaming
     Connect to `/ws` for real-time job progress updates.
-    
+
     ## Rate Limiting
     API requests are rate-limited per key. Check response headers for limits.
     """,

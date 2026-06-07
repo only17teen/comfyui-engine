@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v4.0 - Dead Letter Queue
+"""ComfyUI Async Generation Engine v4.0 - Dead Letter Queue
 Handles failed jobs that exceed retry limits for later analysis and replay.
 """
 
@@ -17,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class DLQReason(Enum):
     """Reason for dead letter queue entry."""
+
     MAX_RETRIES_EXCEEDED = "max_retries"
     CIRCUIT_BREAKER_OPEN = "circuit_breaker"
     TIMEOUT = "timeout"
@@ -27,32 +27,32 @@ class DLQReason(Enum):
 @dataclass
 class DLQEntry:
     """Single dead letter queue entry."""
+
     job_id: str
-    payload: Dict[str, Any]
-    meta: Dict[str, Any]
+    payload: dict[str, Any]
+    meta: dict[str, Any]
     reason: DLQReason
     error_message: str
     retry_count: int
     created_at: float = field(default_factory=time.time)
-    last_retry_at: Optional[float] = None
+    last_retry_at: float | None = None
     replay_count: int = 0
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             **asdict(self),
             "reason": self.reason.value,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "DLQEntry":
+    def from_dict(cls, data: dict) -> "DLQEntry":
         data = data.copy()
         data["reason"] = DLQReason(data["reason"])
         return cls(**data)
 
 
 class DeadLetterQueue:
-    """
-    Manages failed jobs for later analysis and replay.
+    """Manages failed jobs for later analysis and replay.
 
     Features:
     - Persistent storage of failed jobs
@@ -72,15 +72,15 @@ class DeadLetterQueue:
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.max_entries = max_entries
         self.retention_days = retention_days
-        self._entries: List[DLQEntry] = []
+        self._entries: list[DLQEntry] = []
         self._lock = asyncio.Lock()
-        self._replay_handlers: Dict[DLQReason, Callable] = {}
+        self._replay_handlers: dict[DLQReason, Callable] = {}
 
     async def add(
         self,
         job_id: str,
-        payload: Dict[str, Any],
-        meta: Dict[str, Any],
+        payload: dict[str, Any],
+        meta: dict[str, Any],
         reason: DLQReason,
         error_message: str,
         retry_count: int = 0,
@@ -106,9 +106,7 @@ class DeadLetterQueue:
                 removed = self._entries.pop(0)
                 await self._remove_persisted(removed)
 
-        logger.warning(
-            f"Job {job_id} added to DLQ: {reason.value} - {error_message}"
-        )
+        logger.warning(f"Job {job_id} added to DLQ: {reason.value} - {error_message}")
 
     async def _persist_entry(self, entry: DLQEntry) -> None:
         """Save entry to disk."""
@@ -126,18 +124,18 @@ class DeadLetterQueue:
 
     async def list_entries(
         self,
-        reason: Optional[DLQReason] = None,
+        reason: DLQReason | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[DLQEntry]:
+    ) -> list[DLQEntry]:
         """List DLQ entries with optional filtering."""
         async with self._lock:
             entries = self._entries
             if reason:
                 entries = [e for e in entries if e.reason == reason]
-            return entries[offset:offset + limit]
+            return entries[offset : offset + limit]
 
-    async def get_entry(self, job_id: str) -> Optional[DLQEntry]:
+    async def get_entry(self, job_id: str) -> DLQEntry | None:
         """Get specific DLQ entry by job ID."""
         async with self._lock:
             for entry in self._entries:
@@ -148,11 +146,10 @@ class DeadLetterQueue:
     async def replay(
         self,
         job_id: str,
-        handler: Optional[Callable] = None,
-        modified_payload: Optional[Dict] = None,
+        handler: Callable | None = None,
+        modified_payload: dict | None = None,
     ) -> bool:
-        """
-        Replay a failed job from DLQ.
+        """Replay a failed job from DLQ.
 
         Args:
             job_id: Job to replay.
@@ -210,7 +207,7 @@ class DeadLetterQueue:
 
         return removed
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Get DLQ statistics."""
         async with self._lock:
             total = len(self._entries)
@@ -220,8 +217,7 @@ class DeadLetterQueue:
                 by_reason[reason] = by_reason.get(reason, 0) + 1
 
             replayable = sum(
-                1 for e in self._entries
-                if e.reason in self._replay_handlers
+                1 for e in self._entries if e.reason in self._replay_handlers
             )
 
             return {

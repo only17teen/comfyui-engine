@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - Output Handler
+"""ComfyUI Async Generation Engine v2.0 - Output Handler
 Enhanced with structured metadata, EXIF tagging, and session management.
 """
 
@@ -13,13 +12,11 @@ from typing import Dict, List, Optional, Set
 
 from engine.api_client import ComfyUIJob, ComfyUIAsyncClient
 
-
 logger = logging.getLogger(__name__)
 
 
 class OutputHandler:
-    """
-    Production-grade output handler:
+    """Production-grade output handler:
     - Concurrent downloads with retry
     - Structured metadata (JSON + human-readable TXT)
     - EXIF-style metadata embedding (via sidecar)
@@ -30,7 +27,7 @@ class OutputHandler:
     def __init__(
         self,
         output_dir: str = "output_models",
-        client: Optional[ComfyUIAsyncClient] = None,
+        client: ComfyUIAsyncClient | None = None,
         keep_sessions: int = 5,
         metrics=None,
     ):
@@ -46,7 +43,7 @@ class OutputHandler:
         self.session_dir.mkdir(parents=True, exist_ok=True)
 
         # Download tracking
-        self._downloaded: Set[str] = set()
+        self._downloaded: set[str] = set()
         self._download_semaphore = asyncio.Semaphore(5)  # Max concurrent downloads
 
         logger.info(f"Output session: {self.session_dir}")
@@ -83,12 +80,11 @@ class OutputHandler:
         if loras:
             lines.append("--- LoRA Stack ---")
             for i, lora in enumerate(loras, 1):
+                lines.append(f"  [{i}] {lora['name']}")
+                lines.append(f"      Path:   {lora['path']}")
                 lines.append(
-                    f"  [{i}] {lora['name']}")
-                lines.append(
-                    f"      Path:   {lora['path']}")
-                lines.append(
-                    f"      Weight: {lora['weight']} (clip: {lora.get('weight_clip', 'N/A')})")
+                    f"      Weight: {lora['weight']} (clip: {lora.get('weight_clip', 'N/A')})"
+                )
             lines.append("")
 
         # Tags
@@ -98,31 +94,35 @@ class OutputHandler:
             lines.append("")
 
         # Timing
-        lines.extend([
-            "--- Timing ---",
-            f"Created:       {self._fmt_time(job.created_at)}",
-            f"Queued:        {self._fmt_time(job.queued_at)}",
-            f"Started:       {self._fmt_time(job.started_at)}",
-            f"Completed:     {self._fmt_time(job.completed_at)}",
-            f"Wait Time:     {job.wait_time:.2f}s",
-            f"Process Time:  {job.processing_time:.2f}s",
-            f"Total Time:    {job.total_time:.2f}s",
-            f"Retries:       {job.retry_count}",
-            "",
-            f"Output Index:  {output_idx}",
-            f"Generated:     {datetime.now().isoformat()}",
-            "=" * 60,
-        ])
+        lines.extend(
+            [
+                "--- Timing ---",
+                f"Created:       {self._fmt_time(job.created_at)}",
+                f"Queued:        {self._fmt_time(job.queued_at)}",
+                f"Started:       {self._fmt_time(job.started_at)}",
+                f"Completed:     {self._fmt_time(job.completed_at)}",
+                f"Wait Time:     {job.wait_time:.2f}s",
+                f"Process Time:  {job.processing_time:.2f}s",
+                f"Total Time:    {job.total_time:.2f}s",
+                f"Retries:       {job.retry_count}",
+                "",
+                f"Output Index:  {output_idx}",
+                f"Generated:     {datetime.now().isoformat()}",
+                "=" * 60,
+            ]
+        )
 
         return "\n".join(lines)
 
     @staticmethod
-    def _fmt_time(ts: Optional[float]) -> str:
+    def _fmt_time(ts: float | None) -> str:
         if ts is None:
             return "N/A"
         return datetime.fromtimestamp(ts).isoformat()
 
-    def _save_metadata_file(self, image_path: Path, job: ComfyUIJob, output_idx: int) -> Path:
+    def _save_metadata_file(
+        self, image_path: Path, job: ComfyUIJob, output_idx: int
+    ) -> Path:
         """Write .txt sidecar next to image."""
         meta_path = image_path.with_suffix(image_path.suffix + ".txt")
         content = self._build_metadata(job, output_idx)
@@ -153,10 +153,13 @@ class OutputHandler:
             "session_id": self.session_id,
             "downloaded_files": [str(p) for p in job.downloaded_files],
         }
-        json_path.write_text(json.dumps(data, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False, default=str),
+            encoding="utf-8",
+        )
         return json_path
 
-    def _save_session_manifest(self, jobs: List[ComfyUIJob]) -> Path:
+    def _save_session_manifest(self, jobs: list[ComfyUIJob]) -> Path:
         """Save session-level manifest with all jobs."""
         manifest_path = self.session_dir / "_session_manifest.json"
         manifest = {
@@ -166,17 +169,20 @@ class OutputHandler:
             "total_jobs": len(jobs),
             "jobs": [job.to_dict() for job in jobs],
         }
-        manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, ensure_ascii=False, default=str),
+            encoding="utf-8",
+        )
         logger.info(f"Session manifest saved: {manifest_path}")
         return manifest_path
 
     async def _download_single(
         self,
-        output: Dict,
+        output: dict,
         job: ComfyUIJob,
         client: ComfyUIAsyncClient,
         idx: int,
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """Download single output with semaphore-guarded concurrency."""
         filename = output.get("filename")
         if not filename:
@@ -212,8 +218,8 @@ class OutputHandler:
     async def process_job(
         self,
         job: ComfyUIJob,
-        client: Optional[ComfyUIAsyncClient] = None,
-    ) -> List[Path]:
+        client: ComfyUIAsyncClient | None = None,
+    ) -> list[Path]:
         """Process single completed job."""
         if job.status != "completed":
             logger.warning(f"Job {job.job_id} not completed ({job.status}), skipping")
@@ -223,7 +229,7 @@ class OutputHandler:
         if api is None:
             raise RuntimeError("No client provided for download")
 
-        downloaded: List[Path] = []
+        downloaded: list[Path] = []
 
         # Concurrent downloads for this job's outputs
         tasks = [
@@ -239,16 +245,18 @@ class OutputHandler:
         # Save JSON metadata
         self._save_json_metadata(job)
 
-        logger.info(f"Job {job.job_id}: downloaded {len(downloaded)}/{len(job.outputs)} files")
+        logger.info(
+            f"Job {job.job_id}: downloaded {len(downloaded)}/{len(job.outputs)} files"
+        )
         return downloaded
 
     async def process_batch(
         self,
-        jobs: List[ComfyUIJob],
-        client: Optional[ComfyUIAsyncClient] = None,
-    ) -> Dict[str, List[Path]]:
+        jobs: list[ComfyUIJob],
+        client: ComfyUIAsyncClient | None = None,
+    ) -> dict[str, list[Path]]:
         """Process multiple jobs concurrently."""
-        results: Dict[str, List[Path]] = {}
+        results: dict[str, list[Path]] = {}
 
         tasks = [self.process_job(job, client) for job in jobs]
         downloaded_lists = await asyncio.gather(*tasks, return_exceptions=True)
@@ -265,9 +273,13 @@ class OutputHandler:
 
         return results
 
-    def get_session_summary(self) -> Dict:
+    def get_session_summary(self) -> dict:
         """Return session summary statistics."""
-        images = list(self.session_dir.glob("*.png")) + list(self.session_dir.glob("*.jpg")) + list(self.session_dir.glob("*.webp"))
+        images = (
+            list(self.session_dir.glob("*.png"))
+            + list(self.session_dir.glob("*.jpg"))
+            + list(self.session_dir.glob("*.webp"))
+        )
         txt_files = list(self.session_dir.glob("*.txt"))
         json_files = list(self.session_dir.glob("*.json"))
 
@@ -292,14 +304,14 @@ class OutputHandler:
             reverse=True,
         )
 
-        for old in sessions[self.keep_sessions:]:
+        for old in sessions[self.keep_sessions :]:
             try:
                 shutil.rmtree(old)
                 logger.info(f"Cleaned up old session: {old.name}")
             except Exception as e:
                 logger.warning(f"Failed to remove {old}: {e}")
 
-    def get_disk_usage(self) -> Dict:
+    def get_disk_usage(self) -> dict:
         """Get disk usage statistics for output directory."""
         total_size = 0
         file_count = 0

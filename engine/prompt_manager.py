@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - Prompt & LoRA Manager
+"""ComfyUI Async Generation Engine v2.0 - Prompt & LoRA Manager
 Pydantic-validated configuration, seed strategies, prompt templates.
 """
 
@@ -14,6 +13,7 @@ from engine.config import EngineConfig, LoRAModelConfig
 @dataclass
 class LoRAStackItem:
     """Single LoRA with resolved weight."""
+
     name: str
     path: str
     weight: float
@@ -23,6 +23,7 @@ class LoRAStackItem:
 @dataclass
 class GenerationConfig:
     """Complete generation configuration for a single job."""
+
     seed: int
     positive_prompt: str
     negative_prompt: str
@@ -32,12 +33,12 @@ class GenerationConfig:
     cfg_scale: float
     sampler_name: str
     scheduler: str
-    lora_stack: List[LoRAStackItem]
+    lora_stack: list[LoRAStackItem]
     batch_size: int = 1
-    prompt_template: Optional[str] = None
-    tags: List[str] = field(default_factory=list)
+    prompt_template: str | None = None
+    tags: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serialize to plain dict for metadata/logging."""
         return {
             "seed": self.seed,
@@ -50,7 +51,12 @@ class GenerationConfig:
             "sampler_name": self.sampler_name,
             "scheduler": self.scheduler,
             "lora_stack": [
-                {"name": l.name, "path": l.path, "weight": l.weight, "weight_clip": l.weight_clip}
+                {
+                    "name": l.name,
+                    "path": l.path,
+                    "weight": l.weight,
+                    "weight_clip": l.weight_clip,
+                }
                 for l in self.lora_stack
             ],
             "batch_size": self.batch_size,
@@ -109,6 +115,7 @@ class PromptTemplate:
                 result = result.replace(f"{{{key}}}", kwargs.get(key, ""))
             # Remove any remaining unfilled placeholders
             import re
+
             result = re.sub(r"\{[^}]+\}", "", result)
             # Clean up extra commas and spaces
             result = re.sub(r",\s*,", ",", result)
@@ -117,8 +124,7 @@ class PromptTemplate:
 
 
 class PromptManager:
-    """
-    Advanced prompt manager with:
+    """Advanced prompt manager with:
     - Pydantic-validated configuration
     - Multiple seed strategies
     - Template-based prompt construction
@@ -128,7 +134,7 @@ class PromptManager:
 
     def __init__(self, config: EngineConfig):
         self.config = config
-        self.prompt_history: List[str] = []
+        self.prompt_history: list[str] = []
         self.max_history = 1000
         self._rng = random.Random()
 
@@ -136,7 +142,9 @@ class PromptManager:
         """Set deterministic RNG seed for reproducible generations."""
         self._rng.seed(seed)
 
-    def _pick_weighted(self, items: List[str], weights: Optional[List[float]] = None) -> str:
+    def _pick_weighted(
+        self, items: list[str], weights: list[float] | None = None
+    ) -> str:
         """Weighted random selection from a list."""
         if not items:
             return ""
@@ -144,7 +152,9 @@ class PromptManager:
             return self._rng.choices(items, weights=weights, k=1)[0]
         return self._rng.choice(items)
 
-    def _pick_multiple(self, items: List[str], count: int, weights: Optional[List[float]] = None) -> List[str]:
+    def _pick_multiple(
+        self, items: list[str], count: int, weights: list[float] | None = None
+    ) -> list[str]:
         """Pick multiple unique items."""
         if not items or count <= 0:
             return []
@@ -152,7 +162,9 @@ class PromptManager:
         if weights and len(weights) == len(items):
             # Weighted sampling without replacement (approximate)
             selected = []
-            available = list(zip(items, weights)) if weights else [(i, 1.0) for i in items]
+            available = (
+                list(zip(items, weights)) if weights else [(i, 1.0) for i in items]
+            )
             for _ in range(count):
                 if not available:
                     break
@@ -198,15 +210,19 @@ class PromptManager:
             return ""
 
         # Quality tags have higher weight
-        quality_tags = ["masterpiece", "best quality", "highly detailed", "ultra-detailed"]
+        quality_tags = [
+            "masterpiece",
+            "best quality",
+            "highly detailed",
+            "ultra-detailed",
+        ]
         weights = [2.0 if t in quality_tags else 1.0 for t in triggers]
 
         selected = self._pick_multiple(triggers, min(count, len(triggers)), weights)
         return ", ".join(selected)
 
-    def generate_prompt(self, template_name: Optional[str] = None) -> Tuple[str, str]:
-        """
-        Generate positive and negative prompts.
+    def generate_prompt(self, template_name: str | None = None) -> tuple[str, str]:
+        """Generate positive and negative prompts.
 
         Returns:
             (positive_prompt, template_name_used)
@@ -216,10 +232,26 @@ class PromptManager:
         # Build components
         triggers = self._build_triggers()
         clothing = self._build_clothing()
-        pose = self._pick_weighted(self.config.prompts.poses) if self.config.prompts.poses else ""
-        location = self._pick_weighted(self.config.prompts.locations) if self.config.prompts.locations else ""
-        expression = self._pick_weighted(self.config.prompts.expressions) if self.config.prompts.expressions else ""
-        lighting = self._pick_weighted(self.config.prompts.lighting) if self.config.prompts.lighting else ""
+        pose = (
+            self._pick_weighted(self.config.prompts.poses)
+            if self.config.prompts.poses
+            else ""
+        )
+        location = (
+            self._pick_weighted(self.config.prompts.locations)
+            if self.config.prompts.locations
+            else ""
+        )
+        expression = (
+            self._pick_weighted(self.config.prompts.expressions)
+            if self.config.prompts.expressions
+            else ""
+        )
+        lighting = (
+            self._pick_weighted(self.config.prompts.lighting)
+            if self.config.prompts.lighting
+            else ""
+        )
 
         positive = template.render(
             triggers=triggers,
@@ -243,9 +275,8 @@ class PromptManager:
 
         return positive, template.name
 
-    def build_lora_stack(self, num_lora: Optional[int] = None) -> List[LoRAStackItem]:
-        """
-        Build randomized LoRA stack with validated weights.
+    def build_lora_stack(self, num_lora: int | None = None) -> list[LoRAStackItem]:
+        """Build randomized LoRA stack with validated weights.
 
         Args:
             num_lora: Override number of LoRAs. Defaults to config.
@@ -267,23 +298,25 @@ class PromptManager:
             weight = round(self._rng.uniform(*model.weight_range), 2)
             # Clip strength typically slightly lower than model strength
             weight_clip = max(0.1, round(weight - 0.2, 2))
-            stack.append(LoRAStackItem(
-                name=model.name,
-                path=model.path,
-                weight=weight,
-                weight_clip=weight_clip,
-            ))
+            stack.append(
+                LoRAStackItem(
+                    name=model.name,
+                    path=model.path,
+                    weight=weight,
+                    weight_clip=weight_clip,
+                )
+            )
 
         return stack
 
-    def get_resolution(self) -> Tuple[int, int]:
+    def get_resolution(self) -> tuple[int, int]:
         """Pick random resolution from config presets."""
         resolutions = self.config.lora.resolutions
         if not resolutions:
             return (512, 768)
         return self._rng.choice(resolutions)
 
-    def get_sampling_params(self) -> Dict[str, Any]:
+    def get_sampling_params(self) -> dict[str, Any]:
         """Randomize sampling parameters within validated ranges."""
         sampling = self.config.lora.sampling
         return {
@@ -295,14 +328,13 @@ class PromptManager:
 
     def generate_config(
         self,
-        seed: Optional[int] = None,
+        seed: int | None = None,
         seed_strategy: str = "random",
-        num_lora: Optional[int] = None,
-        template: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        num_lora: int | None = None,
+        template: str | None = None,
+        tags: list[str] | None = None,
     ) -> GenerationConfig:
-        """
-        Generate complete configuration with full control.
+        """Generate complete configuration with full control.
 
         Args:
             seed: Fixed seed (overrides strategy).
@@ -354,9 +386,9 @@ class PromptManager:
         self,
         count: int,
         seed_strategy: str = "random",
-        num_lora: Optional[int] = None,
-        template: Optional[str] = None,
-    ) -> List[GenerationConfig]:
+        num_lora: int | None = None,
+        template: str | None = None,
+    ) -> list[GenerationConfig]:
         """Generate a batch of unique configurations."""
         configs = []
         for _ in range(count):
@@ -368,12 +400,14 @@ class PromptManager:
             configs.append(cfg)
         return configs
 
-    def to_comfy_payload(self, config: GenerationConfig, workflow_template: Dict) -> Dict:
-        """
-        Inject GenerationConfig into ComfyUI workflow template.
+    def to_comfy_payload(
+        self, config: GenerationConfig, workflow_template: dict
+    ) -> dict:
+        """Inject GenerationConfig into ComfyUI workflow template.
         Supports both node-ID-based and class_type-based injection.
         """
         import copy
+
         payload = copy.deepcopy(workflow_template)
 
         # Build LoRA prompt suffix

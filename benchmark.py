@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-ComfyUI Engine v2.0 - Benchmark Suite
+"""ComfyUI Engine v2.0 - Benchmark Suite
 Compares v1.0 (baseline) vs v2.0 (resilient) architecture performance.
 """
 
@@ -28,7 +27,7 @@ class BenchmarkResult:
     duration_ms: float
     iterations: int
     throughput: float  # ops/sec
-    memory_mb: Optional[float] = None
+    memory_mb: float | None = None
     errors: int = 0
     retries: int = 0
     p50_ms: float = 0.0
@@ -41,10 +40,10 @@ class BenchmarkSuite:
     """Complete benchmark suite results."""
     suite_name: str
     timestamp: float
-    results: List[BenchmarkResult] = field(default_factory=list)
-    system_info: Dict = field(default_factory=dict)
+    results: list[BenchmarkResult] = field(default_factory=list)
+    system_info: dict = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return {
             "suite_name": self.suite_name,
             "timestamp": self.timestamp,
@@ -68,8 +67,7 @@ class BenchmarkSuite:
 
 
 class EngineBenchmark:
-    """
-    Benchmark suite for ComfyUI Engine.
+    """Benchmark suite for ComfyUI Engine.
 
     Tests:
     1. Prompt generation throughput

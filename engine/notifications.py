@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - Webhook Notifications
+"""ComfyUI Async Generation Engine v2.0 - Webhook Notifications
 Discord/Slack notifications for batch completion and alerts.
 """
 
@@ -12,11 +11,12 @@ from typing import Any, Dict, List, Optional
 
 import aiohttp
 
-
 logger = logging.getLogger(__name__)
 
 
 class WebhookType(Enum):
+    """Webhook notification type enumeration."""
+
     DISCORD = "discord"
     SLACK = "slack"
     GENERIC = "generic"
@@ -25,6 +25,7 @@ class WebhookType(Enum):
 @dataclass
 class NotificationConfig:
     """Configuration for webhook notifications."""
+
     webhook_url: str
     webhook_type: WebhookType = WebhookType.GENERIC
     enabled: bool = True
@@ -33,13 +34,12 @@ class NotificationConfig:
     notify_on_error: bool = True
     include_images: bool = False
     max_images: int = 3
-    mention_on_failure: Optional[str] = None  # @user or @channel
-    custom_fields: Dict[str, str] = field(default_factory=dict)
+    mention_on_failure: str | None = None  # @user or @channel
+    custom_fields: dict[str, str] = field(default_factory=dict)
 
 
 class WebhookNotifier:
-    """
-    Async webhook notifier for Discord, Slack, and generic endpoints.
+    """Async webhook notifier for Discord, Slack, and generic endpoints.
 
     Features:
     - Discord embeds with rich formatting
@@ -52,7 +52,7 @@ class WebhookNotifier:
 
     def __init__(self, config: NotificationConfig):
         self.config = config
-        self._session: Optional[aiohttp.ClientSession] = None
+        self._session: aiohttp.ClientSession | None = None
         self._last_notification_time: float = 0.0
         self._rate_limit_interval: float = 1.0  # Minimum seconds between notifications
 
@@ -64,7 +64,7 @@ class WebhookNotifier:
             )
         return self._session
 
-    async def _send(self, payload: Dict[str, Any]) -> bool:
+    async def _send(self, payload: dict[str, Any]) -> bool:
         """Send notification with rate limiting and retry."""
         if not self.config.enabled:
             return False
@@ -83,7 +83,9 @@ class WebhookNotifier:
             ) as resp:
                 if resp.status in (200, 204):
                     self._last_notification_time = asyncio.get_event_loop().time()
-                    logger.info(f"Notification sent to {self.config.webhook_type.value}")
+                    logger.info(
+                        f"Notification sent to {self.config.webhook_type.value}"
+                    )
                     return True
                 else:
                     text = await resp.text()
@@ -98,9 +100,9 @@ class WebhookNotifier:
         title: str,
         description: str,
         color: int,
-        fields: List[Dict[str, Any]],
-        image_urls: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        fields: list[dict[str, Any]],
+        image_urls: list[str] | None = None,
+    ) -> dict[str, Any]:
         """Build Discord embed payload."""
         embed = {
             "title": title,
@@ -123,9 +125,9 @@ class WebhookNotifier:
         title: str,
         description: str,
         color: str,
-        fields: List[Dict[str, Any]],
-        image_urls: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        fields: list[dict[str, Any]],
+        image_urls: list[str] | None = None,
+    ) -> dict[str, Any]:
         """Build Slack blocks payload."""
         blocks = [
             {
@@ -146,11 +148,13 @@ class WebhookNotifier:
         ]
 
         if image_urls and self.config.include_images:
-            blocks.append({
-                "type": "image",
-                "image_url": image_urls[0],
-                "alt_text": "Generated image",
-            })
+            blocks.append(
+                {
+                    "type": "image",
+                    "image_url": image_urls[0],
+                    "alt_text": "Generated image",
+                }
+            )
 
         return {
             "blocks": blocks,
@@ -161,8 +165,8 @@ class WebhookNotifier:
         self,
         title: str,
         description: str,
-        fields: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        fields: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Build generic JSON payload."""
         return {
             "title": title,
@@ -180,9 +184,9 @@ class WebhookNotifier:
         failed: int,
         duration_seconds: float,
         output_dir: str,
-        image_urls: Optional[List[str]] = None,
-        template: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        image_urls: list[str] | None = None,
+        template: str | None = None,
+        tags: list[str] | None = None,
     ) -> bool:
         """Send batch completion notification."""
         if not self.config.notify_on_success and failed == 0:
@@ -191,9 +195,15 @@ class WebhookNotifier:
             return False
 
         success_rate = (completed / total_jobs * 100) if total_jobs > 0 else 0
-        status = "✅ SUCCESS" if failed == 0 else "⚠️ PARTIAL" if completed > 0 else "❌ FAILED"
+        status = (
+            "✅ SUCCESS"
+            if failed == 0
+            else "⚠️ PARTIAL" if completed > 0 else "❌ FAILED"
+        )
         color = 0x00FF00 if failed == 0 else 0xFFA500 if completed > 0 else 0xFF0000
-        slack_color = "good" if failed == 0 else "warning" if completed > 0 else "danger"
+        slack_color = (
+            "good" if failed == 0 else "warning" if completed > 0 else "danger"
+        )
 
         fields = [
             {"name": "Session", "value": session_id, "inline": True},
@@ -217,9 +227,13 @@ class WebhookNotifier:
         description = f"{mention}Generation batch completed with {completed}/{total_jobs} jobs successful."
 
         if self.config.webhook_type == WebhookType.DISCORD:
-            payload = self._build_discord_embed(title, description, color, fields, image_urls)
+            payload = self._build_discord_embed(
+                title, description, color, fields, image_urls
+            )
         elif self.config.webhook_type == WebhookType.SLACK:
-            payload = self._build_slack_blocks(title, description, slack_color, fields, image_urls)
+            payload = self._build_slack_blocks(
+                title, description, slack_color, fields, image_urls
+            )
         else:
             payload = self._build_generic_payload(title, description, fields)
 
@@ -228,8 +242,8 @@ class WebhookNotifier:
     async def notify_error(
         self,
         error_message: str,
-        job_id: Optional[str] = None,
-        details: Optional[str] = None,
+        job_id: str | None = None,
+        details: str | None = None,
     ) -> bool:
         """Send error notification."""
         if not self.config.notify_on_error:
@@ -265,7 +279,7 @@ class WebhookNotifier:
         session_id: str,
         current: int,
         total: int,
-        eta_seconds: Optional[float] = None,
+        eta_seconds: float | None = None,
     ) -> bool:
         """Send progress update (throttled)."""
         # Only send progress at 25%, 50%, 75%
@@ -274,12 +288,18 @@ class WebhookNotifier:
             return False
 
         fields = [
-            {"name": "Progress", "value": f"{current}/{total} ({progress_pct:.0f}%)", "inline": True},
+            {
+                "name": "Progress",
+                "value": f"{current}/{total} ({progress_pct:.0f}%)",
+                "inline": True,
+            },
             {"name": "Session", "value": session_id, "inline": True},
         ]
 
         if eta_seconds:
-            fields.append({"name": "ETA", "value": f"{eta_seconds:.0f}s", "inline": True})
+            fields.append(
+                {"name": "ETA", "value": f"{eta_seconds:.0f}s", "inline": True}
+            )
 
         title = f"📊 Progress Update ({progress_pct:.0f}%)"
         description = f"Batch generation in progress..."
@@ -300,18 +320,16 @@ class WebhookNotifier:
 
 
 class MultiNotifier:
-    """
-    Manager for multiple webhook notifiers.
-    """
+    """Manager for multiple webhook notifiers."""
 
     def __init__(self):
-        self.notifiers: List[WebhookNotifier] = []
+        self.notifiers: list[WebhookNotifier] = []
 
     def add(self, config: NotificationConfig) -> None:
         """Add a notifier."""
         self.notifiers.append(WebhookNotifier(config))
 
-    async def notify_batch_complete(self, **kwargs) -> List[bool]:
+    async def notify_batch_complete(self, **kwargs) -> list[bool]:
         """Send to all notifiers."""
         results = []
         for notifier in self.notifiers:
@@ -319,7 +337,7 @@ class MultiNotifier:
             results.append(result)
         return results
 
-    async def notify_error(self, **kwargs) -> List[bool]:
+    async def notify_error(self, **kwargs) -> list[bool]:
         """Send error to all notifiers."""
         results = []
         for notifier in self.notifiers:
@@ -327,7 +345,7 @@ class MultiNotifier:
             results.append(result)
         return results
 
-    async def notify_progress(self, **kwargs) -> List[bool]:
+    async def notify_progress(self, **kwargs) -> list[bool]:
         """Send progress to all notifiers."""
         results = []
         for notifier in self.notifiers:

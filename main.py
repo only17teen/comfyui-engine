@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - Unified Main Orchestrator
+"""ComfyUI Async Generation Engine v2.0 - Unified Main Orchestrator
 Full end-to-end pipeline integrating all modules.
 """
 
@@ -48,8 +47,7 @@ def print_progress(total: int, completed: int, status: str) -> None:
 # Unified Generation Engine
 # ───────────────────────────────────────────────────────────────
 class UnifiedGenerationEngine:
-    """
-    Production-grade orchestrator integrating all v2.0 modules:
+    """Production-grade orchestrator integrating all v2.0 modules:
     - Config validation (Pydantic)
     - Prompt generation (templates, seeds, weighted random)
     - API client (circuit breaker, retry, WebSocket)
@@ -74,7 +72,7 @@ class UnifiedGenerationEngine:
             metrics=self.metrics,
             use_websocket=True,
         )
-        self.output_handler: Optional[OutputHandler] = None
+        self.output_handler: OutputHandler | None = None
         self.session_manager = SessionManager(
             sessions_dir="sessions",
             checkpoint_interval=5,
@@ -84,13 +82,13 @@ class UnifiedGenerationEngine:
             checkpoint_interval=5,
             emergency_checkpoint=True,
         )
-        self.ws_manager: Optional[WebSocketManager] = None
-        self.metrics_server: Optional[MetricsServer] = None
+        self.ws_manager: WebSocketManager | None = None
+        self.metrics_server: MetricsServer | None = None
         self.validator = WorkflowValidator()
 
         self._shutdown_event = asyncio.Event()
-        self._current_jobs: List[ComfyUIJob] = []
-        self._session_id: Optional[str] = None
+        self._current_jobs: list[ComfyUIJob] = []
+        self._session_id: str | None = None
 
         self.logger = logging.getLogger(self.__class__.__name__)
         self._setup_signals()
@@ -110,7 +108,7 @@ class UnifiedGenerationEngine:
             self.logger.error(f"ComfyUI server unreachable at {self.config.base_url}")
         return healthy
 
-    async def start_metrics_server(self, port: Optional[int] = None) -> None:
+    async def start_metrics_server(self, port: int | None = None) -> None:
         """Start Prometheus metrics server."""
         port = port or getattr(self.config, 'metrics_port', 9090)
         self.metrics_server = MetricsServer(self.metrics, port=port)
@@ -129,7 +127,7 @@ class UnifiedGenerationEngine:
         )
         await self.ws_manager.connect()
 
-    async def validate_workflow(self, workflow: Dict) -> bool:
+    async def validate_workflow(self, workflow: dict) -> bool:
         """Validate workflow and log results."""
         result = self.validator.validate(workflow)
 
@@ -148,25 +146,23 @@ class UnifiedGenerationEngine:
 
     async def run_batch(
         self,
-        workflow_template: Dict,
+        workflow_template: dict,
         batch_size: int = 4,
         num_lora: int = 2,
-        template: Optional[str] = None,
+        template: str | None = None,
         seed_strategy: str = "random",
-        fixed_seed: Optional[int] = None,
-        tags: Optional[List[str]] = None,
+        fixed_seed: int | None = None,
+        tags: list[str] | None = None,
         progress: bool = True,
-        resume_session: Optional[str] = None,
-    ) -> List[ComfyUIJob]:
-        """
-        Execute full generation batch with all v2.0 features.
-        """
+        resume_session: str | None = None,
+    ) -> list[ComfyUIJob]:
+        """Execute full generation batch with all v2.0 features."""
         # Validate workflow
         if not await self.validate_workflow(workflow_template):
             raise RuntimeError("Workflow validation failed")
 
         # Check for resume state
-        resume_state: Optional[ResumeState] = None
+        resume_state: ResumeState | None = None
         if resume_session:
             resume_state = self.checkpoint_manager.get_resume_state(resume_session)
             if resume_state and resume_state.can_resume:
@@ -202,8 +198,8 @@ class UnifiedGenerationEngine:
         )
 
         # Build payloads
-        payloads: List[Dict] = []
-        metas: List[Dict] = []
+        payloads: list[dict] = []
+        metas: list[dict] = []
 
         for cfg in configs:
             payload = self.prompt_manager.to_comfy_payload(cfg, workflow_template)
@@ -264,14 +260,12 @@ class UnifiedGenerationEngine:
 
     async def run_distributed(
         self,
-        workflow_template: Dict,
+        workflow_template: dict,
         redis_url: str = "redis://localhost:6379/0",
         batch_size: int = 4,
         **kwargs,
-    ) -> List[ComfyUIJob]:
-        """
-        Run as distributed worker consuming from Redis queue.
-        """
+    ) -> list[ComfyUIJob]:
+        """Run as distributed worker consuming from Redis queue."""
         try:
             from engine.distributed_queue import DistributedWorker
         except ImportError:
@@ -283,7 +277,7 @@ class UnifiedGenerationEngine:
             max_concurrent=self.config.max_concurrent,
         )
 
-        async def process_job(payload: Dict, meta: Dict) -> Dict:
+        async def process_job(payload: dict, meta: dict) -> dict:
             job = await self.client.run_job(payload, meta)
             return job.to_dict()
 
@@ -292,7 +286,7 @@ class UnifiedGenerationEngine:
         await worker.start(process_job)
         return []
 
-    async def sync_git(self, repo_path: str = ".", commit_msg: Optional[str] = None) -> Dict:
+    async def sync_git(self, repo_path: str = ".", commit_msg: str | None = None) -> dict:
         """Sync with git repository."""
         self.logger.info(f"Git sync: {repo_path}")
         try:
@@ -311,7 +305,7 @@ class UnifiedGenerationEngine:
         await self.client.close()
         self.logger.info("Engine shutdown complete")
 
-    def get_report(self) -> Dict:
+    def get_report(self) -> dict:
         return {
             "config": self.config.model_dump(),
             "jobs": [j.to_dict() for j in self._current_jobs],
@@ -439,7 +433,7 @@ Environment Variables:
     # Validate workflow only
     if args.validate_workflow:
         try:
-            with open(args.workflow, "r", encoding="utf-8") as f:
+            with open(args.workflow, encoding="utf-8") as f:
                 workflow = json.load(f)
             engine = UnifiedGenerationEngine(engine_config)
             valid = await engine.validate_workflow(workflow)
@@ -458,7 +452,7 @@ Environment Variables:
         workflow_path = Path(args.workflow)
         if not workflow_path.exists():
             raise FileNotFoundError(f"Workflow not found: {workflow_path}")
-        with open(workflow_path, "r", encoding="utf-8") as f:
+        with open(workflow_path, encoding="utf-8") as f:
             workflow = json.load(f)
         logger.info(f"Workflow loaded: {workflow_path}")
     except Exception as e:

@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - Session Manager
+"""ComfyUI Async Generation Engine v2.0 - Session Manager
 Crash recovery, job resumption, and checkpoint system.
 """
 
@@ -14,11 +13,12 @@ from typing import Any, Dict, List, Optional, Set
 
 from engine.api_client import ComfyUIJob
 
-
 logger = logging.getLogger(__name__)
 
 
 class JobStatus(Enum):
+    """Job status enumeration."""
+
     PENDING = "pending"
     QUEUED = "queued"
     RUNNING = "running"
@@ -31,26 +31,28 @@ class JobStatus(Enum):
 @dataclass
 class Checkpoint:
     """Single checkpoint for resumable batch processing."""
+
     checkpoint_id: str
     timestamp: float
     batch_index: int
     total_batches: int
-    completed_jobs: List[str] = field(default_factory=list)
-    failed_jobs: List[str] = field(default_factory=list)
-    pending_jobs: List[str] = field(default_factory=list)
-    config_snapshot: Dict[str, Any] = field(default_factory=dict)
+    completed_jobs: list[str] = field(default_factory=list)
+    failed_jobs: list[str] = field(default_factory=list)
+    pending_jobs: list[str] = field(default_factory=list)
+    config_snapshot: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "Checkpoint":
+    def from_dict(cls, data: dict) -> "Checkpoint":
         return cls(**data)
 
 
 @dataclass
 class SessionManifest:
     """Complete session state for recovery."""
+
     session_id: str
     created_at: float
     updated_at: float
@@ -59,18 +61,17 @@ class SessionManifest:
     completed_count: int = 0
     failed_count: int = 0
     pending_count: int = 0
-    jobs: List[Dict] = field(default_factory=list)
-    checkpoints: List[Dict] = field(default_factory=list)
+    jobs: list[dict] = field(default_factory=list)
+    checkpoints: list[dict] = field(default_factory=list)
     config_hash: str = ""
     workflow_hash: str = ""
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return asdict(self)
 
 
 class SessionManager:
-    """
-    Manages session persistence, crash recovery, and job resumption.
+    """Manages session persistence, crash recovery, and job resumption.
 
     Features:
     - Automatic checkpointing during batch execution
@@ -90,8 +91,8 @@ class SessionManager:
         self.checkpoint_interval = checkpoint_interval
         self.auto_resume = auto_resume
 
-        self._current_session: Optional[SessionManifest] = None
-        self._current_checkpoint: Optional[Checkpoint] = None
+        self._current_session: SessionManifest | None = None
+        self._current_checkpoint: Checkpoint | None = None
         self._jobs_since_checkpoint: int = 0
 
         self.logger = logging.getLogger(__name__)
@@ -109,15 +110,16 @@ class SessionManager:
     def _compute_hash(self, data: Any) -> str:
         """Compute simple hash for change detection."""
         import hashlib
+
         content = json.dumps(data, sort_keys=True, default=str)
         return hashlib.md5(content.encode()).hexdigest()[:16]
 
     def create_session(
         self,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
         total_jobs: int = 0,
-        config: Optional[Dict] = None,
-        workflow: Optional[Dict] = None,
+        config: dict | None = None,
+        workflow: dict | None = None,
     ) -> SessionManifest:
         """Create new session with optional config/workflow hashes."""
         session = SessionManifest(
@@ -138,9 +140,11 @@ class SessionManager:
     def _save_session(self, session: SessionManifest) -> None:
         """Persist session manifest to disk."""
         path = self._session_path(session.session_id)
-        path.write_text(json.dumps(session.to_dict(), indent=2, default=str), encoding="utf-8")
+        path.write_text(
+            json.dumps(session.to_dict(), indent=2, default=str), encoding="utf-8"
+        )
 
-    def load_session(self, session_id: str) -> Optional[SessionManifest]:
+    def load_session(self, session_id: str) -> SessionManifest | None:
         """Load session from disk."""
         path = self._session_path(session_id)
         if not path.exists():
@@ -156,7 +160,7 @@ class SessionManager:
             self.logger.error(f"Failed to load session {session_id}: {e}")
             return None
 
-    def find_incomplete_sessions(self) -> List[SessionManifest]:
+    def find_incomplete_sessions(self) -> list[SessionManifest]:
         """Find all sessions that can be resumed."""
         incomplete = []
 
@@ -208,8 +212,12 @@ class SessionManager:
         if not self._current_session:
             return
 
-        completed = sum(1 for j in self._current_session.jobs if j.get("status") == "completed")
-        failed = sum(1 for j in self._current_session.jobs if j.get("status") == "error")
+        completed = sum(
+            1 for j in self._current_session.jobs if j.get("status") == "completed"
+        )
+        failed = sum(
+            1 for j in self._current_session.jobs if j.get("status") == "error"
+        )
         pending = self._current_session.total_jobs - completed - failed
 
         self._current_session.completed_count = completed
@@ -227,15 +235,18 @@ class SessionManager:
             batch_index=self._current_session.completed_count,
             total_batches=self._current_session.total_jobs,
             completed_jobs=[
-                j["job_id"] for j in self._current_session.jobs
+                j["job_id"]
+                for j in self._current_session.jobs
                 if j.get("status") == "completed"
             ],
             failed_jobs=[
-                j["job_id"] for j in self._current_session.jobs
+                j["job_id"]
+                for j in self._current_session.jobs
                 if j.get("status") == "error"
             ],
             pending_jobs=[
-                j["job_id"] for j in self._current_session.jobs
+                j["job_id"]
+                for j in self._current_session.jobs
                 if j.get("status") not in ("completed", "error")
             ],
             config_snapshot=self._current_session.to_dict(),
@@ -246,7 +257,9 @@ class SessionManager:
             self._current_session.session_id,
             checkpoint.checkpoint_id,
         )
-        path.write_text(json.dumps(checkpoint.to_dict(), indent=2, default=str), encoding="utf-8")
+        path.write_text(
+            json.dumps(checkpoint.to_dict(), indent=2, default=str), encoding="utf-8"
+        )
 
         # Add to session
         self._current_session.checkpoints.append(checkpoint.to_dict())
@@ -261,7 +274,7 @@ class SessionManager:
 
         return checkpoint
 
-    def load_checkpoint(self, session_id: str, checkpoint_id: str) -> Optional[Checkpoint]:
+    def load_checkpoint(self, session_id: str, checkpoint_id: str) -> Checkpoint | None:
         """Load specific checkpoint."""
         path = self._checkpoint_path(session_id, checkpoint_id)
         if not path.exists():
@@ -274,7 +287,7 @@ class SessionManager:
             self.logger.error(f"Failed to load checkpoint: {e}")
             return None
 
-    def get_latest_checkpoint(self, session_id: str) -> Optional[Checkpoint]:
+    def get_latest_checkpoint(self, session_id: str) -> Checkpoint | None:
         """Get most recent checkpoint for session."""
         checkpoint_dir = self.sessions_dir / session_id
         if not checkpoint_dir.exists():
@@ -295,9 +308,8 @@ class SessionManager:
         except Exception:
             return None
 
-    def get_resume_state(self, session_id: str) -> Optional[Dict]:
-        """
-        Get state needed to resume a session.
+    def get_resume_state(self, session_id: str) -> dict | None:
+        """Get state needed to resume a session.
 
         Returns:
             Dict with pending_jobs, completed_jobs, and last config
@@ -321,12 +333,14 @@ class SessionManager:
                 "completed_jobs": checkpoint.completed_jobs,
                 "failed_jobs": checkpoint.failed_jobs,
                 "config_snapshot": checkpoint.config_snapshot,
-                "resume_from_index": len(checkpoint.completed_jobs) + len(checkpoint.failed_jobs),
+                "resume_from_index": len(checkpoint.completed_jobs)
+                + len(checkpoint.failed_jobs),
             }
 
         # No checkpoint, resume from session manifest
         pending = [
-            j["job_id"] for j in session.jobs
+            j["job_id"]
+            for j in session.jobs
             if j.get("status") not in ("completed", "error")
         ]
 
@@ -386,13 +400,14 @@ class SessionManager:
                     checkpoint_dir = self.sessions_dir / session_id
                     if checkpoint_dir.exists():
                         import shutil
+
                         shutil.rmtree(checkpoint_dir)
                     old.unlink()
                     self.logger.info(f"Cleaned up old session: {session_id}")
             except Exception:
                 continue
 
-    def get_session_stats(self) -> Dict:
+    def get_session_stats(self) -> dict:
         """Get statistics about all sessions."""
         total = 0
         completed = 0

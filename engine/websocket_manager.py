@@ -1,5 +1,4 @@
-"""
-ComfyUI Async Generation Engine v2.0 - WebSocket Manager
+"""ComfyUI Async Generation Engine v2.0 - WebSocket Manager
 Production-grade WebSocket with auto-reconnection, heartbeat, and health monitoring.
 """
 
@@ -13,11 +12,12 @@ from typing import Any, Callable, Dict, List, Optional, Set
 
 import aiohttp
 
-
 logger = logging.getLogger(__name__)
 
 
 class WSState(Enum):
+    """WebSocket connection state enumeration."""
+
     DISCONNECTED = auto()
     CONNECTING = auto()
     CONNECTED = auto()
@@ -28,6 +28,7 @@ class WSState(Enum):
 @dataclass
 class WSConfig:
     """WebSocket connection configuration."""
+
     url: str = "ws://127.0.0.1:8188/ws"
     heartbeat_interval: float = 30.0
     heartbeat_timeout: float = 10.0
@@ -42,15 +43,15 @@ class WSConfig:
 @dataclass
 class WSMessage:
     """Parsed WebSocket message."""
+
     type: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
     raw: str
     timestamp: float = field(default_factory=time.time)
 
 
 class WebSocketManager:
-    """
-    Production-grade WebSocket manager for ComfyUI.
+    """Production-grade WebSocket manager for ComfyUI.
 
     Features:
     - Auto-reconnection with exponential backoff
@@ -62,8 +63,8 @@ class WebSocketManager:
 
     def __init__(
         self,
-        config: Optional[WSConfig] = None,
-        session: Optional[aiohttp.ClientSession] = None,
+        config: WSConfig | None = None,
+        session: aiohttp.ClientSession | None = None,
         metrics=None,
     ):
         self.config = config or WSConfig()
@@ -71,13 +72,13 @@ class WebSocketManager:
         self.metrics = metrics
 
         self._state = WSState.DISCONNECTED
-        self._ws: Optional[aiohttp.ClientWebSocketResponse] = None
-        self._heartbeat_task: Optional[asyncio.Task] = None
-        self._receive_task: Optional[asyncio.Task] = None
-        self._reconnect_task: Optional[asyncio.Task] = None
+        self._ws: aiohttp.ClientWebSocketResponse | None = None
+        self._heartbeat_task: asyncio.Task | None = None
+        self._receive_task: asyncio.Task | None = None
+        self._reconnect_task: asyncio.Task | None = None
 
         self._message_queue: asyncio.Queue = asyncio.Queue()
-        self._event_handlers: Dict[str, List[Callable]] = {}
+        self._event_handlers: dict[str, list[Callable]] = {}
         self._last_pong: float = 0.0
         self._connection_attempts: int = 0
         self._shutdown: bool = False
@@ -295,13 +296,18 @@ class WebSocketManager:
         """Reconnection with exponential backoff."""
         self._state = WSState.RECONNECTING
 
-        while not self._shutdown and self._connection_attempts < self.config.reconnect_max_attempts:
+        while (
+            not self._shutdown
+            and self._connection_attempts < self.config.reconnect_max_attempts
+        ):
             self._connection_attempts += 1
 
             # Calculate delay with exponential backoff and jitter
             delay = min(
-                self.config.reconnect_base_delay * (
-                    self.config.reconnect_exponential_base ** (self._connection_attempts - 1)
+                self.config.reconnect_base_delay
+                * (
+                    self.config.reconnect_exponential_base
+                    ** (self._connection_attempts - 1)
                 ),
                 self.config.reconnect_max_delay,
             )
@@ -321,7 +327,9 @@ class WebSocketManager:
 
         # Max attempts reached
         self._state = WSState.FAILED
-        self.logger.error(f"WebSocket failed after {self._connection_attempts} reconnection attempts")
+        self.logger.error(
+            f"WebSocket failed after {self._connection_attempts} reconnection attempts"
+        )
         if self.metrics:
             await self.metrics.inc("ws_reconnect_failed")
 
@@ -343,7 +351,7 @@ class WebSocketManager:
             self._event_handlers[event_type] = []
         self._event_handlers[event_type].append(handler)
 
-    def off(self, event_type: str, handler: Optional[Callable] = None) -> None:
+    def off(self, event_type: str, handler: Callable | None = None) -> None:
         """Unregister event handler."""
         if event_type in self._event_handlers:
             if handler is None:
@@ -353,7 +361,7 @@ class WebSocketManager:
                     h for h in self._event_handlers[event_type] if h != handler
                 ]
 
-    async def send(self, data: Dict[str, Any]) -> bool:
+    async def send(self, data: dict[str, Any]) -> bool:
         """Send message with queueing during disconnections."""
         if self.is_connected and self._ws:
             try:
@@ -387,7 +395,7 @@ class WebSocketManager:
             self.logger.info(f"Flushed {flushed} queued messages")
         return flushed
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Return connection statistics."""
         return {
             "state": self._state.name,
@@ -396,7 +404,6 @@ class WebSocketManager:
             "last_pong_age": time.time() - self._last_pong if self._last_pong else None,
             "queued_messages": self._message_queue.qsize(),
             "registered_handlers": {
-                event: len(handlers)
-                for event, handlers in self._event_handlers.items()
+                event: len(handlers) for event, handlers in self._event_handlers.items()
             },
         }
