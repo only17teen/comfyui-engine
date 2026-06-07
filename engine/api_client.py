@@ -1,5 +1,5 @@
-"""ComfyUI Async Generation Engine v2.0 - Async API Client
-Resilient client with circuit breaker, retry logic, metrics, and WebSocket support.
+"""ComfyUI Async Generation Engine v5.1 - Async API Client (Optimized)
+Kiro Protocol optimizations: connection pooling, async polling, object pooling.
 """
 
 import asyncio
@@ -24,29 +24,132 @@ from engine.core import (
 logger = logging.getLogger(__name__)
 
 
-class ComfyUIJob:
-    """Represents a single queued generation job with full lifecycle tracking."""
+# ───────────────────────────────────────────────────────────────
+# Object Pool for ComfyUIJob (Kiro Rule 6: Memory First)
+# ───────────────────────────────────────────────────────────────
+class JobPool:
+    """Object pool for ComfyUIJob instances to reduce allocation overhead.
+    
+    Kiro Protocol optimizations:
+    - Pre-allocated job objects (Rule 6: Memory First)
+    - Reset and reuse pattern (Rule 1: Relentless Optimization)
+    - Lock-free acquisition via asyncio.Queue (Rule 6: Memory First)
+    """
 
-    def __init__(
+    def __init__(self, initial_size: int = 50, max_size: int = 200):
+        self._available: asyncio.Queue = asyncio.Queue(maxsize=max_size)
+        self._max_size = max_size
+        self._created = 0
+        
+        # Pre-populate pool
+        for _ in range(initial_size):
+            self._available.put_nowait(self._create_job())
+
+    def _create_job(self) -> "ComfyUIJob":
+        """Create a new job instance."""
+        self._created += 1
+        return ComfyUIJob.__new__(ComfyUIJob)
+
+    async def acquire(
         self,
         prompt_id: str,
         payload: dict,
         config_meta: dict,
         job_id: str | None = None,
+    ) -> "ComfyUIJob":
+        """Acquire a job from pool or create new."""
+        try:
+            job = self._available.get_nowait()
+            job.reset(prompt_id, payload, config_meta, job_id)
+            return job
+        except asyncio.QueueEmpty:
+            if self._created < self._max_size:
+                job = self._create_job()
+                job.reset(prompt_id, payload, config_meta, job_id)
+                return job
+            # Wait for available job
+            job = await self._available.get()
+            job.reset(prompt_id, payload, config_meta, job_id)
+            return job
+
+    async def release(self, job: "ComfyUIJob") -> None:
+        """Return job to pool for reuse."""
+        job.clear()
+        try:
+            self._available.put_nowait(job)
+        except asyncio.QueueFull:
+            pass  # Drop if pool is full
+
+    def stats(self) -> dict[str, int]:
+        """Pool statistics."""
+        return {
+            "created": self._created,
+            "available": self._available.qsize(),
+            "max_size": self._max_size,
+        }
+
+
+class ComfyUIJob:
+    """Represents a single queued generation job with full lifecycle tracking.
+    
+    Kiro Protocol optimizations:
+    - __slots__ for memory efficiency (Rule 6: Memory First)
+    - reset() method for pool reuse (Rule 6: Memory First)
+    - clear() method for pool cleanup (Rule 6: Memory First)
+    """
+
+    __slots__ = [
+        "prompt_id", "job_id", "payload", "config_meta", "status",
+        "outputs", "error_msg", "created_at", "queued_at",
+        "started_at", "completed_at", "retry_count", "downloaded_files",
+    ]
+
+    def __init__(
+        self,
+        prompt_id: str = "",
+        payload: dict = None,
+        config_meta: dict = None,
+        job_id: str | None = None,
     ):
+        self.reset(prompt_id, payload or {}, config_meta or {}, job_id)
+
+    def reset(
+        self,
+        prompt_id: str,
+        payload: dict,
+        config_meta: dict,
+        job_id: str | None = None,
+    ) -> None:
+        """Reset job for reuse from pool."""
         self.prompt_id = prompt_id
         self.job_id = job_id or f"job_{uuid.uuid4().hex[:8]}"
         self.payload = payload
         self.config_meta = config_meta
-        self.status = "pending"  # pending | queued | running | completed | error | cancelled
-        self.outputs: list[dict] = []
-        self.error_msg: str | None = None
+        self.status = "pending"
+        self.outputs = []
+        self.error_msg = None
         self.created_at = time.time()
-        self.queued_at: float | None = None
-        self.started_at: float | None = None
-        self.completed_at: float | None = None
-        self.retry_count: int = 0
-        self.downloaded_files: list[Path] = []
+        self.queued_at = None
+        self.started_at = None
+        self.completed_at = None
+        self.retry_count = 0
+        self.downloaded_files = []
+
+    def clear(self) -> None:
+        """Clear job for pool return."""
+        self.prompt_id = ""
+        self.job_id = ""
+        self.payload = {}
+        self.config_meta = {}
+        self.status = "pending"
+        self.outputs.clear()
+        self.error_msg = None
+        self.created_at = 0.0
+        self.queued_at = None
+        self.started_at = None
+        self.completed_at = None
+        self.retry_count = 0
+        self.downloaded_files.clear()
 
     @property
     def wait_time(self) -> float:
@@ -88,15 +191,14 @@ class ComfyUIJob:
 
 
 class ComfyUIAsyncClient:
-    """Production-grade async client for ComfyUI API.
+    """Production-grade async client for ComfyUI API (Optimized).
 
-    Features:
-    - Circuit breaker for API resilience
-    - Exponential backoff retry with jitter
-    - Metrics collection (Prometheus-style)
-    - WebSocket + HTTP fallback polling
-    - Connection pooling with keep-alive
-    - Graceful degradation on overload
+    Kiro Protocol optimizations:
+    - Tuned connection pool for ComfyUI single-instance (Rule 1: Optimization)
+    - Async polling with adaptive intervals (Rule 7: Async Correctness)
+    - Object pooling for jobs (Rule 6: Memory First)
+    - Batch metric updates (Rule 1: Optimization)
+    - Connection health checks (Rule 4: Reliability)
     """
 
     def __init__(
@@ -109,6 +211,7 @@ class ComfyUIAsyncClient:
         circuit_config: CircuitBreakerConfig | None = None,
         metrics: MetricsCollector | None = None,
         use_websocket: bool = True,
+        enable_job_pooling: bool = True,
     ):
         self.base_url = base_url.rstrip("/")
         self.max_concurrent = max_concurrent
@@ -124,15 +227,44 @@ class ComfyUIAsyncClient:
             metrics=self.metrics,
         )
 
+        # Object pool for jobs (Kiro Rule 6)
+        self._job_pool: JobPool | None = JobPool() if enable_job_pooling else None
+
         self._session: aiohttp.ClientSession | None = None
         self._semaphore: asyncio.Semaphore | None = None
         self._jobs: dict[str, ComfyUIJob] = {}
         self._ws_task: asyncio.Task | None = None
         self._ws_queue: asyncio.Queue | None = None
         self._shutdown: bool = False
+        
+        # Metric batching (Kiro Rule 1)
+        self._metric_batch: list[tuple[str, int]] = []
+        self._metric_batch_size = 10
+
+    async def _batch_metric(self, metric: str, value: int = 1) -> None:
+        """Batch metric updates for efficiency."""
+        self._metric_batch.append((metric, value))
+        if len(self._metric_batch) >= self._metric_batch_size:
+            for m, v in self._metric_batch:
+                await self.metrics.inc(m, v)
+            self._metric_batch.clear()
+
+    async def _flush_metrics(self) -> None:
+        """Flush remaining batched metrics."""
+        if self._metric_batch:
+            for m, v in self._metric_batch:
+                await self.metrics.inc(m, v)
+            self._metric_batch.clear()
 
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Lazy-init aiohttp session with optimized connection pool."""
+        """Lazy-init aiohttp session with optimized connection pool.
+        
+        Kiro Protocol optimizations:
+        - limit=10 (was 50) for single ComfyUI instance (Rule 1: Optimization)
+        - limit_per_host=5 (was 10) for single host (Rule 1: Optimization)
+        - enable_cleanup_closed=True for connection hygiene (Rule 4: Reliability)
+        - force_close=False for connection reuse (Rule 1: Optimization)
+        """
         if self._session is None or self._session.closed:
             timeout = aiohttp.ClientTimeout(
                 total=self.timeout,
@@ -140,8 +272,8 @@ class ComfyUIAsyncClient:
                 sock_read=30.0,
             )
             connector = aiohttp.TCPConnector(
-                limit=50,
-                limit_per_host=10,
+                limit=10,  # Tuned for single ComfyUI instance
+                limit_per_host=5,  # Single host optimization
                 keepalive_timeout=30.0,
                 enable_cleanup_closed=True,
                 force_close=False,
@@ -157,14 +289,37 @@ class ComfyUIAsyncClient:
             )
         return self._session
 
-    async def health_check(self) -> bool:
-        """Quick health check against ComfyUI server."""
+    async def health_check(self) -> dict[str, Any]:
+        """Detailed health check with latency metrics.
+        
+        Kiro Protocol: Detailed health status (Rule 11: Observability)
+        """
+        start = time.time()
         try:
             session = await self._get_session()
             async with session.get(f"{self.base_url}/system_stats", timeout=5.0) as resp:
-                return resp.status == 200
-        except Exception:
-            return False
+                latency = (time.time() - start) * 1000
+                if resp.status == 200:
+                    data = await resp.json()
+                    return {
+                        "status": "healthy",
+                        "latency_ms": round(latency, 2),
+                        "comfyui_version": data.get("system", {}).get("comfyui_version", "unknown"),
+                        "python_version": data.get("system", {}).get("python_version", "unknown"),
+                        "devices": len(data.get("system", {}).get("devices", [])),
+                    }
+                return {
+                    "status": "degraded",
+                    "latency_ms": round(latency, 2),
+                    "http_status": resp.status,
+                }
+        except Exception as e:
+            latency = (time.time() - start) * 1000
+            return {
+                "status": "unhealthy",
+                "latency_ms": round(latency, 2),
+                "error": str(e),
+            }
 
     async def _post_prompt(self, payload: dict) -> str:
         """Submit workflow with circuit breaker and retry protection."""
@@ -179,7 +334,6 @@ class ComfyUIAsyncClient:
 
             async with session.post(url, json=body) as resp:
                 if resp.status == 429:
-                    # Rate limited - raise for retry
                     text = await resp.text()
                     raise aiohttp.ClientResponseError(
                         resp.request_info,
@@ -188,7 +342,6 @@ class ComfyUIAsyncClient:
                         message=f"Rate limited: {text}",
                     )
                 if resp.status == 503:
-                    # Server overloaded - raise for retry
                     text = await resp.text()
                     raise aiohttp.ClientResponseError(
                         resp.request_info,
@@ -232,21 +385,31 @@ class ComfyUIAsyncClient:
                 metrics=self.metrics,
             )
         except Exception as e:
-            await self.metrics.inc("api_errors")
+            await self._batch_metric("api_errors", 1)
             logger.debug(f"History fetch error for {prompt_id}: {e}")
             return None
 
     async def _poll_job(self, job: ComfyUIJob) -> None:
-        """Poll job status with adaptive timeout."""
+        """Poll job status with adaptive intervals.
+        
+        Kiro Protocol optimizations:
+        - Async polling with adaptive intervals (Rule 7: Async Correctness)
+        - Exponential backoff for slow jobs (Rule 1: Optimization)
+        - Batch metric updates (Rule 1: Optimization)
+        """
         job.started_at = time.time()
         job.status = "running"
         start_time = time.time()
 
-        # Adaptive poll interval: start fast, slow down
+        # Adaptive poll intervals
         fast_poll = 0.5
-        slow_poll = self.poll_interval
+        medium_poll = self.poll_interval
+        slow_poll = min(self.poll_interval * 2.0, 5.0)  # Cap at 5s
         current_poll = fast_poll
-        fast_poll_duration = 30.0  # Fast poll for first 30 seconds
+        
+        # Phase transitions
+        fast_phase = 30.0  # First 30 seconds
+        medium_phase = 120.0  # Next 2 minutes
 
         while True:
             elapsed = time.time() - start_time
@@ -254,13 +417,17 @@ class ComfyUIAsyncClient:
                 job.status = "error"
                 job.error_msg = f"Timeout after {self.timeout}s"
                 job.completed_at = time.time()
-                await self.metrics.inc("jobs_timeout")
+                await self._batch_metric("jobs_timeout", 1)
                 logger.error(f"Job {job.prompt_id} timed out")
                 return
 
             # Adjust poll interval based on elapsed time
-            if elapsed > fast_poll_duration:
+            if elapsed > medium_phase:
                 current_poll = slow_poll
+            elif elapsed > fast_phase:
+                current_poll = medium_poll
+            else:
+                current_poll = fast_poll
 
             history = await self._fetch_history(job.prompt_id)
             if history:
@@ -271,10 +438,10 @@ class ComfyUIAsyncClient:
                     job.status = "completed"
                     job.completed_at = time.time()
                     job.outputs = self._extract_outputs(history.get("outputs", {}))
-                    await self.metrics.inc("jobs_completed")
+                    await self._batch_metric("jobs_completed", 1)
                     await self.metrics.observe("processing_time", job.processing_time)
                     logger.info(
-                        f"Job {job.prompt_id} completed in {job.processing_time:.1f}s " f"({len(job.outputs)} outputs)"
+                        f"Job {job.prompt_id} completed in {job.processing_time:.1f}s ({len(job.outputs)} outputs)"
                     )
                     return
 
@@ -282,7 +449,7 @@ class ComfyUIAsyncClient:
                     job.status = "error"
                     job.error_msg = status.get("messages", "Unknown error")
                     job.completed_at = time.time()
-                    await self.metrics.inc("jobs_failed")
+                    await self._batch_metric("jobs_failed", 1)
                     logger.error(f"Job {job.prompt_id} failed: {job.error_msg}")
                     return
 
@@ -320,31 +487,42 @@ class ComfyUIAsyncClient:
         msg_type = data.get("type")
         if msg_type == "status":
             status_data = data.get("data", {})
-            # Could track queue depth here
             queue_remaining = status_data.get("status", {}).get("exec_info", {}).get("queue_remaining", 0)
             if queue_remaining > 0:
                 await self.metrics.gauge("comfyui_queue_depth", float(queue_remaining))
 
     async def submit_job(self, payload: dict, config_meta: dict) -> ComfyUIJob:
-        """Submit job with circuit breaker protection."""
+        """Submit job with circuit breaker protection and object pooling."""
         try:
             prompt_id = await self.circuit.call(self._post_prompt, payload)
-            job = ComfyUIJob(prompt_id, payload, config_meta)
+            
+            # Use object pool if available (Kiro Rule 6)
+            if self._job_pool:
+                job = await self._job_pool.acquire(prompt_id, payload, config_meta)
+            else:
+                job = ComfyUIJob(prompt_id, payload, config_meta)
+            
             job.queued_at = time.time()
             self._jobs[job.job_id] = job
-            await self.metrics.inc("jobs_submitted")
+            await self._batch_metric("jobs_submitted", 1)
             return job
         except CircuitBreakerOpenError:
-            # Create failed job with circuit breaker status
-            job = ComfyUIJob(
-                prompt_id=f"cb-open-{uuid.uuid4().hex[:8]}",
-                payload=payload,
-                config_meta=config_meta,
-            )
+            if self._job_pool:
+                job = await self._job_pool.acquire(
+                    f"cb-open-{uuid.uuid4().hex[:8]}",
+                    payload,
+                    config_meta,
+                )
+            else:
+                job = ComfyUIJob(
+                    prompt_id=f"cb-open-{uuid.uuid4().hex[:8]}",
+                    payload=payload,
+                    config_meta=config_meta,
+                )
             job.status = "error"
             job.error_msg = "Circuit breaker OPEN - ComfyUI API unavailable"
             self._jobs[job.job_id] = job
-            await self.metrics.inc("jobs_failed")
+            await self._batch_metric("jobs_failed", 1)
             return job
 
     async def run_job(self, payload: dict, config_meta: dict) -> ComfyUIJob:
@@ -379,15 +557,22 @@ class ComfyUIAsyncClient:
                 job = await self.run_job(payload, meta)
             except Exception as e:
                 logger.error(f"Job {idx} failed with exception: {e}")
-                job = ComfyUIJob(
-                    prompt_id=f"exception-{uuid.uuid4().hex[:8]}",
-                    payload=payload,
-                    config_meta=meta,
-                )
+                if self._job_pool:
+                    job = await self._job_pool.acquire(
+                        f"exception-{uuid.uuid4().hex[:8]}",
+                        payload,
+                        meta,
+                    )
+                else:
+                    job = ComfyUIJob(
+                        prompt_id=f"exception-{uuid.uuid4().hex[:8]}",
+                        payload=payload,
+                        config_meta=meta,
+                    )
                 job.status = "error"
                 job.error_msg = str(e)
                 job.completed_at = time.time()
-                await self.metrics.inc("jobs_failed")
+                await self._batch_metric("jobs_failed", 1)
 
             completed += 1
             if progress_callback:
@@ -402,15 +587,22 @@ class ComfyUIAsyncClient:
         for i, res in enumerate(results):
             if isinstance(res, Exception):
                 logger.error(f"Batch job {i} failed: {res}")
-                job = ComfyUIJob(
-                    prompt_id=f"batch-fail-{uuid.uuid4().hex[:8]}",
-                    payload=payloads[i],
-                    config_meta=config_metas[i],
-                )
+                if self._job_pool:
+                    job = await self._job_pool.acquire(
+                        f"batch-fail-{uuid.uuid4().hex[:8]}",
+                        payloads[i],
+                        config_metas[i],
+                    )
+                else:
+                    job = ComfyUIJob(
+                        prompt_id=f"batch-fail-{uuid.uuid4().hex[:8]}",
+                        payload=payloads[i],
+                        config_meta=config_metas[i],
+                    )
                 job.status = "error"
                 job.error_msg = str(res)
                 job.completed_at = time.time()
-                await self.metrics.inc("jobs_failed")
+                await self._batch_metric("jobs_failed", 1)
                 jobs.append(job)
             else:
                 jobs.append(res)
@@ -447,7 +639,7 @@ class ComfyUIAsyncClient:
                         f.write(chunk)
                         total_bytes += len(chunk)
 
-                await self.metrics.inc("download_bytes", total_bytes)
+                await self._batch_metric("download_bytes", total_bytes)
                 return local_file
 
         return await with_retry(
@@ -490,9 +682,17 @@ class ComfyUIAsyncClient:
                 pass
 
     async def close(self) -> None:
-        """Graceful shutdown."""
+        """Graceful shutdown with metric flush and pool cleanup."""
         self._shutdown = True
         await self.stop_ws_listener()
+        await self._flush_metrics()
+        
+        # Return jobs to pool
+        if self._job_pool:
+            for job in self._jobs.values():
+                await self._job_pool.release(job)
+            self._jobs.clear()
+        
         if self._session and not self._session.closed:
             await self._session.close()
             logger.info("API client session closed")
@@ -509,3 +709,7 @@ class ComfyUIAsyncClient:
         for job in self._jobs.values():
             stats[job.status] = stats.get(job.status, 0) + 1
         return stats
+
+    def get_pool_stats(self) -> dict[str, int] | None:
+        """Get job pool statistics if pooling is enabled."""
+        return self._job_pool.stats() if self._job_pool else None
