@@ -2,271 +2,144 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# ───────────────────────────────────────────────────────────────
-# Global Settings
-# ───────────────────────────────────────────────────────────────
-replicaCount: 3
+replicaCount: 1
 
 image:
-  repository: ghcr.io/user/comfyui-engine
+  repository: ghcr.io/only17teen/comfyui-engine
   pullPolicy: IfNotPresent
-  tag: "v4.0.0"
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
 
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-# ───────────────────────────────────────────────────────────────
-# Service Account
-# ───────────────────────────────────────────────────────────────
 serviceAccount:
+  # Specifies whether a service account should be created
   create: true
+  # Automatically mount a ServiceAccount's API credentials?
   automount: true
+  # Annotations to add to the service account
   annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
   name: ""
 
-# ───────────────────────────────────────────────────────────────
-# Pod Security
-# ───────────────────────────────────────────────────────────────
-podAnnotations:
-  prometheus.io/scrape: "true"
-  prometheus.io/port: "9090"
-  prometheus.io/path: "/metrics"
-
+podAnnotations: {}
 podLabels: {}
 
 podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
   fsGroup: 1000
+  runAsUser: 1000
+  runAsGroup: 1000
 
 securityContext:
-  allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: true
   capabilities:
     drop:
     - ALL
-  seccompProfile:
-    type: RuntimeDefault
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
 
-# ───────────────────────────────────────────────────────────────
-# Service Configuration
-# ───────────────────────────────────────────────────────────────
 service:
   type: ClusterIP
-  port: 80
-  targetPort: 8000
-  metricsPort: 9090
+  port: 8080
+  targetPort: 8080
+  annotations: {}
 
-# ───────────────────────────────────────────────────────────────
-# Ingress Configuration
-# ───────────────────────────────────────────────────────────────
 ingress:
-  enabled: true
-  className: nginx
+  enabled: false
+  className: "nginx"
   annotations:
-    nginx.ingress.kubernetes.io/rate-limit: "100"
-    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
-    cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
   hosts:
-    - host: api.comfyui-engine.example.com
+    - host: comfyui-engine.local
       paths:
         - path: /
           pathType: Prefix
-          servicePort: 80
-        - path: /metrics
-          pathType: Prefix
-          servicePort: 9090
   tls:
     - secretName: comfyui-engine-tls
       hosts:
-        - api.comfyui-engine.example.com
+        - comfyui-engine.local
 
-# ───────────────────────────────────────────────────────────────
-# Resource Limits
-# ───────────────────────────────────────────────────────────────
 resources:
   limits:
-    cpu: 1000m
-    memory: 2Gi
+    cpu: 4000m
+    memory: 16Gi
+    nvidia.com/gpu: 1
   requests:
-    cpu: 250m
-    memory: 512Mi
+    cpu: 1000m
+    memory: 8Gi
+    nvidia.com/gpu: 1
 
-# ───────────────────────────────────────────────────────────────
-# Autoscaling
-# ───────────────────────────────────────────────────────────────
+# GPU configuration
+gpu:
+  enabled: true
+  type: nvidia
+  count: 1
+  memory: "8192"
+  # GPU sharing configuration
+  sharing:
+    enabled: false
+    strategy: time-slicing  # time-slicing or mps
+    replicas: 2
+
+# Horizontal Pod Autoscaler
 autoscaling:
   enabled: true
-  minReplicas: 3
-  maxReplicas: 20
+  minReplicas: 1
+  maxReplicas: 10
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
+  # Custom metrics for GPU utilization
   metrics:
     - type: Pods
       pods:
         metric:
-          name: comfyui_engine_queue_depth
+          name: nvidia_gpu_utilization
         target:
           type: AverageValue
-          averageValue: "50"
+          averageValue: "70"
   behavior:
-    scaleUp:
-      stabilizationWindowSeconds: 60
-      policies:
-        - type: Percent
-          value: 100
-          periodSeconds: 60
-        - type: Pods
-          value: 4
-          periodSeconds: 60
-      selectPolicy: Max
     scaleDown:
       stabilizationWindowSeconds: 300
       policies:
         - type: Percent
           value: 10
           periodSeconds: 60
-        - type: Pods
-          value: 2
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
           periodSeconds: 60
-      selectPolicy: Min
 
-# ───────────────────────────────────────────────────────────────
-# Probes
-# ───────────────────────────────────────────────────────────────
-livenessProbe:
-  httpGet:
-    path: /live
-    port: http
-  initialDelaySeconds: 10
-  periodSeconds: 30
-  timeoutSeconds: 5
-  failureThreshold: 3
+# Vertical Pod Autoscaler
+vpa:
+  enabled: false
+  updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: comfyui-engine
+        minAllowed:
+          cpu: 500m
+          memory: 4Gi
+        maxAllowed:
+          cpu: 8000m
+          memory: 32Gi
 
-readinessProbe:
-  httpGet:
-    path: /ready
-    port: http
-  initialDelaySeconds: 5
-  periodSeconds: 10
-  timeoutSeconds: 3
-  failureThreshold: 3
+# Node selector for GPU nodes
+nodeSelector:
+  accelerator: nvidia-gpu
 
-startupProbe:
-  httpGet:
-    path: /health
-    port: http
-  initialDelaySeconds: 5
-  periodSeconds: 5
-  timeoutSeconds: 3
-  failureThreshold: 30
-
-# ───────────────────────────────────────────────────────────────
-# Pod Disruption Budget
-# ───────────────────────────────────────────────────────────────
-podDisruptionBudget:
-  enabled: true
-  minAvailable: 2
-
-# ───────────────────────────────────────────────────────────────
-# Network Policy
-# ───────────────────────────────────────────────────────────────
-networkPolicy:
-  enabled: true
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: ingress-nginx
-      ports:
-        - protocol: TCP
-          port: 8000
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: monitoring
-      ports:
-        - protocol: TCP
-          port: 9090
-  egress:
-    - to:
-        - podSelector:
-            matchLabels:
-              app: comfyui
-      ports:
-        - protocol: TCP
-          port: 8188
-    - to:
-        - podSelector:
-            matchLabels:
-              app: redis
-      ports:
-        - protocol: TCP
-          port: 6379
-
-# ───────────────────────────────────────────────────────────────
-# Persistence
-# ───────────────────────────────────────────────────────────────
-persistence:
-  output:
-    enabled: true
-    storageClass: "fast-ssd"
-    accessMode: ReadWriteMany
-    size: 100Gi
-  models:
-    enabled: true
-    storageClass: "fast-ssd"
-    accessMode: ReadOnlyMany
-    size: 500Gi
-
-# ───────────────────────────────────────────────────────────────
-# Engine Configuration
-# ───────────────────────────────────────────────────────────────
-config:
-  comfyui:
-    url: "http://comfyui-service:8188"
-    max_concurrent: 3
-  engine:
-    log_level: "INFO"
-    json_logging: true
-    metrics_port: 9090
-    queue_max_size: 1000
-    timeout: 300
-    retry_max: 3
-    retry_base_delay: 1.0
-    circuit_failure_threshold: 5
-    circuit_recovery_timeout: 30
-  otel:
-    enabled: true
-    endpoint: "http://otel-collector:4317"
-    sampler_ratio: 0.1
-  prompts:
-    trigger_words:
-      - "masterpiece"
-      - "best quality"
-      - "highly detailed"
-    negative_prompt: |
-      (worst quality:1.4), (low quality:1.4), (normal quality:1.4),
-      lowres, bad anatomy, bad hands, text, error, missing fingers
-
-# ───────────────────────────────────────────────────────────────
-# Secrets (use external secret management in production)
-# ───────────────────────────────────────────────────────────────
-secrets:
-  redis:
-    url: "redis://comfyui-redis:6379/0"
-  api:
-    admin_key: "admin-secret-key-change-me"
-    readonly_key: "readonly-secret-key-change-me"
-
-# ───────────────────────────────────────────────────────────────
-# Node Scheduling
-# ───────────────────────────────────────────────────────────────
-nodeSelector: {}
-
-tolerations: []
+# Tolerations for GPU taints
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
 
 affinity:
   podAntiAffinity:
@@ -281,6 +154,315 @@ affinity:
                   - comfyui-engine
           topologyKey: kubernetes.io/hostname
 
+# Persistent Volume Claims
+persistence:
+  enabled: true
+  # Model storage
+  models:
+    enabled: true
+    storageClass: "fast-ssd"
+    accessMode: ReadWriteOnce
+    size: 100Gi
+    annotations: {}
+  # Output storage
+  outputs:
+    enabled: true
+    storageClass: "fast-ssd"
+    accessMode: ReadWriteOnce
+    size: 50Gi
+    annotations: {}
+  # Cache storage
+  cache:
+    enabled: true
+    storageClass: "fast-ssd"
+    accessMode: ReadWriteOnce
+    size: 20Gi
+    annotations: {}
+
+# Configuration
+config:
+  # API configuration
+  api:
+    host: "0.0.0.0"
+    port: 8080
+    workers: 4
+    timeout: 300
+    max_request_size: 104857600  # 100MB
+  
+  # ComfyUI configuration
+  comfyui:
+    host: "localhost"
+    port: 8188
+    path: "/comfyui"
+    timeout: 600
+  
+  # Redis configuration
+  redis:
+    enabled: true
+    url: "redis://comfyui-engine-redis-master:6379/0"
+    pool_size: 50
+  
+  # Database configuration
+  database:
+    enabled: true
+    type: postgresql
+    host: "comfyui-engine-postgresql"
+    port: 5432
+    name: "comfyui_engine"
+    user: "comfyui"
+    password: ""
+    pool_size: 20
+  
+  # Model cache configuration
+  model_cache:
+    max_memory_mb: 8192
+    max_models: 10
+    warmup_on_start: true
+    eviction_policy: "lru_memory"
+  
+  # Auto-scaler configuration
+  auto_scaler:
+    enabled: true
+    min_workers: 1
+    max_workers: 10
+    scale_up_threshold: 0.7
+    scale_down_threshold: 0.3
+    scale_up_cooldown: 60
+    scale_down_cooldown: 300
+  
+  # Security configuration
+  security:
+    jwt_secret: ""
+    jwt_algorithm: "HS256"
+    jwt_expiry: 3600
+    rate_limit: 100
+    rate_limit_window: 60
+  
+  # Logging configuration
+  logging:
+    level: INFO
+    format: json
+    output: stdout
+
+# Environment variables
+env:
+  - name: PYTHONUNBUFFERED
+    value: "1"
+  - name: CUDA_VISIBLE_DEVICES
+    value: "0"
+  - name: PYTORCH_CUDA_ALLOC_CONF
+    value: "max_split_size_mb:512"
+  - name: OMP_NUM_THREADS
+    value: "4"
+
+# Secrets
+secrets:
+  # JWT secret - should be provided via external secret
+  jwt:
+    enabled: true
+    existingSecret: ""
+    secretKey: "jwt-secret"
+  
+  # Database password - should be provided via external secret
+  db:
+    enabled: true
+    existingSecret: ""
+    secretKey: "password"
+
+# Liveness and readiness probes
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+startupProbe:
+  enabled: true
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 30
+
+# Pod Disruption Budget
+pdb:
+  enabled: true
+  minAvailable: 1
+
+# Network Policy
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+
+# Monitoring
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+  prometheusRule:
+    enabled: true
+    labels: {}
+    rules:
+      - alert: ComfyUIEngineHighErrorRate
+        expr: rate(comfyui_engine_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate in ComfyUI Engine"
+          description: "Error rate is above 10% for more than 5 minutes"
+      - alert: ComfyUIEngineHighLatency
+        expr: histogram_quantile(0.95, rate(comfyui_engine_request_duration_seconds_bucket[5m])) > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency in ComfyUI Engine"
+          description: "95th percentile latency is above 60 seconds"
+      - alert: ComfyUIEngineQueueDepth
+        expr: comfyui_engine_queue_depth > 50
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Queue depth too high"
+          description: "Queue depth is above 50 for more than 5 minutes"
+
+# Grafana dashboard
+dashboards:
+  enabled: true
+  label: grafana_dashboard
+  labelValue: "1"
+
+# Backup configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: 7
+  storage:
+    enabled: true
+    provider: s3
+    bucket: "comfyui-engine-backups"
+    region: "us-east-1"
+    path: "backups"
+
+# Update strategy
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# Init containers
+initContainers:
+  - name: model-downloader
+    image: busybox:latest
+    command:
+      - sh
+      - -c
+      - |
+        echo "Downloading models..."
+        # Add model download logic here
+    volumeMounts:
+      - name: models
+        mountPath: /models
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+# Sidecar containers
+sidecars:
+  - name: prometheus-exporter
+    image: prom/node-exporter:latest
+    ports:
+      - name: metrics
+        containerPort: 9100
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+
+# Extra volumes
+extraVolumes: []
+extraVolumeMounts: []
+
+# Extra containers
+extraContainers: []
+
+# Extra init containers
+extraInitContainers: []
+
+# Extra environment variables
+extraEnv: []
+
+# Extra environment variables from config maps or secrets
+extraEnvFrom: []
+
+# Extra args for the main container
+extraArgs: []
+
+# Extra labels for all resources
+extraLabels: {}
+
+# Extra annotations for all resources
+extraAnnotations: {}
+
+# Pod topology spread constraints
 topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
@@ -289,9 +471,37 @@ topologySpreadConstraints:
       matchLabels:
         app.kubernetes.io/name: comfyui-engine
 
-# ───────────────────────────────────────────────────────────────
-# Dependencies
-# ───────────────────────────────────────────────────────────────
+# Priority class name
+priorityClassName: ""
+
+# Termination grace period
+terminationGracePeriodSeconds: 300
+
+# DNS policy
+dnsPolicy: ClusterFirst
+
+# DNS config
+dnsConfig: {}
+
+# Host aliases
+hostAliases: []
+
+# Host network
+hostNetwork: false
+
+# Host PID
+hostPID: false
+
+# Host IPC
+hostIPC: false
+
+# Security context for the pod
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsGroup: 1000
+
+# Enable/disable subcharts
 redis:
   enabled: true
   architecture: standalone
@@ -302,17 +512,30 @@ redis:
       enabled: true
       size: 8Gi
 
+postgresql:
+  enabled: true
+  auth:
+    username: comfyui
+    database: comfyui_engine
+    existingSecret: ""
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
+
 prometheus:
   enabled: true
   server:
     persistentVolume:
       enabled: true
-      size: 50Gi
+      size: 20Gi
 
 grafana:
   enabled: true
   admin:
-    password: "admin-change-me"
+    existingSecret: ""
+    userKey: admin-user
+    passwordKey: admin-password
   persistence:
     enabled: true
     size: 10Gi

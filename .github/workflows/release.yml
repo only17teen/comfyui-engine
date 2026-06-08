@@ -1,0 +1,330 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  # Determine version bump based on conventional commits
+  version-bump:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+      bump_type: ${{ steps.version.outputs.bump_type }}
+      should_release: ${{ steps.version.outputs.should_release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get latest tag
+        id: latest_tag
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "latest_tag=$latest_tag" >> $GITHUB_OUTPUT
+
+      - name: Determine version bump
+        id: version
+        run: |
+          latest_tag="${{ steps.latest_tag.outputs.latest_tag }}"
+          # Remove 'v' prefix for version calculation
+          version=${latest_tag#v}
+          
+          # Parse current version
+          IFS='.' read -r major minor patch <<< "$version"
+          
+          # Analyze commits since last tag
+          bump_type="none"
+          
+          if [ "$latest_tag" = "v0.0.0" ]; then
+            bump_type="minor"
+          else
+            commits=$(git log $latest_tag..HEAD --pretty=format:"%s")
+            
+            # Check for breaking changes
+            if echo "$commits" | grep -q "^BREAKING CHANGE\|^feat!\|^fix!\|^chore!"; then
+              bump_type="major"
+            # Check for features
+            elif echo "$commits" | grep -q "^feat("; then
+              bump_type="minor"
+            # Check for fixes
+            elif echo "$commits" | grep -q "^fix("; then
+              bump_type="patch"
+            fi
+          fi
+          
+          # Calculate new version
+          case $bump_type in
+            major)
+              new_major=$((major + 1))
+              new_version="v${new_major}.0.0"
+              ;;
+            minor)
+              new_minor=$((minor + 1))
+              new_version="v${major}.${new_minor}.0"
+              ;;
+            patch)
+              new_patch=$((patch + 1))
+              new_version="v${major}.${minor}.${new_patch}"
+              ;;
+            *)
+              new_version="$latest_tag"
+              ;;
+          esac
+          
+          echo "bump_type=$bump_type" >> $GITHUB_OUTPUT
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+          
+          if [ "$bump_type" != "none" ]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Latest tag: $latest_tag"
+          echo "Bump type: $bump_type"
+          echo "New version: $new_version"
+
+  # Build and test
+  build:
+    runs-on: ubuntu-latest
+    needs: version-bump
+    if: needs.version-bump.outputs.should_release == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: |
+          pytest tests/ -v --cov=engine --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+      - name: Build package
+        run: |
+          python -m build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # Build Docker image
+  docker:
+    runs-on: ubuntu-latest
+    needs: [version-bump, build]
+    if: needs.version-bump.outputs.should_release == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.version-bump.outputs.new_version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.version-bump.outputs.new_version }}
+            type=semver,pattern={{major}},value=${{ needs.version-bump.outputs.new_version }}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  # Create GitHub release
+  release:
+    runs-on: ubuntu-latest
+    needs: [version-bump, build, docker]
+    if: needs.version-bump.outputs.should_release == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          latest_tag="${{ needs.version-bump.outputs.new_version }}"
+          
+          # Generate changelog from commits
+          echo "## Changes in ${latest_tag}" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          
+          # Get commits since last tag
+          git log $(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~100")..HEAD --pretty=format:"- %s (%h)" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          
+          # Add full changelog link
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ needs.version-bump.outputs.new_version }}...HEAD" >> CHANGELOG.md
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.version-bump.outputs.new_version }}
+          name: Release ${{ needs.version-bump.outputs.new_version }}
+          body_path: CHANGELOG.md
+          files: dist/*
+          draft: false
+          prerelease: false
+
+      - name: Update major version tag
+        run: |
+          major_version=$(echo "${{ needs.version-bump.outputs.new_version }}" | cut -d. -f1)
+          git tag -f $major_version
+          git push -f origin $major_version
+
+  # Publish Helm chart
+  helm:
+    runs-on: ubuntu-latest
+    needs: [version-bump, release]
+    if: needs.version-bump.outputs.should_release == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.12.0'
+
+      - name: Package Helm chart
+        run: |
+          helm package helm/comfyui-engine --version ${{ needs.version-bump.outputs.new_version }} --app-version ${{ needs.version-bump.outputs.new_version }}
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Helm chart
+        run: |
+          helm push comfyui-engine-${{ needs.version-bump.outputs.new_version }}.tgz oci://ghcr.io/${{ github.repository }}/helm
+
+  # Publish to PyPI
+  pypi:
+    runs-on: ubuntu-latest
+    needs: [version-bump, release]
+    if: needs.version-bump.outputs.should_release == 'true'
+    environment:
+      name: pypi
+      url: https://pypi.org/p/comfyui-engine
+    permissions:
+      id-token: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+  # Update documentation
+  docs:
+    runs-on: ubuntu-latest
+    needs: [version-bump, release]
+    if: needs.version-bump.outputs.should_release == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install mkdocs mkdocs-material
+
+      - name: Build documentation
+        run: |
+          mkdocs build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+
+  # Notify
+  notify:
+    runs-on: ubuntu-latest
+    needs: [version-bump, release, helm, pypi, docs]
+    if: always() && needs.version-bump.outputs.should_release == 'true'
+    steps:
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#releases'
+          text: |
+            ComfyUI Engine ${{ needs.version-bump.outputs.new_version }} has been released!
+            
+            - Docker: ghcr.io/${{ github.repository }}:${{ needs.version-bump.outputs.new_version }}
+            - Helm: ghcr.io/${{ github.repository }}/helm/comfyui-engine:${{ needs.version-bump.outputs.new_version }}
+            - PyPI: https://pypi.org/project/comfyui-engine/${{ needs.version-bump.outputs.new_version }}/
+            - Docs: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: env.SLACK_WEBHOOK_URL != ''

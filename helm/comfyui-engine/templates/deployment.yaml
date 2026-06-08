@@ -4,102 +4,156 @@ metadata:
   name: {{ include "comfyui-engine.fullname" . }}
   labels:
     {{- include "comfyui-engine.labels" . | nindent 4 }}
+    {{- include "comfyui-engine.extraLabels" . | nindent 4 }}
+  {{- if .Values.extraAnnotations }}
+  annotations:
+    {{- include "comfyui-engine.extraAnnotations" . | nindent 4 }}
+  {{- end }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   strategy:
-    type: RollingUpdate
+    type: {{ .Values.updateStrategy.type }}
+    {{- if eq .Values.updateStrategy.type "RollingUpdate" }}
     rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
+      maxSurge: {{ .Values.updateStrategy.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.updateStrategy.rollingUpdate.maxUnavailable }}
+    {{- end }}
   selector:
     matchLabels:
       {{- include "comfyui-engine.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      {{- with .Values.podAnnotations }}
       annotations:
-        {{- toYaml .Values.podAnnotations | nindent 8 }}
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        checksum/secrets: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
         {{- include "comfyui-engine.selectorLabels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      {{- include "comfyui-engine.priorityClassName" . | nindent 6 }}
+      {{- include "comfyui-engine.terminationGracePeriodSeconds" . | nindent 6 }}
+      {{- include "comfyui-engine.dnsPolicy" . | nindent 6 }}
+      {{- include "comfyui-engine.dnsConfig" . | nindent 6 }}
+      {{- include "comfyui-engine.hostAliases" . | nindent 6 }}
+      {{- include "comfyui-engine.hostNetwork" . | nindent 6 }}
+      {{- include "comfyui-engine.hostPID" . | nindent 6 }}
+      {{- include "comfyui-engine.hostIPC" . | nindent 6 }}
+      
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      
       serviceAccountName: {{ include "comfyui-engine.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      
+      {{- include "comfyui-engine.podSecurityContext" . | nindent 6 }}
+      
+      {{- if .Values.initContainers }}
+      initContainers:
+        {{- toYaml .Values.initContainers | nindent 8 }}
+      {{- end }}
+      {{- include "comfyui-engine.extraInitContainers" . | nindent 6 }}
+      
       containers:
         - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- include "comfyui-engine.containerSecurityContext" . | nindent 10 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 8000
-              protocol: TCP
-            - name: metrics
-              containerPort: {{ .Values.config.engine.metrics_port }}
+              containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
           env:
-            - name: COMFYUI_URL
-              value: {{ .Values.config.comfyui.url | quote }}
-            - name: COMFYUI_MAX_CONCURRENT
-              value: {{ .Values.config.comfyui.max_concurrent | quote }}
-            - name: ENGINE_LOG_LEVEL
-              value: {{ .Values.config.engine.log_level | quote }}
-            - name: ENGINE_OUTPUT_DIR
-              value: "/app/output_models"
-            - name: ENGINE_METRICS_PORT
-              value: {{ .Values.config.engine.metrics_port | quote }}
-            - name: ENGINE_QUEUE_MAX_SIZE
-              value: {{ .Values.config.engine.queue_max_size | quote }}
-            - name: ENGINE_TIMEOUT
-              value: {{ .Values.config.engine.timeout | quote }}
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: CUDA_VISIBLE_DEVICES
+              value: "0"
+            - name: PYTORCH_CUDA_ALLOC_CONF
+              value: "max_split_size_mb:512"
+            - name: OMP_NUM_THREADS
+              value: "4"
             - name: REDIS_URL
+              value: {{ include "comfyui-engine.redisUrl" . | quote }}
+            - name: DB_HOST
+              value: {{ include "comfyui-engine.dbHost" . | quote }}
+            - name: DB_PORT
+              value: {{ .Values.config.database.port | quote }}
+            - name: DB_NAME
+              value: {{ .Values.config.database.name | quote }}
+            - name: DB_USER
+              value: {{ .Values.config.database.user | quote }}
+            - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "comfyui-engine.secretName" . }}
-                  key: redis.url
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: {{ .Values.config.otel.endpoint | quote }}
-            - name: OTEL_SAMPLER_RATIO
-              value: {{ .Values.config.otel.sampler_ratio | quote }}
+                  name: {{ include "comfyui-engine.dbSecretName" . }}
+                  key: {{ .Values.secrets.db.secretKey }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "comfyui-engine.jwtSecretName" . }}
+                  key: {{ .Values.secrets.jwt.secretKey }}
+            {{- include "comfyui-engine.extraEnv" . | nindent 12 }}
+          {{- include "comfyui-engine.extraEnvFrom" . | nindent 10 }}
+          {{- include "comfyui-engine.extraArgs" . | nindent 10 }}
+          
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:
             {{- toYaml .Values.readinessProbe | nindent 12 }}
           startupProbe:
             {{- toYaml .Values.startupProbe | nindent 12 }}
+          
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          
           volumeMounts:
-            - name: output-models
-              mountPath: /app/output_models
             - name: config
               mountPath: /app/config
-            - name: tmp
-              mountPath: /tmp
+            - name: models
+              mountPath: /models
+            - name: outputs
+              mountPath: /outputs
+            - name: cache
+              mountPath: /cache
+            {{- include "comfyui-engine.extraVolumeMounts" . | nindent 12 }}
+          
+          {{- if .Values.sidecars }}
+          {{- toYaml .Values.sidecars | nindent 8 }}
+          {{- end }}
+          {{- include "comfyui-engine.extraContainers" . | nindent 8 }}
+      
       volumes:
-        - name: output-models
-          {{- if .Values.persistence.output.enabled }}
+        - name: config
+          configMap:
+            name: {{ include "comfyui-engine.fullname" . }}-config
+        - name: models
+          {{- if .Values.persistence.models.enabled }}
           persistentVolumeClaim:
-            claimName: {{ include "comfyui-engine.outputPVCName" . }}
+            claimName: {{ include "comfyui-engine.fullname" . }}-models
           {{- else }}
           emptyDir: {}
           {{- end }}
-        - name: config
-          configMap:
-            name: {{ include "comfyui-engine.configMapName" . }}
-        - name: tmp
+        - name: outputs
+          {{- if .Values.persistence.outputs.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "comfyui-engine.fullname" . }}-outputs
+          {{- else }}
           emptyDir: {}
+          {{- end }}
+        - name: cache
+          {{- if .Values.persistence.cache.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "comfyui-engine.fullname" . }}-cache
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- include "comfyui-engine.extraVolumes" . | nindent 8 }}
+      
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -108,11 +162,11 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.topologySpreadConstraints }}
-      topologySpreadConstraints:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       {{- with .Values.tolerations }}
       tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
         {{- toYaml . | nindent 8 }}
       {{- end }}

@@ -1,0 +1,14 @@
+{{- if .Values.monitoring.prometheusRules.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "comfyui-engine.fullname" . }}
+  labels:
+    {{- include "comfyui-engine.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.prometheusRules.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    {{- toYaml .Values.monitoring.prometheusRules.groups | nindent 4 }}
+{{- end }}

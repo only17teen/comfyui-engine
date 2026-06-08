@@ -1,0 +1,3 @@
+{{- include "comfyui-engine.testConnection" . }}
+---
+{{- include "comfyui-engine.testMetrics" . }}

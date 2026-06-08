@@ -1,0 +1,170 @@
+# Promtail configuration for log collection
+# Scrapes logs from Kubernetes pods and forwards to Loki
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+  sync_period: 10s
+
+clients:
+  - url: http://loki.monitoring.svc:3100/loki/api/v1/push
+    batchwait: 1s
+    batchsize: 1048576
+    timeout: 10s
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 10
+    external_labels:
+      cluster: ${CLUSTER_NAME}
+      environment: ${ENVIRONMENT}
+
+scrape_configs:
+  # Kubernetes pods logs
+  - job_name: kubernetes-pods
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - default
+            - comfyui-engine
+            - monitoring
+    pipeline_stages:
+      - docker: {}
+      - cri: {}
+      - match:
+          selector: '{app="comfyui-engine"}'
+          stages:
+            - json:
+                expressions:
+                  level: level
+                  component: component
+                  request_id: request_id
+                  user_id: user_id
+                  workflow_id: workflow_id
+                  node_id: node_id
+                  execution_time: execution_time
+                  memory_usage: memory_usage
+                  gpu_memory: gpu_memory
+            - labels:
+                level:
+                component:
+                request_id:
+                workflow_id:
+      - timestamp:
+          source: time
+          format: RFC3339
+      - labeldrop:
+          - filename
+          - stream
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        target_label: app
+      - source_labels: [__meta_kubernetes_pod_label_component]
+        target_label: component
+      - source_labels: [__meta_kubernetes_pod_node_name]
+        target_label: node_name
+      - source_labels: [__meta_kubernetes_namespace]
+        target_label: namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+      - source_labels: [__meta_kubernetes_pod_container_name]
+        target_label: container
+      - source_labels: [__meta_kubernetes_pod_annotation_kubernetes_io_config_mirror]
+        target_label: mirror
+        regex: (.+)
+      - source_labels: [__meta_kubernetes_pod_annotationpresent_kubernetes_io_config_mirror]
+        target_label: mirror_present
+        regex: (.+)
+      - source_labels: [__meta_kubernetes_pod_annotation_kubernetes_io_config_source]
+        target_label: config_source
+        regex: (.+)
+
+  # System logs
+  - job_name: system-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system-logs
+          __path__: /var/log/syslog
+    pipeline_stages:
+      - syslog:
+          format: rfc3164
+      - labels:
+          severity:
+          facility:
+
+  # GPU logs (NVIDIA)
+  - job_name: nvidia-gpu-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nvidia-gpu
+          __path__: /var/log/nvidia-installer.log
+    pipeline_stages:
+      - regex:
+          expression: '(?P<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (?P<level>\w+) (?P<message>.*)'
+      - timestamp:
+          source: time
+          format: '2006-01-02 15:04:05'
+      - labels:
+          level:
+
+  # ComfyUI Engine specific logs
+  - job_name: comfyui-engine-logs
+    kubernetes_sd_configs:
+      - role: pod
+        selectors:
+          - label: "app=comfyui-engine"
+            field: "status.phase=Running"
+    pipeline_stages:
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            message: message
+            component: component
+            request_id: request_id
+            duration_ms: duration_ms
+            gpu_utilization: gpu_utilization
+            memory_mb: memory_mb
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+      - labels:
+          level:
+          component:
+          request_id:
+      - metrics:
+          comfyui_request_duration_ms:
+            type: Histogram
+            description: "Duration of ComfyUI requests in milliseconds"
+            prefix: comfyui_
+            source: duration_ms
+            config:
+              buckets: [10, 50, 100, 250, 500, 1000, 2500, 5000, 10000]
+          comfyui_gpu_utilization:
+            type: Gauge
+            description: "GPU utilization percentage"
+            prefix: comfyui_
+            source: gpu_utilization
+          comfyui_memory_mb:
+            type: Gauge
+            description: "Memory usage in MB"
+            prefix: comfyui_
+            source: memory_mb
+
+# Limits and performance tuning
+limits_config:
+  readline_rate: 10000
+  readline_burst: 100000
+
+# Target configuration for clustering (optional)
+target_config:
+  sync_period: 10s

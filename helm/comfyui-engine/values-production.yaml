@@ -1,0 +1,388 @@
+# Production values for comfyui-engine.
+# This is a YAML-formatted file.
+
+replicaCount: 3
+
+image:
+  repository: ghcr.io/only17teen/comfyui-engine
+  pullPolicy: IfNotPresent
+  tag: ""
+
+resources:
+  limits:
+    cpu: 8000m
+    memory: 32Gi
+    nvidia.com/gpu: 1
+  requests:
+    cpu: 4000m
+    memory: 16Gi
+    nvidia.com/gpu: 1
+
+# GPU configuration
+gpu:
+  enabled: true
+  type: nvidia
+  count: 1
+  memory: "16384"
+  sharing:
+    enabled: false
+    strategy: time-slicing
+    replicas: 2
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 60
+  targetMemoryUtilizationPercentage: 70
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: nvidia_gpu_utilization
+        target:
+          type: AverageValue
+          averageValue: "60"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Percent
+          value: 5
+          periodSeconds: 120
+    scaleUp:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+
+# Node selector for GPU nodes
+nodeSelector:
+  accelerator: nvidia-gpu
+  node-type: production
+
+# Tolerations for GPU taints
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+  - key: production
+    operator: Equal
+    value: "true"
+    effect: NoSchedule
+
+# Affinity rules
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - comfyui-engine
+          topologyKey: kubernetes.io/hostname
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: accelerator
+              operator: In
+              values:
+                - nvidia-gpu
+
+# Persistent Volume Claims
+persistence:
+  enabled: true
+  models:
+    enabled: true
+    storageClass: "premium-rwo"
+    accessMode: ReadWriteOnce
+    size: 500Gi
+  outputs:
+    enabled: true
+    storageClass: "premium-rwo"
+    accessMode: ReadWriteOnce
+    size: 200Gi
+  cache:
+    enabled: true
+    storageClass: "premium-rwo"
+    accessMode: ReadWriteOnce
+    size: 100Gi
+
+# Configuration
+config:
+  api:
+    host: "0.0.0.0"
+    port: 8080
+    workers: 8
+    timeout: 600
+    max_request_size: 524288000  # 500MB
+  
+  comfyui:
+    host: "localhost"
+    port: 8188
+    path: "/comfyui"
+    timeout: 1200
+  
+  redis:
+    enabled: true
+    url: "redis://comfyui-engine-redis-master:6379/0"
+    pool_size: 100
+  
+  database:
+    enabled: true
+    type: postgresql
+    host: "comfyui-engine-postgresql"
+    port: 5432
+    name: "comfyui_engine"
+    user: "comfyui"
+    pool_size: 50
+  
+  model_cache:
+    max_memory_mb: 16384
+    max_models: 20
+    warmup_on_start: true
+    eviction_policy: "lru_memory"
+  
+  auto_scaler:
+    enabled: true
+    min_workers: 3
+    max_workers: 20
+    scale_up_threshold: 0.6
+    scale_down_threshold: 0.2
+    scale_up_cooldown: 120
+    scale_down_cooldown: 600
+  
+  security:
+    jwt_algorithm: "HS256"
+    jwt_expiry: 7200
+    rate_limit: 200
+    rate_limit_window: 60
+  
+  logging:
+    level: INFO
+    format: json
+    output: stdout
+
+# Environment variables
+env:
+  - name: PYTHONUNBUFFERED
+    value: "1"
+  - name: CUDA_VISIBLE_DEVICES
+    value: "0"
+  - name: PYTORCH_CUDA_ALLOC_CONF
+    value: "max_split_size_mb:1024"
+  - name: OMP_NUM_THREADS
+    value: "8"
+
+# Secrets
+secrets:
+  jwt:
+    enabled: true
+    existingSecret: "comfyui-engine-jwt-secret"
+    secretKey: "jwt-secret"
+  db:
+    enabled: true
+    existingSecret: "comfyui-engine-db-secret"
+    secretKey: "password"
+
+# Liveness and readiness probes
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 60
+  periodSeconds: 15
+  timeoutSeconds: 10
+  failureThreshold: 5
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+startupProbe:
+  enabled: true
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 15
+  timeoutSeconds: 10
+  failureThreshold: 40
+
+# Pod Disruption Budget
+pdb:
+  enabled: true
+  minAvailable: 2
+
+# Network Policy
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+
+# Monitoring
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+    scrapeTimeout: 10s
+  prometheusRule:
+    enabled: true
+    rules:
+      - alert: ComfyUIEngineHighErrorRate
+        expr: rate(comfyui_engine_errors_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate in ComfyUI Engine"
+          description: "Error rate is above 5% for more than 5 minutes"
+      - alert: ComfyUIEngineHighLatency
+        expr: histogram_quantile(0.95, rate(comfyui_engine_request_duration_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency in ComfyUI Engine"
+          description: "95th percentile latency is above 30 seconds"
+      - alert: ComfyUIEngineQueueDepth
+        expr: comfyui_engine_queue_depth > 100
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Queue depth too high"
+          description: "Queue depth is above 100 for more than 5 minutes"
+
+# Backup configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"
+  retention: 30
+  storage:
+    enabled: true
+    provider: s3
+    bucket: "comfyui-engine-production-backups"
+    region: "us-east-1"
+    path: "backups"
+
+# Update strategy
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 2
+    maxUnavailable: 1
+
+# Subcharts
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: true
+    existingSecret: "comfyui-engine-redis-secret"
+    existingSecretPasswordKey: "redis-password"
+  master:
+    persistence:
+      enabled: true
+      size: 16Gi
+    resources:
+      limits:
+        memory: 4Gi
+        cpu: 2000m
+      requests:
+        memory: 2Gi
+        cpu: 1000m
+
+postgresql:
+  enabled: true
+  auth:
+    username: comfyui
+    database: comfyui_engine
+    existingSecret: "comfyui-engine-db-secret"
+    secretKeys:
+      adminPasswordKey: "admin-password"
+      userPasswordKey: "password"
+  primary:
+    persistence:
+      enabled: true
+      size: 100Gi
+    resources:
+      limits:
+        memory: 8Gi
+        cpu: 4000m
+      requests:
+        memory: 4Gi
+        cpu: 2000m
+
+prometheus:
+  enabled: true
+  server:
+    persistentVolume:
+      enabled: true
+      size: 100Gi
+    resources:
+      limits:
+        memory: 16Gi
+        cpu: 4000m
+      requests:
+        memory: 8Gi
+        cpu: 2000m
+
+grafana:
+  enabled: true
+  admin:
+    existingSecret: "comfyui-engine-grafana-secret"
+    userKey: "admin-user"
+    passwordKey: "admin-password"
+  persistence:
+    enabled: true
+    size: 20Gi
+  resources:
+    limits:
+      memory: 4Gi
+      cpu: 2000m
+    requests:
+      memory: 2Gi
+      cpu: 1000m

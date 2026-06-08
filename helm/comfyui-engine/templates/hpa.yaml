@@ -5,6 +5,7 @@ metadata:
   name: {{ include "comfyui-engine.fullname" . }}
   labels:
     {{- include "comfyui-engine.labels" . | nindent 4 }}
+    {{- include "comfyui-engine.extraLabels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -13,32 +14,20 @@ spec:
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:
-    {{- if .Values.autoscaling.targetCPUUtilizationPercentage }}
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
           averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
-    {{- end }}
-    {{- if .Values.autoscaling.targetMemoryUtilizationPercentage }}
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
           averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
-    {{- end }}
-    {{- range .Values.autoscaling.metrics }}
-    - type: {{ .type }}
-      {{- if eq .type "Pods" }}
-      pods:
-        metric:
-          name: {{ .pods.metric.name }}
-        target:
-          type: {{ .pods.target.type }}
-          averageValue: {{ .pods.target.averageValue }}
-      {{- end }}
+    {{- if .Values.autoscaling.metrics }}
+    {{- toYaml .Values.autoscaling.metrics | nindent 4 }}
     {{- end }}
   {{- if .Values.autoscaling.behavior }}
   behavior:

@@ -1,0 +1,136 @@
+# Fluentd configuration for centralized log aggregation
+# Collects logs from ComfyUI Engine pods and forwards to Loki/Elasticsearch
+
+<source>
+  @type tail
+  path /var/log/containers/comfyui-engine-*.log
+  pos_file /var/log/fluentd/comfyui-engine.log.pos
+  tag comfyui.kubernetes.*
+  <parse>
+    @type multi_format
+    <pattern>
+      format json
+      time_key time
+      time_format %Y-%m-%dT%H:%M:%S.%NZ
+      keep_time_key true
+    </pattern>
+    <pattern>
+      format regexp
+      expression /^(?<time>.+) (?<<stream>stdout|stderr) [^ ]* (?<<log>.*)$/
+      time_format %Y-%m-%dT%H:%M:%S.%N%:z
+    </pattern>
+  </parse>
+  read_from_head true
+  refresh_interval 5
+</source>
+
+# Filter and enrich logs
+<<filter comfyui.kubernetes.**>
+  @type kubernetes_metadata
+  @id filter_kube_metadata
+  kubernetes_url https://kubernetes.default.svc
+  verify_ssl true
+  ca_file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  bearer_token_file /var/run/secrets/kubernetes.io/serviceaccount/token
+</filter>
+
+# Add custom fields for ComfyUI Engine
+<<filter comfyui.kubernetes.**>
+  @type record_transformer
+  @id add_comfyui_fields
+  <record>
+    service comfyui-engine
+    environment ${ENVIRONMENT}
+    cluster ${CLUSTER_NAME}
+    log_source kubernetes
+  </record>
+</filter>
+
+# Parse structured logs (JSON format)
+<<filter comfyui.kubernetes.**>
+  @type parser
+  @id parse_json_logs
+  key_name log
+  reserve_data true
+  remove_key_name_field true
+  <parse>
+    @type json
+    json_parser json
+  </parse>
+</filter>
+
+# Add severity levels based on log content
+<<filter comfyui.kubernetes.**>
+  @type record_transformer
+  @id add_severity
+  enable_ruby true
+  <record>
+    severity ${record["log"].match?(/ERROR|FATAL|CRITICAL/) ? "error" : record["log"].match?(/WARN|WARNING/) ? "warning" : record["log"].match?(/DEBUG/) ? "debug" : "info"}
+  </record>
+</filter>
+
+# Output to Loki
+<<match comfyui.kubernetes.**>
+  @type loki
+  @id output_loki
+  url "http://loki.monitoring.svc:3100"
+  username ""
+  password ""
+  extra_labels {"service":"comfyui-engine","environment":"${ENVIRONMENT}"}
+  drop_single_key true
+  <buffer>
+    flush_interval 10s
+    chunk_limit_size 1m
+    queue_limit_length 32
+    retry_max_interval 30
+    retry_max_times 10
+    flush_thread_count 2
+  </buffer>
+</match>
+
+# Output to Elasticsearch (backup/secondary)
+<<match comfyui.kubernetes.**>
+  @type elasticsearch
+  @id output_elasticsearch
+  host elasticsearch.monitoring.svc
+  port 9200
+  logstash_format true
+  logstash_prefix comfyui-engine
+  include_tag_key true
+  type_name _doc
+  <buffer>
+    flush_interval 10s
+    chunk_limit_size 1m
+    queue_limit_length 32
+    retry_max_interval 30
+    retry_max_times 10
+    flush_thread_count 2
+  </buffer>
+</match>
+
+# System metrics from logs
+<source>
+  @type prometheus
+  @id prometheus_metrics
+  bind 0.0.0.0
+  port 24231
+  metrics_path /metrics
+</source>
+
+<source>
+  @type prometheus_tail_monitor
+  @id prometheus_tail_monitor
+  <labels>
+    tag ${tag}
+    hostname ${hostname}
+  </labels>
+</source>
+
+<source>
+  @type prometheus_output_monitor
+  @id prometheus_output_monitor
+  <labels>
+    tag ${tag}
+    hostname ${hostname}
+  </labels>
+</source>
