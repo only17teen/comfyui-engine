@@ -14,6 +14,7 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar, Union
+T = TypeVar("T")
 
 import aiohttp
 
@@ -518,7 +519,6 @@ class CircuitBreakerOpenError(Exception):
 # Retry Decorator with Exponential Backoff (Optimized)
 # Kiro Rule 1: Relentless Optimization - pre-computed delays
 # ───────────────────────────────────────────────────────────────
-T = TypeVar("T")
 
 
 @dataclass
