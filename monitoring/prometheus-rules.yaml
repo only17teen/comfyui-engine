@@ -1,0 +1,3810 @@
+groups:
+  - name: comfyui-engine-alerts
+    interval: 30s
+    rules:
+      - alert: ComfyUIHighErrorRate
+        expr: rate(comfyui_engine_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High error rate on {{ $labels.instance }}"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-high-error-rate"
+          dashboard_url: "https://grafana.internal/d/comfyui-engine"
+
+      - alert: ComfyUIHighLatency
+        expr: comfyui_engine_latency_p95 > 60
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High latency on {{ $labels.instance }}"
+          description: "P95 latency is {{ $value }}s over the last 5 minutes"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-high-latency"
+
+      - alert: ComfyUIExtremeLatency
+        expr: comfyui_engine_latency_p99 > 120
+        for: 2m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Extreme latency on {{ $labels.instance }}"
+          description: "P99 latency is {{ $value }}s - immediate attention required"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-extreme-latency"
+
+      - alert: ComfyUIGPUOutOfMemory
+        expr: comfyui_engine_gpu_memory_usage > 0.95
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU out of memory on {{ $labels.instance }}"
+          description: "GPU memory usage is {{ $value | humanizePercentage }}"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-gpu-oom"
+
+      - alert: ComfyUIGPUHighTemperature
+        expr: comfyui_engine_gpu_temperature > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU high temperature on {{ $labels.instance }}"
+          description: "GPU temperature is {{ $value }}°C"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-gpu-temperature"
+
+      - alert: ComfyUIQueueBacklog
+        expr: comfyui_engine_queue_depth > 100
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Queue backlog on {{ $labels.instance }}"
+          description: "Queue depth is {{ $value }} items"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-queue-backlog"
+
+      - alert: ComfyUIQueueCritical
+        expr: comfyui_engine_queue_depth > 500
+        for: 5m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Critical queue backlog on {{ $labels.instance }}"
+          description: "Queue depth is {{ $value }} items - scaling required"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-queue-critical"
+
+      - alert: ComfyUIHighCPUUsage
+        expr: rate(comfyui_engine_cpu_usage_seconds_total[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIHighMemoryUsage
+        expr: comfyui_engine_memory_usage_bytes / comfyui_engine_memory_limit_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIPodRestartLoop
+        expr: rate(kube_pod_container_status_restarts_total{pod=~"comfyui-engine.*"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Pod restart loop detected"
+          description: "Pod {{ $labels.pod }} is restarting frequently"
+
+      - alert: ComfyUIPodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total{pod=~"comfyui-engine.*"}[15m]) > 3
+        for: 2m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Pod crash looping"
+          description: "Pod {{ $labels.pod }} is crash looping"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-crash-loop"
+
+      - alert: ComfyUIDown
+        expr: up{job="comfyui-engine"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "ComfyUI Engine instance down"
+          description: "Instance {{ $labels.instance }} is down"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-down"
+
+      - alert: ComfyUISSLCertificateExpiring
+        expr: (ssl_certificate_expiry_seconds - time()) / 86400 < 7
+        for: 1h
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "SSL certificate expiring soon"
+          description: "Certificate expires in {{ $value | humanizeDuration }}"
+
+      - alert: ComfyUIRateLimitHit
+        expr: rate(comfyui_engine_rate_limit_hits_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Rate limit being hit"
+          description: "Rate limit hits: {{ $value }}/s"
+
+      - alert: ComfyUIWebsocketConnectionsHigh
+        expr: comfyui_engine_websocket_connections > 1000
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High websocket connections"
+          description: "{{ $value }} active websocket connections"
+
+      - alert: ComfyUIModelLoadFailures
+        expr: rate(comfyui_engine_model_load_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Model load failures detected"
+          description: "Model load failures: {{ $value }}/s"
+
+      - alert: ComfyUIInferenceTimeout
+        expr: rate(comfyui_engine_inference_timeouts_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Inference timeouts detected"
+          description: "Inference timeouts: {{ $value }}/s"
+
+      - alert: ComfyUIFailoverTriggered
+        expr: comfyui_engine_failover_active == 1
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Failover triggered"
+          description: "Failover is active for {{ $labels.region }}"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-failover"
+
+      - alert: ComfyUIMultiRegionLatency
+        expr: comfyui_engine_cross_region_latency_p95 > 200
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High cross-region latency"
+          description: "Cross-region latency P95: {{ $value }}ms"
+
+      - alert: ComfyUICacheHitRateLow
+        expr: comfyui_engine_cache_hit_rate < 0.5
+        for: 15m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIBanditExplorationHigh
+        expr: comfyui_engine_bandit_exploration_rate > 0.3
+        for: 30m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: ml
+        annotations:
+          summary: "High bandit exploration rate"
+          description: "Exploration rate is {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIPrecognitionAccuracyLow
+        expr: comfyui_engine_precognition_accuracy < 0.7
+        for: 30m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: ml
+        annotations:
+          summary: "Low precognition accuracy"
+          description: "Precognition accuracy is {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUICostSpike
+        expr: rate(comfyui_engine_cost_usd[1h]) > 100
+        for: 1h
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: finance
+        annotations:
+          summary: "Cost spike detected"
+          description: "Hourly cost is ${{ $value }}"
+
+      - alert: ComfyUIDiskSpaceLow
+        expr: comfyui_engine_disk_usage_bytes / comfyui_engine_disk_total_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Low disk space"
+          description: "Disk usage is {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIDiskSpaceCritical
+        expr: comfyui_engine_disk_usage_bytes / comfyui_engine_disk_total_bytes > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Critical disk space"
+          description: "Disk usage is {{ $value | humanizePercentage }} - immediate action required"
+
+      - alert: ComfyUIRequestRateSpike
+        expr: rate(comfyui_engine_requests_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Request rate spike"
+          description: "Request rate: {{ $value }}/s"
+
+      - alert: ComfyUIActiveSessionsHigh
+        expr: comfyui_engine_active_sessions > 5000
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High active sessions"
+          description: "{{ $value }} active sessions"
+
+      - alert: ComfyUIWorkerPoolExhausted
+        expr: comfyui_engine_available_workers == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Worker pool exhausted"
+          description: "No available workers in the pool"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-worker-pool"
+
+      - alert: ComfyUIGPUUtilizationLow
+        expr: comfyui_engine_gpu_utilization < 0.1
+        for: 30m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Low GPU utilization"
+          description: "GPU utilization is {{ $value | humanizePercentage }} - consider scaling down"
+
+      - alert: ComfyUIGPUUtilizationHigh
+        expr: comfyui_engine_gpu_utilization > 0.95
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU utilization"
+          description: "GPU utilization is {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUINetworkErrors
+        expr: rate(comfyui_engine_network_errors_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Network errors detected"
+          description: "Network errors: {{ $value }}/s"
+
+      - alert: ComfyUIDatabaseConnectionFailures
+        expr: rate(comfyui_engine_db_connection_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Database connection failures"
+          description: "DB connection failures: {{ $value }}/s"
+
+      - alert: ComfyUIRedisConnectionFailures
+        expr: rate(comfyui_engine_redis_connection_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Redis connection failures"
+          description: "Redis connection failures: {{ $value }}/s"
+
+      - alert: ComfyUIVersionMismatch
+        expr: comfyui_engine_version_mismatch == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Version mismatch detected"
+          description: "Running version does not match expected version"
+
+      - alert: ComfyUISecurityEvent
+        expr: rate(comfyui_engine_security_events_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: security
+        annotations:
+          summary: "Security event detected"
+          description: "Security events: {{ $value }}/s"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-security"
+
+      - alert: ComfyUIRPSQuotaExceeded
+        expr: comfyui_engine_rps_quota_exceeded == 1
+        for: 1m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "RPS quota exceeded"
+          description: "Requests per second quota has been exceeded"
+
+      - alert: ComfyUIGeneticOptimizerStuck
+        expr: comfyui_engine_genetic_optimizer_generations_without_improvement > 50
+        for: 30m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: ml
+        annotations:
+          summary: "Genetic optimizer stuck"
+          description: "No improvement for {{ $value }} generations"
+
+      - alert: ComfyUIFunctionCallErrors
+        expr: rate(comfyui_engine_function_call_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Function call errors"
+          description: "Function call errors: {{ $value }}/s"
+
+      - alert: ComfyUIABTestSignificant
+        expr: comfyui_engine_ab_test_significant == 1
+        for: 1m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: ml
+        annotations:
+          summary: "A/B test reached significance"
+          description: "A/B test {{ $labels.test_name }} has reached statistical significance"
+
+      - alert: ComfyUIMemoryLeakDetected
+        expr: rate(comfyui_engine_memory_usage_bytes[1h]) > 0
+        for: 2h
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Possible memory leak"
+          description: "Memory usage has been growing for 2 hours"
+
+      - alert: ComfyUIGoroutineLeak
+        expr: comfyui_engine_goroutines > 10000
+        for: 15m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High goroutine count"
+          description: "{{ $value }} goroutines - possible leak"
+
+      - alert: ComfyUIGCOverheadHigh
+        expr: rate(comfyui_engine_gc_pause_duration_seconds[5m]) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GC overhead"
+          description: "GC is consuming significant time"
+
+      - alert: ComfyUIFunctionTimeout
+        expr: rate(comfyui_engine_function_timeout_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Function timeouts"
+          description: "Function timeouts: {{ $value }}/s"
+
+      - alert: ComfyUIImageGenerationFailures
+        expr: rate(comfyui_engine_image_generation_failures_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Image generation failures"
+          description: "Image generation failures: {{ $value }}/s"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-generation-failures"
+
+      - alert: ComfyUIWorkflowValidationFailures
+        expr: rate(comfyui_engine_workflow_validation_failures_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Workflow validation failures"
+          description: "Workflow validation failures: {{ $value }}/s"
+
+      - alert: ComfyUICheckpointFailures
+        expr: rate(comfyui_engine_checkpoint_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Checkpoint failures"
+          description: "Checkpoint failures: {{ $value }}/s"
+
+      - alert: ComfyUISessionExpirationHigh
+        expr: rate(comfyui_engine_session_expirations_total[5m]) > 100
+        for: 10m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High session expiration rate"
+          description: "Session expirations: {{ $value }}/s"
+
+      - alert: ComfyUIAuthFailures
+        expr: rate(comfyui_engine_auth_failures_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: security
+        annotations:
+          summary: "Authentication failures"
+          description: "Auth failures: {{ $value }}/s"
+
+      - alert: ComfyUIJWTValidationFailures
+        expr: rate(comfyui_engine_jwt_validation_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: security
+        annotations:
+          summary: "JWT validation failures"
+          description: "JWT validation failures: {{ $value }}/s"
+
+      - alert: ComfyUIWebSocketErrors
+        expr: rate(comfyui_engine_websocket_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "WebSocket errors"
+          description: "WebSocket errors: {{ $value }}/s"
+
+      - alert: ComfyUIStreamingErrors
+        expr: rate(comfyui_engine_streaming_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Streaming errors"
+          description: "Streaming errors: {{ $value }}/s"
+
+      - alert: ComfyUINodeDiscoveryFailures
+        expr: rate(comfyui_engine_node_discovery_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Node discovery failures"
+          description: "Node discovery failures: {{ $value }}/s"
+
+      - alert: ComfyUIClusterSyncFailures
+        expr: rate(comfyui_engine_cluster_sync_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Cluster sync failures"
+          description: "Cluster sync failures: {{ $value }}/s"
+
+      - alert: ComfyUIGitSyncFailures
+        expr: rate(comfyui_engine_git_sync_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Git sync failures"
+          description: "Git sync failures: {{ $value }}/s"
+
+      - alert: ComfyUIPluginLoadFailures
+        expr: rate(comfyui_engine_plugin_load_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Plugin load failures"
+          description: "Plugin load failures: {{ $value }}/s"
+
+      - alert: ComfyUIOutputProcessingFailures
+        expr: rate(comfyui_engine_output_processing_failures_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Output processing failures"
+          description: "Output processing failures: {{ $value }}/s"
+
+      - alert: ComfyUIPromptProcessingFailures
+        expr: rate(comfyui_engine_prompt_processing_failures_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Prompt processing failures"
+          description: "Prompt processing failures: {{ $value }}/s"
+
+      - alert: ComfyUIModelCacheEvictions
+        expr: rate(comfyui_engine_model_cache_evictions_total[5m]) > 100
+        for: 10m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High model cache evictions"
+          description: "Model cache evictions: {{ $value }}/s"
+
+      - alert: ComfyUIModelCacheHitRateLow
+        expr: comfyui_engine_model_cache_hit_rate < 0.3
+        for: 15m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Low model cache hit rate"
+          description: "Model cache hit rate is {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIRedisCacheEvictions
+        expr: rate(comfyui_engine_redis_cache_evictions_total[5m]) > 1000
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High Redis cache evictions"
+          description: "Redis cache evictions: {{ $value }}/s"
+
+      - alert: ComfyUIRequestSizeHigh
+        expr: comfyui_engine_request_size_bytes > 10485760
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Large request size"
+          description: "Request size: {{ $value | humanize1024 }}B"
+
+      - alert: ComfyUIResponseSizeHigh
+        expr: comfyui_engine_response_size_bytes > 104857600
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Large response size"
+          description: "Response size: {{ $value | humanize1024 }}B"
+
+      - alert: ComfyUIRequestDurationBimodal
+        expr: stddev_over_time(comfyui_engine_request_duration_seconds[10m]) > 10
+        for: 10m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Bimodal request duration"
+          description: "Request duration shows bimodal distribution"
+
+      - alert: ComfyUIGPUKernelErrors
+        expr: rate(comfyui_engine_gpu_kernel_errors_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU kernel errors"
+          description: "GPU kernel errors: {{ $value }}/s"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-gpu-kernel"
+
+      - alert: ComfyUIGPUMemoryErrors
+        expr: rate(comfyui_engine_gpu_memory_errors_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU memory errors"
+          description: "GPU memory errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUECCError
+        expr: rate(comfyui_engine_gpu_ecc_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU ECC errors"
+          description: "GPU ECC errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUPowerLimit
+        expr: comfyui_engine_gpu_power_limit_active == 1
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU power limit active"
+          description: "GPU is operating at power limit"
+
+      - alert: ComfyUIGPUPCIeErrors
+        expr: rate(comfyui_engine_gpu_pcie_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU PCIe errors"
+          description: "GPU PCIe errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUNvlinkErrors
+        expr: rate(comfyui_engine_gpu_nvlink_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU NVLink errors"
+          description: "GPU NVLink errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUDriverVersionMismatch
+        expr: comfyui_engine_gpu_driver_version_mismatch == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU driver version mismatch"
+          description: "GPU driver version does not match expected"
+
+      - alert: ComfyUIGPUFabricManagerErrors
+        expr: rate(comfyui_engine_gpu_fabric_manager_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU fabric manager errors"
+          description: "GPU fabric manager errors: {{ $value }}/s"
+
+      - alert: ComfyUIInferenceQueueWaitTimeHigh
+        expr: comfyui_engine_inference_queue_wait_time > 30
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High inference queue wait time"
+          description: "Queue wait time: {{ $value }}s"
+
+      - alert: ComfyUIInferenceProcessingTimeHigh
+        expr: comfyui_engine_inference_processing_time > 60
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High inference processing time"
+          description: "Processing time: {{ $value }}s"
+
+      - alert: ComfyUIGPUComputeUtilizationLow
+        expr: comfyui_engine_gpu_compute_utilization < 0.05
+        for: 30m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Low GPU compute utilization"
+          description: "GPU compute utilization: {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIGPUMemoryBandwidthLow
+        expr: comfyui_engine_gpu_memory_bandwidth_utilization < 0.1
+        for: 30m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Low GPU memory bandwidth"
+          description: "GPU memory bandwidth: {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIGPUThermalThrottling
+        expr: comfyui_engine_gpu_thermal_throttle_active == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU thermal throttling"
+          description: "GPU is thermal throttling"
+
+      - alert: ComfyUIGPUClockSpeedLow
+        expr: comfyui_engine_gpu_clock_speed / comfyui_engine_gpu_max_clock_speed < 0.5
+        for: 15m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Low GPU clock speed"
+          description: "GPU clock speed is {{ $value | humanizePercentage }} of max"
+
+      - alert: ComfyUIGPUFanSpeedHigh
+        expr: comfyui_engine_gpu_fan_speed > 90
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU fan speed"
+          description: "GPU fan speed: {{ $value }}%"
+
+      - alert: ComfyUIGPUVoltageHigh
+        expr: comfyui_engine_gpu_voltage > 1.1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU voltage"
+          description: "GPU voltage: {{ $value }}V"
+
+      - alert: ComfyUIGPUCurrentHigh
+        expr: comfyui_engine_gpu_current > 300
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU current"
+          description: "GPU current: {{ $value }}A"
+
+      - alert: ComfyUIGPUPowerDrawHigh
+        expr: comfyui_engine_gpu_power_draw > 250
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU power draw"
+          description: "GPU power draw: {{ $value }}W"
+
+      - alert: ComfyUIGPUHealthCheckFailures
+        expr: rate(comfyui_engine_gpu_health_check_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check failures"
+          description: "GPU health check failures: {{ $value }}/s"
+
+      - alert: ComfyUIGPUResetCountHigh
+        expr: comfyui_engine_gpu_reset_count > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU reset detected"
+          description: "GPU has been reset {{ $value }} times"
+
+      - alert: ComfyUIGPUXidError
+        expr: rate(comfyui_engine_gpu_xid_errors_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU XID error"
+          description: "GPU XID errors: {{ $value }}/s"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-gpu-xid"
+
+      - alert: ComfyUIGPUNvrmError
+        expr: rate(comfyui_engine_gpu_nvrm_errors_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU NVRM error"
+          description: "GPU NVRM errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUDecoderUtilizationHigh
+        expr: comfyui_engine_gpu_decoder_utilization > 0.9
+        for: 10m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU decoder utilization"
+          description: "GPU decoder utilization: {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIGPUEncoderUtilizationHigh
+        expr: comfyui_engine_gpu_encoder_utilization > 0.9
+        for: 10m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU encoder utilization"
+          description: "GPU encoder utilization: {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIGPUJPEGUtilizationHigh
+        expr: comfyui_engine_gpu_jpeg_utilization > 0.9
+        for: 10m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU JPEG utilization"
+          description: "GPU JPEG utilization: {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIGPUOFAUtilizationHigh
+        expr: comfyui_engine_gpu_ofa_utilization > 0.9
+        for: 10m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU OFA utilization"
+          description: "GPU OFA utilization: {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIGPUP2PBandwidthLow
+        expr: comfyui_engine_gpu_p2p_bandwidth < 1000
+        for: 15m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Low GPU P2P bandwidth"
+          description: "GPU P2P bandwidth: {{ $value }} MB/s"
+
+      - alert: ComfyUIGPUNVLINKBandwidthLow
+        expr: comfyui_engine_gpu_nvlink_bandwidth < 5000
+        for: 15m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Low GPU NVLink bandwidth"
+          description: "GPU NVLink bandwidth: {{ $value }} MB/s"
+
+      - alert: ComfyUIGPUFBMemoryUsageHigh
+        expr: comfyui_engine_gpu_fb_memory_usage / comfyui_engine_gpu_fb_memory_total > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU FB memory usage"
+          description: "GPU FB memory usage: {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIGPUBAR1MemoryUsageHigh
+        expr: comfyui_engine_gpu_bar1_memory_usage / comfyui_engine_gpu_bar1_memory_total > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU BAR1 memory usage"
+          description: "GPU BAR1 memory usage: {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIGPUCorrectableErrors
+        expr: rate(comfyui_engine_gpu_correctable_errors_total[5m]) > 100
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU correctable errors"
+          description: "GPU correctable errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUUncorrectableErrors
+        expr: rate(comfyui_engine_gpu_uncorrectable_errors_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU uncorrectable errors"
+          description: "GPU uncorrectable errors: {{ $value }}/s"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-gpu-uncorrectable"
+
+      - alert: ComfyUIGPURetiredPagesHigh
+        expr: comfyui_engine_gpu_retired_pages > 100
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU retired pages"
+          description: "GPU retired pages: {{ $value }}"
+
+      - alert: ComfyUIGPUPendingRetiredPagesHigh
+        expr: comfyui_engine_gpu_pending_retired_pages > 10
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High GPU pending retired pages"
+          description: "GPU pending retired pages: {{ $value }}"
+
+      - alert: ComfyUIGPUReplayErrors
+        expr: rate(comfyui_engine_gpu_replay_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU replay errors"
+          description: "GPU replay errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPURecoveryErrors
+        expr: rate(comfyui_engine_gpu_recovery_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU recovery errors"
+          description: "GPU recovery errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUDriverReloads
+        expr: rate(comfyui_engine_gpu_driver_reloads_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU driver reloads"
+          description: "GPU driver reloads: {{ $value }}/s"
+
+      - alert: ComfyUIGPUFBPageErrors
+        expr: rate(comfyui_engine_gpu_fb_page_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU FB page errors"
+          description: "GPU FB page errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUInterruptErrors
+        expr: rate(comfyui_engine_gpu_interrupt_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU interrupt errors"
+          description: "GPU interrupt errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUAERErrors
+        expr: rate(comfyui_engine_gpu_aer_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU AER errors"
+          description: "GPU AER errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUDPCErrors
+        expr: rate(comfyui_engine_gpu_dpc_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU DPC errors"
+          description: "GPU DPC errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUSQEErrors
+        expr: rate(comfyui_engine_gpu_sqe_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU SQE errors"
+          description: "GPU SQE errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUDMAErrors
+        expr: rate(comfyui_engine_gpu_dma_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU DMA errors"
+          description: "GPU DMA errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUScrubErrors
+        expr: rate(comfyui_engine_gpu_scrub_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU scrub errors"
+          description: "GPU scrub errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUMarginErrors
+        expr: rate(comfyui_engine_gpu_margin_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU margin errors"
+          description: "GPU margin errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUTrainingErrors
+        expr: rate(comfyui_engine_gpu_training_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU training errors"
+          description: "GPU training errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUInferenceErrors
+        expr: rate(comfyui_engine_gpu_inference_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU inference errors"
+          description: "GPU inference errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUDataTransferErrors
+        expr: rate(comfyui_engine_gpu_data_transfer_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU data transfer errors"
+          description: "GPU data transfer errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUSynchronizationErrors
+        expr: rate(comfyui_engine_gpu_synchronization_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU synchronization errors"
+          description: "GPU synchronization errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUKernelLaunchErrors
+        expr: rate(comfyui_engine_gpu_kernel_launch_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU kernel launch errors"
+          description: "GPU kernel launch errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUMemoryAllocationErrors
+        expr: rate(comfyui_engine_gpu_memory_allocation_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU memory allocation errors"
+          description: "GPU memory allocation errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUMemoryDeallocationErrors
+        expr: rate(comfyui_engine_gpu_memory_deallocation_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU memory deallocation errors"
+          description: "GPU memory deallocation errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUMemoryCopyErrors
+        expr: rate(comfyui_engine_gpu_memory_copy_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU memory copy errors"
+          description: "GPU memory copy errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUMemorySetErrors
+        expr: rate(comfyui_engine_gpu_memory_set_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU memory set errors"
+          description: "GPU memory set errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUStreamErrors
+        expr: rate(comfyui_engine_gpu_stream_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU stream errors"
+          description: "GPU stream errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUEventErrors
+        expr: rate(comfyui_engine_gpu_event_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU event errors"
+          description: "GPU event errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUTextureErrors
+        expr: rate(comfyui_engine_gpu_texture_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU texture errors"
+          description: "GPU texture errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUSurfaceErrors
+        expr: rate(comfyui_engine_gpu_surface_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU surface errors"
+          description: "GPU surface errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUContextErrors
+        expr: rate(comfyui_engine_gpu_context_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU context errors"
+          description: "GPU context errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUModuleErrors
+        expr: rate(comfyui_engine_gpu_module_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU module errors"
+          description: "GPU module errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPULibraryErrors
+        expr: rate(comfyui_engine_gpu_library_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU library errors"
+          description: "GPU library errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPURuntimeErrors
+        expr: rate(comfyui_engine_gpu_runtime_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU runtime errors"
+          description: "GPU runtime errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUDriverErrors
+        expr: rate(comfyui_engine_gpu_driver_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU driver errors"
+          description: "GPU driver errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUSystemErrors
+        expr: rate(comfyui_engine_gpu_system_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU system errors"
+          description: "GPU system errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUUnknownErrors
+        expr: rate(comfyui_engine_gpu_unknown_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU unknown errors"
+          description: "GPU unknown errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUErrorCountHigh
+        expr: sum(rate(comfyui_engine_gpu_errors_total[5m])) by (instance) > 1
+        for: 5m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High total GPU errors"
+          description: "Total GPU errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUWarningCountHigh
+        expr: sum(rate(comfyui_engine_gpu_warnings_total[5m])) by (instance) > 10
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High total GPU warnings"
+          description: "Total GPU warnings: {{ $value }}/s"
+
+      - alert: ComfyUIGPUInfoCountHigh
+        expr: sum(rate(comfyui_engine_gpu_info_total[5m])) by (instance) > 100
+        for: 15m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High total GPU info messages"
+          description: "Total GPU info: {{ $value }}/s"
+
+      - alert: ComfyUIGPUDebugCountHigh
+        expr: sum(rate(comfyui_engine_gpu_debug_total[5m])) by (instance) > 1000
+        for: 15m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High total GPU debug messages"
+          description: "Total GPU debug: {{ $value }}/s"
+
+      - alert: ComfyUIGPUTraceCountHigh
+        expr: sum(rate(comfyui_engine_gpu_trace_total[5m])) by (instance) > 10000
+        for: 15m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High total GPU trace messages"
+          description: "Total GPU trace: {{ $value }}/s"
+
+      - alert: ComfyUIGPUFatalCountHigh
+        expr: sum(rate(comfyui_engine_gpu_fatal_total[5m])) by (instance) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU fatal errors"
+          description: "GPU fatal errors: {{ $value }}/s"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-gpu-fatal"
+
+      - alert: ComfyUIGPUAssertCountHigh
+        expr: sum(rate(comfyui_engine_gpu_assert_total[5m])) by (instance) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU assertion failures"
+          description: "GPU assertions: {{ $value }}/s"
+
+      - alert: ComfyUIGPUExceptionCountHigh
+        expr: sum(rate(comfyui_engine_gpu_exception_total[5m])) by (instance) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU exceptions"
+          description: "GPU exceptions: {{ $value }}/s"
+
+      - alert: ComfyUIGPUCrashCountHigh
+        expr: sum(rate(comfyui_engine_gpu_crash_total[5m])) by (instance) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU crashes"
+          description: "GPU crashes: {{ $value }}/s"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-gpu-crash"
+
+      - alert: ComfyUIGPUHangCountHigh
+        expr: sum(rate(comfyui_engine_gpu_hang_total[5m])) by (instance) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU hangs"
+          description: "GPU hangs: {{ $value }}/s"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-gpu-hang"
+
+      - alert: ComfyUIGPUStallCountHigh
+        expr: sum(rate(comfyui_engine_gpu_stall_total[5m])) by (instance) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU stalls"
+          description: "GPU stalls: {{ $value }}/s"
+
+      - alert: ComfyUIGPUTimeoutCountHigh
+        expr: sum(rate(comfyui_engine_gpu_timeout_total[5m])) by (instance) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU timeouts"
+          description: "GPU timeouts: {{ $value }}/s"
+
+      - alert: ComfyUIGPUBandwidthLow
+        expr: comfyui_engine_gpu_bandwidth_utilization < 0.1
+        for: 30m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Low GPU bandwidth utilization"
+          description: "GPU bandwidth: {{ $value | humanizePercentage }}"
+
+      - alert: ComfyUIGPUComputeCapabilityMismatch
+        expr: comfyui_engine_gpu_compute_capability_mismatch == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU compute capability mismatch"
+          description: "GPU compute capability does not match expected"
+
+      - alert: ComfyUIGPUMultiGPUUnbalanced
+        expr: stddev(comfyui_engine_gpu_utilization) by (node) > 0.3
+        for: 15m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Unbalanced multi-GPU utilization"
+          description: "GPU utilization is unbalanced across GPUs"
+
+      - alert: ComfyUIGPUNotAllPeersConnected
+        expr: comfyui_engine_gpu_peers_connected < comfyui_engine_gpu_peers_expected
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Not all GPU peers connected"
+          description: "{{ $value }} of {{ $labels.expected }} peers connected"
+
+      - alert: ComfyUIGPUPeerAccessErrors
+        expr: rate(comfyui_engine_gpu_peer_access_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU peer access errors"
+          description: "GPU peer access errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUP2PNotAvailable
+        expr: comfyui_engine_gpu_p2p_available == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU P2P not available"
+          description: "GPU P2P is not available"
+
+      - alert: ComfyUIGPURDMANotAvailable
+        expr: comfyui_engine_gpu_rdma_available == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU RDMA not available"
+          description: "GPU RDMA is not available"
+
+      - alert: ComfyUIGPUGPUDirectNotAvailable
+        expr: comfyui_engine_gpu_gpudirect_available == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU GPUDirect not available"
+          description: "GPU GPUDirect is not available"
+
+      - alert: ComfyUIGPUMIGNotAvailable
+        expr: comfyui_engine_gpu_mig_available == 0
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU MIG not available"
+          description: "GPU MIG is not available"
+
+      - alert: ComfyUIGPUVirtualizationNotAvailable
+        expr: comfyui_engine_gpu_virtualization_available == 0
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU virtualization not available"
+          description: "GPU virtualization is not available"
+
+      - alert: ComfyUIGPUSRATimeout
+        expr: rate(comfyui_engine_gpu_sra_timeout_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU SRA timeout"
+          description: "GPU SRA timeouts: {{ $value }}/s"
+
+      - alert: ComfyUIGPUFBPageRetirement
+        expr: rate(comfyui_engine_gpu_fb_page_retirement_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU FB page retirement"
+          description: "GPU FB page retirements: {{ $value }}/s"
+
+      - alert: ComfyUIGPUSecondFBPageRetirement
+        expr: rate(comfyui_engine_gpu_second_fb_page_retirement_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU second FB page retirement"
+          description: "Second FB page retirements: {{ $value }}/s"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-gpu-second-retirement"
+
+      - alert: ComfyUIGPUFirstFBPageRetirement
+        expr: rate(comfyui_engine_gpu_first_fb_page_retirement_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU first FB page retirement"
+          description: "First FB page retirements: {{ $value }}/s"
+
+      - alert: ComfyUIGPUDoubleBitECCError
+        expr: rate(comfyui_engine_gpu_double_bit_ecc_errors_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU double-bit ECC error"
+          description: "Double-bit ECC errors: {{ $value }}/s"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-gpu-double-bit-ecc"
+
+      - alert: ComfyUIGPUSingleBitECCError
+        expr: rate(comfyui_engine_gpu_single_bit_ecc_errors_total[5m]) > 100
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "High single-bit ECC errors"
+          description: "Single-bit ECC errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUAggregateECCError
+        expr: rate(comfyui_engine_gpu_aggregate_ecc_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU aggregate ECC errors"
+          description: "Aggregate ECC errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUSRAMError
+        expr: rate(comfyui_engine_gpu_sram_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU SRAM errors"
+          description: "GPU SRAM errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUDRAMError
+        expr: rate(comfyui_engine_gpu_dram_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU DRAM errors"
+          description: "GPU DRAM errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPURegisterError
+        expr: rate(comfyui_engine_gpu_register_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU register errors"
+          description: "GPU register errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUInstructionError
+        expr: rate(comfyui_engine_gpu_instruction_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU instruction errors"
+          description: "GPU instruction errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUCacheError
+        expr: rate(comfyui_engine_gpu_cache_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU cache errors"
+          description: "GPU cache errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUTLBError
+        expr: rate(comfyui_engine_gpu_tlb_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU TLB errors"
+          description: "GPU TLB errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUPageTableError
+        expr: rate(comfyui_engine_gpu_page_table_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU page table errors"
+          description: "GPU page table errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUMMUError
+        expr: rate(comfyui_engine_gpu_mmu_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU MMU errors"
+          description: "GPU MMU errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUATSError
+        expr: rate(comfyui_engine_gpu_ats_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU ATS errors"
+          description: "GPU ATS errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUPRIError
+        expr: rate(comfyui_engine_gpu_pri_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU PRI errors"
+          description: "GPU PRI errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUFLRError
+        expr: rate(comfyui_engine_gpu_flr_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU FLR errors"
+          description: "GPU FLR errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUResetError
+        expr: rate(comfyui_engine_gpu_reset_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU reset errors"
+          description: "GPU reset errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPURecoveryError
+        expr: rate(comfyui_engine_gpu_recovery_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU recovery errors"
+          description: "GPU recovery errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUInitializationError
+        expr: rate(comfyui_engine_gpu_initialization_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU initialization errors"
+          description: "GPU initialization errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUShutdownError
+        expr: rate(comfyui_engine_gpu_shutdown_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU shutdown errors"
+          description: "GPU shutdown errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUStateError
+        expr: rate(comfyui_engine_gpu_state_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU state errors"
+          description: "GPU state errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUTransitionError
+        expr: rate(comfyui_engine_gpu_transition_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU transition errors"
+          description: "GPU transition errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUConfigurationError
+        expr: rate(comfyui_engine_gpu_configuration_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU configuration errors"
+          description: "GPU configuration errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUValidationError
+        expr: rate(comfyui_engine_gpu_validation_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU validation errors"
+          description: "GPU validation errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUCalibrationError
+        expr: rate(comfyui_engine_gpu_calibration_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU calibration errors"
+          description: "GPU calibration errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUDiagnosticError
+        expr: rate(comfyui_engine_gpu_diagnostic_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU diagnostic errors"
+          description: "GPU diagnostic errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUMonitoringError
+        expr: rate(comfyui_engine_gpu_monitoring_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU monitoring errors"
+          description: "GPU monitoring errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPULoggingError
+        expr: rate(comfyui_engine_gpu_logging_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU logging errors"
+          description: "GPU logging errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUTracingError
+        expr: rate(comfyui_engine_gpu_tracing_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU tracing errors"
+          description: "GPU tracing errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUProfilingError
+        expr: rate(comfyui_engine_gpu_profiling_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU profiling errors"
+          description: "GPU profiling errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUDebuggingError
+        expr: rate(comfyui_engine_gpu_debugging_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU debugging errors"
+          description: "GPU debugging errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUInstrumentationError
+        expr: rate(comfyui_engine_gpu_instrumentation_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU instrumentation errors"
+          description: "GPU instrumentation errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUObservabilityError
+        expr: rate(comfyui_engine_gpu_observability_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU observability errors"
+          description: "GPU observability errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUMetricsError
+        expr: rate(comfyui_engine_gpu_metrics_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU metrics errors"
+          description: "GPU metrics errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPULoggingDropped
+        expr: rate(comfyui_engine_gpu_logging_dropped_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU logging dropped"
+          description: "GPU logging dropped: {{ $value }}/s"
+
+      - alert: ComfyUIGPUMetricsDropped
+        expr: rate(comfyui_engine_gpu_metrics_dropped_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU metrics dropped"
+          description: "GPU metrics dropped: {{ $value }}/s"
+
+      - alert: ComfyUIGPUTracesDropped
+        expr: rate(comfyui_engine_gpu_traces_dropped_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU traces dropped"
+          description: "GPU traces dropped: {{ $value }}/s"
+
+      - alert: ComfyUIGPUEventsDropped
+        expr: rate(comfyui_engine_gpu_events_dropped_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU events dropped"
+          description: "GPU events dropped: {{ $value }}/s"
+
+      - alert: ComfyUIGPUSpansDropped
+        expr: rate(comfyui_engine_gpu_spans_dropped_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU spans dropped"
+          description: "GPU spans dropped: {{ $value }}/s"
+
+      - alert: ComfyUIGPULogsDropped
+        expr: rate(comfyui_engine_gpu_logs_dropped_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU logs dropped"
+          description: "GPU logs dropped: {{ $value }}/s"
+
+      - alert: ComfyUIGPUMetricsCollectionFailed
+        expr: rate(comfyui_engine_gpu_metrics_collection_failed_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU metrics collection failed"
+          description: "GPU metrics collection failed: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckSlow
+        expr: comfyui_engine_gpu_health_check_duration > 5
+        for: 10m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "Slow GPU health checks"
+          description: "GPU health check duration: {{ $value }}s"
+
+      - alert: ComfyUIGPUHealthCheckTimeout
+        expr: rate(comfyui_engine_gpu_health_check_timeouts_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check timeouts"
+          description: "GPU health check timeouts: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckSkipped
+        expr: rate(comfyui_engine_gpu_health_check_skipped_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health checks skipped"
+          description: "GPU health checks skipped: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckDisabled
+        expr: comfyui_engine_gpu_health_check_disabled == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health checks disabled"
+          description: "GPU health checks are disabled"
+
+      - alert: ComfyUIGPUHealthCheckMisconfigured
+        expr: comfyui_engine_gpu_health_check_misconfigured == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health checks misconfigured"
+          description: "GPU health checks are misconfigured"
+
+      - alert: ComfyUIGPUHealthCheckNotRunning
+        expr: comfyui_engine_gpu_health_check_not_running == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health checks not running"
+          description: "GPU health checks are not running"
+
+      - alert: ComfyUIGPUHealthCheckOutOfMemory
+        expr: rate(comfyui_engine_gpu_health_check_oom_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check OOM"
+          description: "GPU health check OOM: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckCudaError
+        expr: rate(comfyui_engine_gpu_health_check_cuda_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check CUDA errors"
+          description: "GPU health check CUDA errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckRuntimeError
+        expr: rate(comfyui_engine_gpu_health_check_runtime_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check runtime errors"
+          description: "GPU health check runtime errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckSystemError
+        expr: rate(comfyui_engine_gpu_health_check_system_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check system errors"
+          description: "GPU health check system errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckDriverError
+        expr: rate(comfyui_engine_gpu_health_check_driver_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check driver errors"
+          description: "GPU health check driver errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckLibraryError
+        expr: rate(comfyui_engine_gpu_health_check_library_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check library errors"
+          description: "GPU health check library errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckAPIError
+        expr: rate(comfyui_engine_gpu_health_check_api_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check API errors"
+          description: "GPU health check API errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckServiceError
+        expr: rate(comfyui_engine_gpu_health_check_service_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check service errors"
+          description: "GPU health check service errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckNetworkError
+        expr: rate(comfyui_engine_gpu_health_check_network_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check network errors"
+          description: "GPU health check network errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckStorageError
+        expr: rate(comfyui_engine_gpu_health_check_storage_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check storage errors"
+          description: "GPU health check storage errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckPermissionError
+        expr: rate(comfyui_engine_gpu_health_check_permission_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check permission errors"
+          description: "GPU health check permission errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckAuthenticationError
+        expr: rate(comfyui_engine_gpu_health_check_auth_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check authentication errors"
+          description: "GPU health check auth errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckAuthorizationError
+        expr: rate(comfyui_engine_gpu_health_check_authorization_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check authorization errors"
+          description: "GPU health check authorization errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckValidationError
+        expr: rate(comfyui_engine_gpu_health_check_validation_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check validation errors"
+          description: "GPU health check validation errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckConfigurationError
+        expr: rate(comfyui_engine_gpu_health_check_configuration_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check configuration errors"
+          description: "GPU health check configuration errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckStateError
+        expr: rate(comfyui_engine_gpu_health_check_state_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check state errors"
+          description: "GPU health check state errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckTransitionError
+        expr: rate(comfyui_engine_gpu_health_check_transition_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check transition errors"
+          description: "GPU health check transition errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckResourceError
+        expr: rate(comfyui_engine_gpu_health_check_resource_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check resource errors"
+          description: "GPU health check resource errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckQuotaError
+        expr: rate(comfyui_engine_gpu_health_check_quota_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check quota errors"
+          description: "GPU health check quota errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckRateLimitError
+        expr: rate(comfyui_engine_gpu_health_check_rate_limit_errors_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check rate limit errors"
+          description: "GPU health check rate limit errors: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckCircuitBreakerOpen
+        expr: comfyui_engine_gpu_health_check_circuit_breaker_open == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check circuit breaker open"
+          description: "GPU health check circuit breaker is open"
+
+      - alert: ComfyUIGPUHealthCheckRetryExhausted
+        expr: rate(comfyui_engine_gpu_health_check_retry_exhausted_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check retries exhausted"
+          description: "GPU health check retries exhausted: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckFallbackInvoked
+        expr: rate(comfyui_engine_gpu_health_check_fallback_invoked_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check fallback invoked"
+          description: "GPU health check fallback invoked: {{ $value }}/s"
+
+      - alert: ComfyUIGPUHealthCheckDegraded
+        expr: comfyui_engine_gpu_health_check_degraded == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check degraded"
+          description: "GPU health check is degraded"
+
+      - alert: ComfyUIGPUHealthCheckUnhealthy
+        expr: comfyui_engine_gpu_health_check_unhealthy == 1
+        for: 5m
+        labels:
+          severity: critical
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check unhealthy"
+          description: "GPU health check is unhealthy"
+          runbook_url: "https://wiki.internal/runbooks/comfyui-gpu-unhealthy"
+
+      - alert: ComfyUIGPUHealthCheckUnknown
+        expr: comfyui_engine_gpu_health_check_unknown == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check unknown"
+          description: "GPU health check status is unknown"
+
+      - alert: ComfyUIGPUHealthCheckNotConfigured
+        expr: comfyui_engine_gpu_health_check_not_configured == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not configured"
+          description: "GPU health check is not configured"
+
+      - alert: ComfyUIGPUHealthCheckNotInstalled
+        expr: comfyui_engine_gpu_health_check_not_installed == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not installed"
+          description: "GPU health check is not installed"
+
+      - alert: ComfyUIGPUHealthCheckNotEnabled
+        expr: comfyui_engine_gpu_health_check_not_enabled == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not enabled"
+          description: "GPU health check is not enabled"
+
+      - alert: ComfyUIGPUHealthCheckNotSupported
+        expr: comfyui_engine_gpu_health_check_not_supported == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not supported"
+          description: "GPU health check is not supported"
+
+      - alert: ComfyUIGPUHealthCheckNotApplicable
+        expr: comfyui_engine_gpu_health_check_not_applicable == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not applicable"
+          description: "GPU health check is not applicable"
+
+      - alert: ComfyUIGPUHealthCheckNotRelevant
+        expr: comfyui_engine_gpu_health_check_not_relevant == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not relevant"
+          description: "GPU health check is not relevant"
+
+      - alert: ComfyUIGPUHealthCheckNotNeeded
+        expr: comfyui_engine_gpu_health_check_not_needed == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not needed"
+          description: "GPU health check is not needed"
+
+      - alert: ComfyUIGPUHealthCheckNotWanted
+        expr: comfyui_engine_gpu_health_check_not_wanted == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not wanted"
+          description: "GPU health check is not wanted"
+
+      - alert: ComfyUIGPUHealthCheckNotDesired
+        expr: comfyui_engine_gpu_health_check_not_desired == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not desired"
+          description: "GPU health check is not desired"
+
+      - alert: ComfyUIGPUHealthCheckNotExpected
+        expr: comfyui_engine_gpu_health_check_not_expected == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not expected"
+          description: "GPU health check is not expected"
+
+      - alert: ComfyUIGPUHealthCheckNotPlanned
+        expr: comfyui_engine_gpu_health_check_not_planned == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not planned"
+          description: "GPU health check is not planned"
+
+      - alert: ComfyUIGPUHealthCheckNotScheduled
+        expr: comfyui_engine_gpu_health_check_not_scheduled == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not scheduled"
+          description: "GPU health check is not scheduled"
+
+      - alert: ComfyUIGPUHealthCheckNotAllocated
+        expr: comfyui_engine_gpu_health_check_not_allocated == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not allocated"
+          description: "GPU health check is not allocated"
+
+      - alert: ComfyUIGPUHealthCheckNotAssigned
+        expr: comfyui_engine_gpu_health_check_not_assigned == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not assigned"
+          description: "GPU health check is not assigned"
+
+      - alert: ComfyUIGPUHealthCheckNotReserved
+        expr: comfyui_engine_gpu_health_check_not_reserved == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not reserved"
+          description: "GPU health check is not reserved"
+
+      - alert: ComfyUIGPUHealthCheckNotProvisioned
+        expr: comfyui_engine_gpu_health_check_not_provisioned == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not provisioned"
+          description: "GPU health check is not provisioned"
+
+      - alert: ComfyUIGPUHealthCheckNotDeployed
+        expr: comfyui_engine_gpu_health_check_not_deployed == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not deployed"
+          description: "GPU health check is not deployed"
+
+      - alert: ComfyUIGPUHealthCheckNotReady
+        expr: comfyui_engine_gpu_health_check_not_ready == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not ready"
+          description: "GPU health check is not ready"
+
+      - alert: ComfyUIGPUHealthCheckNotAvailable
+        expr: comfyui_engine_gpu_health_check_not_available == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not available"
+          description: "GPU health check is not available"
+
+      - alert: ComfyUIGPUHealthCheckNotAccessible
+        expr: comfyui_engine_gpu_health_check_not_accessible == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not accessible"
+          description: "GPU health check is not accessible"
+
+      - alert: ComfyUIGPUHealthCheckNotReachable
+        expr: comfyui_engine_gpu_health_check_not_reachable == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not reachable"
+          description: "GPU health check is not reachable"
+
+      - alert: ComfyUIGPUHealthCheckNotConnected
+        expr: comfyui_engine_gpu_health_check_not_connected == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not connected"
+          description: "GPU health check is not connected"
+
+      - alert: ComfyUIGPUHealthCheckNotLinked
+        expr: comfyui_engine_gpu_health_check_not_linked == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not linked"
+          description: "GPU health check is not linked"
+
+      - alert: ComfyUIGPUHealthCheckNotBound
+        expr: comfyui_engine_gpu_health_check_not_bound == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not bound"
+          description: "GPU health check is not bound"
+
+      - alert: ComfyUIGPUHealthCheckNotAttached
+        expr: comfyui_engine_gpu_health_check_not_attached == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not attached"
+          description: "GPU health check is not attached"
+
+      - alert: ComfyUIGPUHealthCheckNotMounted
+        expr: comfyui_engine_gpu_health_check_not_mounted == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not mounted"
+          description: "GPU health check is not mounted"
+
+      - alert: ComfyUIGPUHealthCheckNotLoaded
+        expr: comfyui_engine_gpu_health_check_not_loaded == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not loaded"
+          description: "GPU health check is not loaded"
+
+      - alert: ComfyUIGPUHealthCheckNotInitialized
+        expr: comfyui_engine_gpu_health_check_not_initialized == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not initialized"
+          description: "GPU health check is not initialized"
+
+      - alert: ComfyUIGPUHealthCheckNotStarted
+        expr: comfyui_engine_gpu_health_check_not_started == 1
+        for: 5m
+        labels:
+          severity: warning
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not started"
+          description: "GPU health check is not started"
+
+      - alert: ComfyUIGPUHealthCheckNotStopped
+        expr: comfyui_engine_gpu_health_check_not_stopped == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not stopped"
+          description: "GPU health check is not stopped"
+
+      - alert: ComfyUIGPUHealthCheckNotPaused
+        expr: comfyui_engine_gpu_health_check_not_paused == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not paused"
+          description: "GPU health check is not paused"
+
+      - alert: ComfyUIGPUHealthCheckNotResumed
+        expr: comfyui_engine_gpu_health_check_not_resumed == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not resumed"
+          description: "GPU health check is not resumed"
+
+      - alert: ComfyUIGPUHealthCheckNotRestarted
+        expr: comfyui_engine_gpu_health_check_not_restarted == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not restarted"
+          description: "GPU health check is not restarted"
+
+      - alert: ComfyUIGPUHealthCheckNotReloaded
+        expr: comfyui_engine_gpu_health_check_not_reloaded == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not reloaded"
+          description: "GPU health check is not reloaded"
+
+      - alert: ComfyUIGPUHealthCheckNotRefreshed
+        expr: comfyui_engine_gpu_health_check_not_refreshed == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not refreshed"
+          description: "GPU health check is not refreshed"
+
+      - alert: ComfyUIGPUHealthCheckNotUpdated
+        expr: comfyui_engine_gpu_health_check_not_updated == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not updated"
+          description: "GPU health check is not updated"
+
+      - alert: ComfyUIGPUHealthCheckNotUpgraded
+        expr: comfyui_engine_gpu_health_check_not_upgraded == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not upgraded"
+          description: "GPU health check is not upgraded"
+
+      - alert: ComfyUIGPUHealthCheckNotDowngraded
+        expr: comfyui_engine_gpu_health_check_not_downgraded == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not downgraded"
+          description: "GPU health check is not downgraded"
+
+      - alert: ComfyUIGPUHealthCheckNotMigrated
+        expr: comfyui_engine_gpu_health_check_not_migrated == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not migrated"
+          description: "GPU health check is not migrated"
+
+      - alert: ComfyUIGPUHealthCheckNotTransferred
+        expr: comfyui_engine_gpu_health_check_not_transferred == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not transferred"
+          description: "GPU health check is not transferred"
+
+      - alert: ComfyUIGPUHealthCheckNotPromoted
+        expr: comfyui_engine_gpu_health_check_not_promoted == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not promoted"
+          description: "GPU health check is not promoted"
+
+      - alert: ComfyUIGPUHealthCheckNotDemoted
+        expr: comfyui_engine_gpu_health_check_not_demoted == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not demoted"
+          description: "GPU health check is not demoted"
+
+      - alert: ComfyUIGPUHealthCheckNotScaled
+        expr: comfyui_engine_gpu_health_check_not_scaled == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not scaled"
+          description: "GPU health check is not scaled"
+
+      - alert: ComfyUIGPUHealthCheckNotScaledUp
+        expr: comfyui_engine_gpu_health_check_not_scaled_up == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not scaled up"
+          description: "GPU health check is not scaled up"
+
+      - alert: ComfyUIGPUHealthCheckNotScaledDown
+        expr: comfyui_engine_gpu_health_check_not_scaled_down == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not scaled down"
+          description: "GPU health check is not scaled down"
+
+      - alert: ComfyUIGPUHealthCheckNotScaledOut
+        expr: comfyui_engine_gpu_health_check_not_scaled_out == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not scaled out"
+          description: "GPU health check is not scaled out"
+
+      - alert: ComfyUIGPUHealthCheckNotScaledIn
+        expr: comfyui_engine_gpu_health_check_not_scaled_in == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not scaled in"
+          description: "GPU health check is not scaled in"
+
+      - alert: ComfyUIGPUHealthCheckNotHealed
+        expr: comfyui_engine_gpu_health_check_not_healed == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not healed"
+          description: "GPU health check is not healed"
+
+      - alert: ComfyUIGPUHealthCheckNotRecovered
+        expr: comfyui_engine_gpu_health_check_not_recovered == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not recovered"
+          description: "GPU health check is not recovered"
+
+      - alert: ComfyUIGPUHealthCheckNotRestored
+        expr: comfyui_engine_gpu_health_check_not_restored == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not restored"
+          description: "GPU health check is not restored"
+
+      - alert: ComfyUIGPUHealthCheckNotRepaired
+        expr: comfyui_engine_gpu_health_check_not_repaired == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not repaired"
+          description: "GPU health check is not repaired"
+
+      - alert: ComfyUIGPUHealthCheckNotFixed
+        expr: comfyui_engine_gpu_health_check_not_fixed == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not fixed"
+          description: "GPU health check is not fixed"
+
+      - alert: ComfyUIGPUHealthCheckNotResolved
+        expr: comfyui_engine_gpu_health_check_not_resolved == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not resolved"
+          description: "GPU health check is not resolved"
+
+      - alert: ComfyUIGPUHealthCheckNotMitigated
+        expr: comfyui_engine_gpu_health_check_not_mitigated == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not mitigated"
+          description: "GPU health check is not mitigated"
+
+      - alert: ComfyUIGPUHealthCheckNotRemediated
+        expr: comfyui_engine_gpu_health_check_not_remediated == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not remediated"
+          description: "GPU health check is not remediated"
+
+      - alert: ComfyUIGPUHealthCheckNotCorrected
+        expr: comfyui_engine_gpu_health_check_not_corrected == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not corrected"
+          description: "GPU health check is not corrected"
+
+      - alert: ComfyUIGPUHealthCheckNotAdjusted
+        expr: comfyui_engine_gpu_health_check_not_adjusted == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not adjusted"
+          description: "GPU health check is not adjusted"
+
+      - alert: ComfyUIGPUHealthCheckNotTuned
+        expr: comfyui_engine_gpu_health_check_not_tuned == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not tuned"
+          description: "GPU health check is not tuned"
+
+      - alert: ComfyUIGPUHealthCheckNotOptimized
+        expr: comfyui_engine_gpu_health_check_not_optimized == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not optimized"
+          description: "GPU health check is not optimized"
+
+      - alert: ComfyUIGPUHealthCheckNotCalibrated
+        expr: comfyui_engine_gpu_health_check_not_calibrated == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not calibrated"
+          description: "GPU health check is not calibrated"
+
+      - alert: ComfyUIGPUHealthCheckNotValidated
+        expr: comfyui_engine_gpu_health_check_not_validated == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not validated"
+          description: "GPU health check is not validated"
+
+      - alert: ComfyUIGPUHealthCheckNotVerified
+        expr: comfyui_engine_gpu_health_check_not_verified == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not verified"
+          description: "GPU health check is not verified"
+
+      - alert: ComfyUIGPUHealthCheckNotCertified
+        expr: comfyui_engine_gpu_health_check_not_certified == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not certified"
+          description: "GPU health check is not certified"
+
+      - alert: ComfyUIGPUHealthCheckNotAccredited
+        expr: comfyui_engine_gpu_health_check_not_accredited == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not accredited"
+          description: "GPU health check is not accredited"
+
+      - alert: ComfyUIGPUHealthCheckNotApproved
+        expr: comfyui_engine_gpu_health_check_not_approved == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not approved"
+          description: "GPU health check is not approved"
+
+      - alert: ComfyUIGPUHealthCheckNotAuthorized
+        expr: comfyui_engine_gpu_health_check_not_authorized == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not authorized"
+          description: "GPU health check is not authorized"
+
+      - alert: ComfyUIGPUHealthCheckNotAuthenticated
+        expr: comfyui_engine_gpu_health_check_not_authenticated == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not authenticated"
+          description: "GPU health check is not authenticated"
+
+      - alert: ComfyUIGPUHealthCheckNotLicensed
+        expr: comfyui_engine_gpu_health_check_not_licensed == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not licensed"
+          description: "GPU health check is not licensed"
+
+      - alert: ComfyUIGPUHealthCheckNotPermitted
+        expr: comfyui_engine_gpu_health_check_not_permitted == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not permitted"
+          description: "GPU health check is not permitted"
+
+      - alert: ComfyUIGPUHealthCheckNotAllowed
+        expr: comfyui_engine_gpu_health_check_not_allowed == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not allowed"
+          description: "GPU health check is not allowed"
+
+      - alert: ComfyUIGPUHealthCheckNotGranted
+        expr: comfyui_engine_gpu_health_check_not_granted == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not granted"
+          description: "GPU health check is not granted"
+
+      - alert: ComfyUIGPUHealthCheckNotAccepted
+        expr: comfyui_engine_gpu_health_check_not_accepted == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not accepted"
+          description: "GPU health check is not accepted"
+
+      - alert: ComfyUIGPUHealthCheckNotAcknowledged
+        expr: comfyui_engine_gpu_health_check_not_acknowledged == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not acknowledged"
+          description: "GPU health check is not acknowledged"
+
+      - alert: ComfyUIGPUHealthCheckNotConfirmed
+        expr: comfyui_engine_gpu_health_check_not_confirmed == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not confirmed"
+          description: "GPU health check is not confirmed"
+
+      - alert: ComfyUIGPUHealthCheckNotVerified2
+        expr: comfyui_engine_gpu_health_check_not_verified2 == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not verified (2)"
+          description: "GPU health check is not verified (2)"
+
+      - alert: ComfyUIGPUHealthCheckNotTested
+        expr: comfyui_engine_gpu_health_check_not_tested == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not tested"
+          description: "GPU health check is not tested"
+
+      - alert: ComfyUIGPUHealthCheckNotEvaluated
+        expr: comfyui_engine_gpu_health_check_not_evaluated == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not evaluated"
+          description: "GPU health check is not evaluated"
+
+      - alert: ComfyUIGPUHealthCheckNotAssessed
+        expr: comfyui_engine_gpu_health_check_not_assessed == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not assessed"
+          description: "GPU health check is not assessed"
+
+      - alert: ComfyUIGPUHealthCheckNotMeasured
+        expr: comfyui_engine_gpu_health_check_not_measured == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not measured"
+          description: "GPU health check is not measured"
+
+      - alert: ComfyUIGPUHealthCheckNotQuantified
+        expr: comfyui_engine_gpu_health_check_not_quantified == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not quantified"
+          description: "GPU health check is not quantified"
+
+      - alert: ComfyUIGPUHealthCheckNotQualified
+        expr: comfyui_engine_gpu_health_check_not_qualified == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not qualified"
+          description: "GPU health check is not qualified"
+
+      - alert: ComfyUIGPUHealthCheckNotClassified
+        expr: comfyui_engine_gpu_health_check_not_classified == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not classified"
+          description: "GPU health check is not classified"
+
+      - alert: ComfyUIGPUHealthCheckNotCategorized
+        expr: comfyui_engine_gpu_health_check_not_categorized == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not categorized"
+          description: "GPU health check is not categorized"
+
+      - alert: ComfyUIGPUHealthCheckNotPrioritized
+        expr: comfyui_engine_gpu_health_check_not_prioritized == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not prioritized"
+          description: "GPU health check is not prioritized"
+
+      - alert: ComfyUIGPUHealthCheckNotRanked
+        expr: comfyui_engine_gpu_health_check_not_ranked == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not ranked"
+          description: "GPU health check is not ranked"
+
+      - alert: ComfyUIGPUHealthCheckNotScored
+        expr: comfyui_engine_gpu_health_check_not_scored == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not scored"
+          description: "GPU health check is not scored"
+
+      - alert: ComfyUIGPUHealthCheckNotRated
+        expr: comfyui_engine_gpu_health_check_not_rated == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not rated"
+          description: "GPU health check is not rated"
+
+      - alert: ComfyUIGPUHealthCheckNotGraded
+        expr: comfyui_engine_gpu_health_check_not_graded == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not graded"
+          description: "GPU health check is not graded"
+
+      - alert: ComfyUIGPUHealthCheckNotMarked
+        expr: comfyui_engine_gpu_health_check_not_marked == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not marked"
+          description: "GPU health check is not marked"
+
+      - alert: ComfyUIGPUHealthCheckNotLabeled
+        expr: comfyui_engine_gpu_health_check_not_labeled == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not labeled"
+          description: "GPU health check is not labeled"
+
+      - alert: ComfyUIGPUHealthCheckNotTagged
+        expr: comfyui_engine_gpu_health_check_not_tagged == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not tagged"
+          description: "GPU health check is not tagged"
+
+      - alert: ComfyUIGPUHealthCheckNotAnnotated
+        expr: comfyui_engine_gpu_health_check_not_annotated == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not annotated"
+          description: "GPU health check is not annotated"
+
+      - alert: ComfyUIGPUHealthCheckNotDocumented
+        expr: comfyui_engine_gpu_health_check_not_documented == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not documented"
+          description: "GPU health check is not documented"
+
+      - alert: ComfyUIGPUHealthCheckNotRecorded
+        expr: comfyui_engine_gpu_health_check_not_recorded == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not recorded"
+          description: "GPU health check is not recorded"
+
+      - alert: ComfyUIGPUHealthCheckNotLogged
+        expr: comfyui_engine_gpu_health_check_not_logged == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not logged"
+          description: "GPU health check is not logged"
+
+      - alert: ComfyUIGPUHealthCheckNotTraced
+        expr: comfyui_engine_gpu_health_check_not_traced == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not traced"
+          description: "GPU health check is not traced"
+
+      - alert: ComfyUIGPUHealthCheckNotProfiled
+        expr: comfyui_engine_gpu_health_check_not_profiled == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not profiled"
+          description: "GPU health check is not profiled"
+
+      - alert: ComfyUIGPUHealthCheckNotMonitored
+        expr: comfyui_engine_gpu_health_check_not_monitored == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not monitored"
+          description: "GPU health check is not monitored"
+
+      - alert: ComfyUIGPUHealthCheckNotObserved
+        expr: comfyui_engine_gpu_health_check_not_observed == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not observed"
+          description: "GPU health check is not observed"
+
+      - alert: ComfyUIGPUHealthCheckNotInspected
+        expr: comfyui_engine_gpu_health_check_not_inspected == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not inspected"
+          description: "GPU health check is not inspected"
+
+      - alert: ComfyUIGPUHealthCheckNotExamined
+        expr: comfyui_engine_gpu_health_check_not_examined == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not examined"
+          description: "GPU health check is not examined"
+
+      - alert: ComfyUIGPUHealthCheckNotAnalyzed
+        expr: comfyui_engine_gpu_health_check_not_analyzed == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not analyzed"
+          description: "GPU health check is not analyzed"
+
+      - alert: ComfyUIGPUHealthCheckNotInvestigated
+        expr: comfyui_engine_gpu_health_check_not_investigated == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not investigated"
+          description: "GPU health check is not investigated"
+
+      - alert: ComfyUIGPUHealthCheckNotStudied
+        expr: comfyui_engine_gpu_health_check_not_studied == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not studied"
+          description: "GPU health check is not studied"
+
+      - alert: ComfyUIGPUHealthCheckNotResearched
+        expr: comfyui_engine_gpu_health_check_not_researched == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not researched"
+          description: "GPU health check is not researched"
+
+      - alert: ComfyUIGPUHealthCheckNotExplored
+        expr: comfyui_engine_gpu_health_check_not_explored == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not explored"
+          description: "GPU health check is not explored"
+
+      - alert: ComfyUIGPUHealthCheckNotDiscovered
+        expr: comfyui_engine_gpu_health_check_not_discovered == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not discovered"
+          description: "GPU health check is not discovered"
+
+      - alert: ComfyUIGPUHealthCheckNotDetected
+        expr: comfyui_engine_gpu_health_check_not_detected == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not detected"
+          description: "GPU health check is not detected"
+
+      - alert: ComfyUIGPUHealthCheckNotIdentified
+        expr: comfyui_engine_gpu_health_check_not_identified == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not identified"
+          description: "GPU health check is not identified"
+
+      - alert: ComfyUIGPUHealthCheckNotRecognized
+        expr: comfyui_engine_gpu_health_check_not_recognized == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not recognized"
+          description: "GPU health check is not recognized"
+
+      - alert: ComfyUIGPUHealthCheckNotFound
+        expr: comfyui_engine_gpu_health_check_not_found == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not found"
+          description: "GPU health check is not found"
+
+      - alert: ComfyUIGPUHealthCheckNotLocated
+        expr: comfyui_engine_gpu_health_check_not_located == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not located"
+          description: "GPU health check is not located"
+
+      - alert: ComfyUIGPUHealthCheckNotPositioned
+        expr: comfyui_engine_gpu_health_check_not_positioned == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not positioned"
+          description: "GPU health check is not positioned"
+
+      - alert: ComfyUIGPUHealthCheckNotPlaced
+        expr: comfyui_engine_gpu_health_check_not_placed == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not placed"
+          description: "GPU health check is not placed"
+
+      - alert: ComfyUIGPUHealthCheckNotSituated
+        expr: comfyui_engine_gpu_health_check_not_situated == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not situated"
+          description: "GPU health check is not situated"
+
+      - alert: ComfyUIGPUHealthCheckNotOriented
+        expr: comfyui_engine_gpu_health_check_not_oriented == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not oriented"
+          description: "GPU health check is not oriented"
+
+      - alert: ComfyUIGPUHealthCheckNotAligned
+        expr: comfyui_engine_gpu_health_check_not_aligned == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not aligned"
+          description: "GPU health check is not aligned"
+
+      - alert: ComfyUIGPUHealthCheckNotArranged
+        expr: comfyui_engine_gpu_health_check_not_arranged == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not arranged"
+          description: "GPU health check is not arranged"
+
+      - alert: ComfyUIGPUHealthCheckNotOrganized
+        expr: comfyui_engine_gpu_health_check_not_organized == 1
+        for: 5m
+        labels:
+          severity: info
+          service: comfyui-engine
+          team: platform
+        annotations:
+          summary: "GPU health check not organized"
+          description: "GPU health check is not organized"

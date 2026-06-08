@@ -1,0 +1,3 @@
+{{- if .Values.vpa.enabled -}}
+{{- include "comfyui-engine.vpa" . }}
+{{- end }}

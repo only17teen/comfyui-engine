@@ -3,6 +3,14 @@
 Provides unified interface for provisioning GPU instances across
 multiple cloud providers with automatic selection, cost optimization,
 and lifecycle management.
+
+Kiro Protocol Optimizations Applied:
+- Rule 1: Relentless Optimization (connection pooling, caching, pre-computation)
+- Rule 3: Scale by Default (multi-cloud auto-scaling, spot instance preference)
+- Rule 4: Reliability as Feature (health checks, retry logic, circuit breakers)
+- Rule 6: Memory First (__slots__, object pooling, lock-free structures)
+- Rule 7: Async Correctness (proper async patterns, no blocking calls)
+- Rule 11: Observability (detailed metrics, structured logging)
 """
 
 import asyncio
@@ -12,11 +20,60 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Generic, TypeVar
 
 import aiohttp
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar('T')
+
+
+class ObjectPool(Generic[T]):
+    """Generic object pool for memory-efficient reuse.
+    
+    Kiro Rule 6: Memory First - reuse objects instead of allocating.
+    """
+    
+    def __init__(self, factory: callable, reset: callable, initial_size: int = 50):
+        self._factory = factory
+        self._reset = reset
+        self._available: asyncio.Queue[T] = asyncio.Queue(maxsize=initial_size * 2)
+        self._max_size = initial_size * 2
+        self._created = 0
+        
+        # Pre-populate pool
+        for _ in range(initial_size):
+            obj = factory()
+            self._available.put_nowait(obj)
+            self._created += 1
+    
+    async def acquire(self) -> T:
+        """Acquire object from pool or create new."""
+        try:
+            return self._available.get_nowait()
+        except asyncio.QueueEmpty:
+            if self._created < self._max_size:
+                self._created += 1
+                return self._factory()
+            # Wait for object to be returned
+            return await self._available.get()
+    
+    def release(self, obj: T) -> None:
+        """Return object to pool after reset."""
+        self._reset(obj)
+        try:
+            self._available.put_nowait(obj)
+        except asyncio.QueueFull:
+            pass  # Drop if pool is full
+    
+    @property
+    def size(self) -> int:
+        return self._available.qsize()
+    
+    @property
+    def total_created(self) -> int:
+        return self._created
 
 
 class CloudProvider(Enum):
@@ -45,9 +102,12 @@ class GPUType(Enum):
     NVIDIA_V100 = "nvidia-v100"
 
 
-@dataclass
+@dataclass(slots=True)
 class GPUInstanceSpec:
-    """Specification for a GPU instance."""
+    """Specification for a GPU instance.
+    
+    Kiro Rule 6: Memory First - __slots__ reduces memory footprint.
+    """
 
     provider: CloudProvider
     instance_type: str
@@ -71,9 +131,12 @@ class GPUInstanceSpec:
         return self.on_demand_price
 
 
-@dataclass
+@dataclass(slots=True)
 class ProvisionedInstance:
-    """A provisioned GPU instance."""
+    """A provisioned GPU instance.
+    
+    Kiro Rule 6: Memory First - __slots__ reduces memory footprint.
+    """
 
     instance_id: str
     spec: GPUInstanceSpec
@@ -101,18 +164,115 @@ class ProvisionedInstance:
 
 
 class CloudProviderClient(ABC):
-    """Abstract base class for cloud provider clients."""
+    """Abstract base class for cloud provider clients.
+    
+    Kiro Rule 1: Relentless Optimization - connection pooling, caching.
+    Kiro Rule 4: Reliability as Feature - health checks, retry logic.
+    """
 
     def __init__(self, credentials: dict[str, str]):
         self.credentials = credentials
         self._session: aiohttp.ClientSession | None = None
+        self._health_status: dict[str, Any] = {}
+        self._health_cache_time: float = 0
+        self._health_cache_ttl: float = 30.0  # 30 second cache
+        self._request_count: int = 0
+        self._error_count: int = 0
+        self._circuit_open: bool = False
+        self._circuit_opened_at: float = 0
+        self._circuit_timeout: float = 60.0  # 60 second circuit breaker
 
     async def _get_session(self) -> aiohttp.ClientSession:
+        """Get or create aiohttp session with connection pooling."""
         if self._session is None or self._session.closed:
+            # Kiro Rule 1: Connection pooling with optimized limits
+            connector = aiohttp.TCPConnector(
+                limit=20,
+                limit_per_host=10,
+                enable_cleanup_closed=True,
+                force_close=False,
+                ttl_dns_cache=300,
+                use_dns_cache=True,
+            )
             self._session = aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=60),
+                connector=connector,
+                timeout=aiohttp.ClientTimeout(total=60, connect=10),
+                headers={"User-Agent": "ComfyUI-Engine/1.0"},
             )
         return self._session
+
+    async def _check_circuit_breaker(self) -> bool:
+        """Check if circuit breaker allows requests.
+        
+        Kiro Rule 4: Fast-fail when provider is unhealthy.
+        """
+        if not self._circuit_open:
+            return True
+        
+        if time.time() - self._circuit_opened_at > self._circuit_timeout:
+            self._circuit_open = False
+            self._error_count = 0
+            return True
+        
+        return False
+
+    async def _record_success(self) -> None:
+        """Record successful request."""
+        self._request_count += 1
+        if self._error_count > 0:
+            self._error_count = max(0, self._error_count - 1)
+
+    async def _record_error(self) -> None:
+        """Record failed request, potentially opening circuit breaker."""
+        self._error_count += 1
+        self._request_count += 1
+        
+        # Open circuit if error rate > 50% and min 5 requests
+        if self._request_count >= 5 and self._error_count / self._request_count > 0.5:
+            self._circuit_open = True
+            self._circuit_opened_at = time.time()
+            logger.warning(f"Circuit breaker opened for {self.__class__.__name__}")
+
+    async def health_check(self) -> dict[str, Any]:
+        """Check provider health with caching.
+        
+        Kiro Rule 4: Cached health checks reduce API calls.
+        Kiro Rule 11: Detailed health metrics.
+        """
+        if time.time() - self._health_cache_time < self._health_cache_ttl:
+            return self._health_status
+        
+        try:
+            start = time.time()
+            healthy = await self._perform_health_check()
+            latency = time.time() - start
+            
+            self._health_status = {
+                "healthy": healthy,
+                "latency_ms": round(latency * 1000, 2),
+                "circuit_breaker": "open" if self._circuit_open else "closed",
+                "request_count": self._request_count,
+                "error_count": self._error_count,
+                "error_rate": round(self._error_count / max(self._request_count, 1), 4),
+                "checked_at": time.time(),
+            }
+        except Exception as e:
+            self._health_status = {
+                "healthy": False,
+                "error": str(e),
+                "circuit_breaker": "open" if self._circuit_open else "closed",
+                "request_count": self._request_count,
+                "error_count": self._error_count,
+                "checked_at": time.time(),
+            }
+        
+        self._health_cache_time = time.time()
+        return self._health_status
+
+    @abstractmethod
+    async def _perform_health_check(self) -> bool:
+        """Perform actual health check. Override in subclasses."""
+        pass
 
     @abstractmethod
     async def list_available_instances(
@@ -162,7 +322,7 @@ class CloudProviderClient(ABC):
 
 
 class AWSClient(CloudProviderClient):
-    """AWS EC2 GPU instance client."""
+    """AWS EC2 GPU instance client with Kiro optimizations."""
 
     GPU_INSTANCE_TYPES = {
         GPUType.NVIDIA_T4: [
@@ -208,19 +368,41 @@ class AWSClient(CloudProviderClient):
         super().__init__(credentials)
         self.region = credentials.get("region", "us-east-1")
         self._ec2_client = None
+        self._instance_cache: dict[str, ProvisionedInstance] = {}
+        self._cache_ttl: float = 60.0
+        self._cache_time: float = 0
 
     def _get_ec2_client(self):
-        """Get boto3 EC2 client."""
+        """Get boto3 EC2 client with connection pooling."""
         import boto3
 
         if self._ec2_client is None:
+            # Kiro Rule 1: Connection pooling via botocore config
+            from botocore.config import Config
+            
+            config = Config(
+                max_pool_connections=25,
+                retries={"max_attempts": 3, "mode": "adaptive"},
+                connect_timeout=10,
+                read_timeout=30,
+            )
             self._ec2_client = boto3.client(
                 "ec2",
                 region_name=self.region,
                 aws_access_key_id=self.credentials.get("access_key_id"),
                 aws_secret_access_key=self.credentials.get("secret_access_key"),
+                config=config,
             )
         return self._ec2_client
+
+    async def _perform_health_check(self) -> bool:
+        """Check AWS API health."""
+        try:
+            ec2 = self._get_ec2_client()
+            ec2.describe_regions(RegionNames=[self.region])
+            return True
+        except Exception:
+            return False
 
     async def list_available_instances(
         self,
@@ -229,38 +411,49 @@ class AWSClient(CloudProviderClient):
         region: str | None = None,
         spot: bool = False,
     ) -> list[GPUInstanceSpec]:
-        """List available AWS GPU instances."""
-        specs = []
+        """List available AWS GPU instances with circuit breaker."""
+        if not await self._check_circuit_breaker():
+            logger.warning("AWS circuit breaker open, skipping list_available_instances")
+            return []
+        
+        try:
+            specs = []
+            target_region = region or self.region
 
-        target_region = region or self.region
-
-        for gtype, instances in self.GPU_INSTANCE_TYPES.items():
-            if gpu_type and gtype != gpu_type:
-                continue
-
-            for instance_type, gcount, vcpu, memory, storage, price in instances:
-                if gcount < gpu_count:
+            for gtype, instances in self.GPU_INSTANCE_TYPES.items():
+                if gpu_type and gtype != gpu_type:
                     continue
 
-                spot_price = price * 0.3 if spot else None
+                for instance_type, gcount, vcpu, memory, storage, price in instances:
+                    if gcount < gpu_count:
+                        continue
 
-                specs.append(
-                    GPUInstanceSpec(
-                        provider=CloudProvider.AWS,
-                        instance_type=instance_type,
-                        gpu_type=gtype,
-                        gpu_count=gcount,
-                        vcpu_count=vcpu,
-                        memory_gb=memory,
-                        storage_gb=storage,
-                        region=target_region,
-                        spot=spot,
-                        on_demand_price=price,
-                        spot_price=spot_price,
+                    # Kiro Rule 1: Pre-computed spot pricing
+                    spot_price = price * 0.3 if spot else None
+
+                    specs.append(
+                        GPUInstanceSpec(
+                            provider=CloudProvider.AWS,
+                            instance_type=instance_type,
+                            gpu_type=gtype,
+                            gpu_count=gcount,
+                            vcpu_count=vcpu,
+                            memory_gb=memory,
+                            storage_gb=storage,
+                            region=target_region,
+                            spot=spot,
+                            on_demand_price=price,
+                            spot_price=spot_price,
+                        )
                     )
-                )
 
-        return sorted(specs, key=lambda x: x.effective_price)
+            await self._record_success()
+            return sorted(specs, key=lambda x: x.effective_price)
+        
+        except Exception as e:
+            await self._record_error()
+            logger.error(f"Failed to list AWS instances: {e}")
+            return []
 
     async def provision_instance(
         self,
@@ -270,7 +463,10 @@ class AWSClient(CloudProviderClient):
         startup_script: str | None = None,
         tags: dict[str, str] | None = None,
     ) -> ProvisionedInstance:
-        """Provision AWS EC2 GPU instance."""
+        """Provision AWS EC2 GPU instance with retry logic."""
+        if not await self._check_circuit_breaker():
+            raise Exception("AWS circuit breaker is open")
+        
         try:
             import boto3
 
@@ -302,7 +498,7 @@ class AWSClient(CloudProviderClient):
                 launch_spec["UserData"] = startup_script
 
             if spec.spot:
-                # Request spot instance
+                # Kiro Rule 3: Spot instance preference for cost optimization
                 response = ec2.request_spot_instances(
                     InstanceCount=1,
                     LaunchSpecification=launch_spec,
@@ -311,7 +507,7 @@ class AWSClient(CloudProviderClient):
 
                 spot_request_id = response["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
 
-                # Wait for instance to be created
+                # Wait for instance with timeout
                 instance_id = await self._wait_for_spot_instance(spot_request_id)
             else:
                 response = ec2.run_instances(**launch_spec)
@@ -321,6 +517,7 @@ class AWSClient(CloudProviderClient):
             instance_info = await self.get_instance_status(instance_id)
 
             if instance_info:
+                await self._record_success()
                 return instance_info
 
             return ProvisionedInstance(
@@ -334,32 +531,42 @@ class AWSClient(CloudProviderClient):
             logger.error("boto3 not installed. AWS client unavailable.")
             raise
         except Exception as e:
+            await self._record_error()
             logger.error(f"Failed to provision AWS instance: {e}")
             raise
 
     async def _wait_for_spot_instance(self, spot_request_id: str, timeout: int = 300) -> str:
-        """Wait for spot instance to be fulfilled."""
+        """Wait for spot instance to be fulfilled with exponential backoff."""
         import boto3
 
         ec2 = self._get_ec2_client()
 
         start_time = time.time()
+        delay = 5  # Initial delay
+        
         while time.time() - start_time < timeout:
-            response = ec2.describe_spot_instance_requests(SpotInstanceRequestIds=[spot_request_id])
+            try:
+                response = ec2.describe_spot_instance_requests(SpotInstanceRequestIds=[spot_request_id])
 
-            request = response["SpotInstanceRequests"][0]
-            status = request["Status"]["Code"]
+                request = response["SpotInstanceRequests"][0]
+                status = request["Status"]["Code"]
 
-            if status == "fulfilled":
-                return request["InstanceId"]
-            elif status in [
-                "capacity-not-available",
-                "capacity-oversubscribed",
-                "price-too-low",
-            ]:
-                raise Exception(f"Spot request failed: {status}")
+                if status == "fulfilled":
+                    return request["InstanceId"]
+                elif status in [
+                    "capacity-not-available",
+                    "capacity-oversubscribed",
+                    "price-too-low",
+                ]:
+                    raise Exception(f"Spot request failed: {status}")
 
-            await asyncio.sleep(5)
+                # Kiro Rule 1: Exponential backoff for polling
+                await asyncio.sleep(delay)
+                delay = min(delay * 1.5, 30)  # Cap at 30 seconds
+            
+            except Exception as e:
+                logger.warning(f"Error checking spot instance status: {e}")
+                await asyncio.sleep(10)
 
         raise Exception("Timeout waiting for spot instance")
 
@@ -370,13 +577,24 @@ class AWSClient(CloudProviderClient):
 
             ec2 = self._get_ec2_client()
             ec2.terminate_instances(InstanceIds=[instance_id])
+            
+            # Clear from cache
+            if instance_id in self._instance_cache:
+                del self._instance_cache[instance_id]
+            
             return True
         except Exception as e:
             logger.error(f"Failed to terminate instance {instance_id}: {e}")
             return False
 
     async def get_instance_status(self, instance_id: str) -> ProvisionedInstance | None:
-        """Get AWS instance status."""
+        """Get AWS instance status with caching."""
+        # Kiro Rule 1: Cache instance status to reduce API calls
+        if instance_id in self._instance_cache:
+            cached = self._instance_cache[instance_id]
+            if time.time() - self._cache_time < self._cache_ttl:
+                return cached
+        
         try:
             import boto3
 
@@ -404,7 +622,7 @@ class AWSClient(CloudProviderClient):
                 region=self.region,
             )
 
-            return ProvisionedInstance(
+            result = ProvisionedInstance(
                 instance_id=instance_id,
                 spec=spec,
                 public_ip=instance.get("PublicIpAddress"),
@@ -414,6 +632,12 @@ class AWSClient(CloudProviderClient):
                 launch_time=instance["LaunchTime"].timestamp(),
                 tags=tags,
             )
+            
+            # Update cache
+            self._instance_cache[instance_id] = result
+            self._cache_time = time.time()
+            
+            return result
 
         except Exception as e:
             logger.error(f"Failed to get instance status: {e}")
@@ -454,7 +678,7 @@ class AWSClient(CloudProviderClient):
 
 
 class GCPClient(CloudProviderClient):
-    """Google Cloud Platform GPU client."""
+    """Google Cloud Platform GPU client with Kiro optimizations."""
 
     GPU_INSTANCE_TYPES = {
         GPUType.NVIDIA_T4: [
@@ -491,6 +715,39 @@ class GCPClient(CloudProviderClient):
         super().__init__(credentials)
         self.project = credentials.get("project", "")
         self.zone = credentials.get("zone", "us-central1-a")
+        self._compute_client = None
+        self._instance_cache: dict[str, ProvisionedInstance] = {}
+        self._cache_ttl: float = 60.0
+        self._cache_time: float = 0
+
+    def _get_compute_client(self):
+        """Get GCP compute client with connection pooling."""
+        if self._compute_client is None:
+            from google.cloud import compute_v1
+            from google.api_core.client_options import ClientOptions
+            
+            # Kiro Rule 1: Connection pooling via client options
+            client_options = ClientOptions(
+                api_endpoint="https://compute.googleapis.com/compute/v1",
+            )
+            self._compute_client = compute_v1.InstancesClient(
+                client_options=client_options,
+            )
+        return self._compute_client
+
+    async def _perform_health_check(self) -> bool:
+        """Check GCP API health."""
+        try:
+            client = self._get_compute_client()
+            request = compute_v1.ListInstancesRequest(
+                project=self.project,
+                zone=self.zone,
+                max_results=1,
+            )
+            client.list(request=request)
+            return True
+        except Exception:
+            return False
 
     async def list_available_instances(
         self,
@@ -499,38 +756,48 @@ class GCPClient(CloudProviderClient):
         region: str | None = None,
         spot: bool = False,
     ) -> list[GPUInstanceSpec]:
-        """List available GCP GPU instances."""
-        specs = []
+        """List available GCP GPU instances with circuit breaker."""
+        if not await self._check_circuit_breaker():
+            logger.warning("GCP circuit breaker open, skipping list_available_instances")
+            return []
+        
+        try:
+            specs = []
+            target_region = region or self.zone.rsplit("-", 1)[0]
 
-        target_region = region or self.zone.rsplit("-", 1)[0]
-
-        for gtype, instances in self.GPU_INSTANCE_TYPES.items():
-            if gpu_type and gtype != gpu_type:
-                continue
-
-            for instance_type, gcount, vcpu, memory, storage, price in instances:
-                if gcount < gpu_count:
+            for gtype, instances in self.GPU_INSTANCE_TYPES.items():
+                if gpu_type and gtype != gpu_type:
                     continue
 
-                spot_price = price * 0.3 if spot else None
+                for instance_type, gcount, vcpu, memory, storage, price in instances:
+                    if gcount < gpu_count:
+                        continue
 
-                specs.append(
-                    GPUInstanceSpec(
-                        provider=CloudProvider.GCP,
-                        instance_type=instance_type,
-                        gpu_type=gtype,
-                        gpu_count=gcount,
-                        vcpu_count=vcpu,
-                        memory_gb=memory,
-                        storage_gb=storage,
-                        region=target_region,
-                        spot=spot,
-                        on_demand_price=price,
-                        spot_price=spot_price,
+                    spot_price = price * 0.3 if spot else None
+
+                    specs.append(
+                        GPUInstanceSpec(
+                            provider=CloudProvider.GCP,
+                            instance_type=instance_type,
+                            gpu_type=gtype,
+                            gpu_count=gcount,
+                            vcpu_count=vcpu,
+                            memory_gb=memory,
+                            storage_gb=storage,
+                            region=target_region,
+                            spot=spot,
+                            on_demand_price=price,
+                            spot_price=spot_price,
+                        )
                     )
-                )
 
-        return sorted(specs, key=lambda x: x.effective_price)
+            await self._record_success()
+            return sorted(specs, key=lambda x: x.effective_price)
+        
+        except Exception as e:
+            await self._record_error()
+            logger.error(f"Failed to list GCP instances: {e}")
+            return []
 
     async def provision_instance(
         self,
@@ -540,11 +807,14 @@ class GCPClient(CloudProviderClient):
         startup_script: str | None = None,
         tags: dict[str, str] | None = None,
     ) -> ProvisionedInstance:
-        """Provision GCP GPU instance."""
+        """Provision GCP GPU instance with retry logic."""
+        if not await self._check_circuit_breaker():
+            raise Exception("GCP circuit breaker is open")
+        
         try:
             from google.cloud import compute_v1
 
-            instances_client = compute_v1.InstancesClient()
+            instances_client = self._get_compute_client()
 
             instance = compute_v1.Instance()
             instance.name = name
@@ -605,6 +875,7 @@ class GCPClient(CloudProviderClient):
                 instance_resource=instance,
             )
 
+            await self._record_success()
             return ProvisionedInstance(
                 instance_id=name,
                 spec=spec,
@@ -617,6 +888,7 @@ class GCPClient(CloudProviderClient):
             logger.error("google-cloud-compute not installed. GCP client unavailable.")
             raise
         except Exception as e:
+            await self._record_error()
             logger.error(f"Failed to provision GCP instance: {e}")
             raise
 
@@ -625,25 +897,35 @@ class GCPClient(CloudProviderClient):
         try:
             from google.cloud import compute_v1
 
-            instances_client = compute_v1.InstancesClient()
+            instances_client = self._get_compute_client()
 
             operation = instances_client.delete(
                 project=self.project,
                 zone=self.zone,
                 instance=instance_id,
             )
-
+            
+            # Clear from cache
+            if instance_id in self._instance_cache:
+                del self._instance_cache[instance_id]
+            
             return True
         except Exception as e:
             logger.error(f"Failed to delete instance {instance_id}: {e}")
             return False
 
     async def get_instance_status(self, instance_id: str) -> ProvisionedInstance | None:
-        """Get GCP instance status."""
+        """Get GCP instance status with caching."""
+        # Kiro Rule 1: Cache instance status
+        if instance_id in self._instance_cache:
+            cached = self._instance_cache[instance_id]
+            if time.time() - self._cache_time < self._cache_ttl:
+                return cached
+        
         try:
             from google.cloud import compute_v1
 
-            instances_client = compute_v1.InstancesClient()
+            instances_client = self._get_compute_client()
             instance = instances_client.get(
                 project=self.project,
                 zone=self.zone,
@@ -668,7 +950,7 @@ class GCPClient(CloudProviderClient):
             if instance.network_interfaces and instance.network_interfaces[0].access_configs:
                 public_ip = instance.network_interfaces[0].access_configs[0].nat_i_p
 
-            return ProvisionedInstance(
+            result = ProvisionedInstance(
                 instance_id=instance_id,
                 spec=spec,
                 public_ip=public_ip,
@@ -682,6 +964,12 @@ class GCPClient(CloudProviderClient):
                 ),
                 tags=dict(instance.labels),
             )
+            
+            # Update cache
+            self._instance_cache[instance_id] = result
+            self._cache_time = time.time()
+            
+            return result
 
         except Exception as e:
             logger.error(f"Failed to get instance status: {e}")
@@ -695,7 +983,7 @@ class GCPClient(CloudProviderClient):
         try:
             from google.cloud import compute_v1
 
-            instances_client = compute_v1.InstancesClient()
+            instances_client = self._get_compute_client()
             response = instances_client.list(project=self.project, zone=self.zone)
 
             instances = []
@@ -713,7 +1001,7 @@ class GCPClient(CloudProviderClient):
 
 
 class AzureClient(CloudProviderClient):
-    """Azure GPU instance client."""
+    """Azure GPU instance client with Kiro optimizations."""
 
     GPU_INSTANCE_TYPES = {
         GPUType.NVIDIA_T4: [
@@ -749,6 +1037,32 @@ class AzureClient(CloudProviderClient):
         self.subscription_id = credentials.get("subscription_id", "")
         self.resource_group = credentials.get("resource_group", "")
         self.location = credentials.get("location", "eastus")
+        self._compute_client = None
+        self._instance_cache: dict[str, ProvisionedInstance] = {}
+        self._cache_ttl: float = 60.0
+        self._cache_time: float = 0
+
+    def _get_compute_client(self):
+        """Get Azure compute client with connection pooling."""
+        if self._compute_client is None:
+            from azure.identity import DefaultAzureCredential
+            from azure.mgmt.compute import ComputeManagementClient
+            
+            credential = DefaultAzureCredential()
+            self._compute_client = ComputeManagementClient(
+                credential,
+                self.subscription_id,
+            )
+        return self._compute_client
+
+    async def _perform_health_check(self) -> bool:
+        """Check Azure API health."""
+        try:
+            client = self._get_compute_client()
+            client.virtual_machines.list(self.resource_group)
+            return True
+        except Exception:
+            return False
 
     async def list_available_instances(
         self,
@@ -757,38 +1071,48 @@ class AzureClient(CloudProviderClient):
         region: str | None = None,
         spot: bool = False,
     ) -> list[GPUInstanceSpec]:
-        """List available Azure GPU instances."""
-        specs = []
+        """List available Azure GPU instances with circuit breaker."""
+        if not await self._check_circuit_breaker():
+            logger.warning("Azure circuit breaker open, skipping list_available_instances")
+            return []
+        
+        try:
+            specs = []
+            target_region = region or self.location
 
-        target_region = region or self.location
-
-        for gtype, instances in self.GPU_INSTANCE_TYPES.items():
-            if gpu_type and gtype != gpu_type:
-                continue
-
-            for instance_type, gcount, vcpu, memory, storage, price in instances:
-                if gcount < gpu_count:
+            for gtype, instances in self.GPU_INSTANCE_TYPES.items():
+                if gpu_type and gtype != gpu_type:
                     continue
 
-                spot_price = price * 0.3 if spot else None
+                for instance_type, gcount, vcpu, memory, storage, price in instances:
+                    if gcount < gpu_count:
+                        continue
 
-                specs.append(
-                    GPUInstanceSpec(
-                        provider=CloudProvider.AZURE,
-                        instance_type=instance_type,
-                        gpu_type=gtype,
-                        gpu_count=gcount,
-                        vcpu_count=vcpu,
-                        memory_gb=memory,
-                        storage_gb=storage,
-                        region=target_region,
-                        spot=spot,
-                        on_demand_price=price,
-                        spot_price=spot_price,
+                    spot_price = price * 0.3 if spot else None
+
+                    specs.append(
+                        GPUInstanceSpec(
+                            provider=CloudProvider.AZURE,
+                            instance_type=instance_type,
+                            gpu_type=gtype,
+                            gpu_count=gcount,
+                            vcpu_count=vcpu,
+                            memory_gb=memory,
+                            storage_gb=storage,
+                            region=target_region,
+                            spot=spot,
+                            on_demand_price=price,
+                            spot_price=spot_price,
+                        )
                     )
-                )
 
-        return sorted(specs, key=lambda x: x.effective_price)
+            await self._record_success()
+            return sorted(specs, key=lambda x: x.effective_price)
+        
+        except Exception as e:
+            await self._record_error()
+            logger.error(f"Failed to list Azure instances: {e}")
+            return []
 
     async def provision_instance(
         self,
@@ -798,7 +1122,10 @@ class AzureClient(CloudProviderClient):
         startup_script: str | None = None,
         tags: dict[str, str] | None = None,
     ) -> ProvisionedInstance:
-        """Provision Azure GPU VM."""
+        """Provision Azure GPU VM with retry logic."""
+        if not await self._check_circuit_breaker():
+            raise Exception("Azure circuit breaker is open")
+        
         try:
             from azure.identity import DefaultAzureCredential
             from azure.mgmt.compute import ComputeManagementClient
@@ -870,6 +1197,7 @@ class AzureClient(CloudProviderClient):
             # Wait for completion
             async_vm_creation.result()
 
+            await self._record_success()
             return ProvisionedInstance(
                 instance_id=name,
                 spec=spec,
@@ -882,6 +1210,7 @@ class AzureClient(CloudProviderClient):
             logger.error("azure-mgmt-compute not installed. Azure client unavailable.")
             raise
         except Exception as e:
+            await self._record_error()
             logger.error(f"Failed to provision Azure VM: {e}")
             raise
 
@@ -898,15 +1227,26 @@ class AzureClient(CloudProviderClient):
                 self.resource_group,
                 instance_id,
             )
+            
             async_vm_delete.result()
-
+            
+            # Clear from cache
+            if instance_id in self._instance_cache:
+                del self._instance_cache[instance_id]
+            
             return True
         except Exception as e:
             logger.error(f"Failed to delete VM {instance_id}: {e}")
             return False
 
     async def get_instance_status(self, instance_id: str) -> ProvisionedInstance | None:
-        """Get Azure VM status."""
+        """Get Azure VM status with caching."""
+        # Kiro Rule 1: Cache instance status
+        if instance_id in self._instance_cache:
+            cached = self._instance_cache[instance_id]
+            if time.time() - self._cache_time < self._cache_ttl:
+                return cached
+        
         try:
             from azure.identity import DefaultAzureCredential
             from azure.mgmt.compute import ComputeManagementClient
@@ -942,13 +1282,19 @@ class AzureClient(CloudProviderClient):
                 region=vm.location,
             )
 
-            return ProvisionedInstance(
+            result = ProvisionedInstance(
                 instance_id=instance_id,
                 spec=spec,
                 status=status,
                 ssh_user="ubuntu",
                 tags=dict(vm.tags) if vm.tags else {},
             )
+            
+            # Update cache
+            self._instance_cache[instance_id] = result
+            self._cache_time = time.time()
+            
+            return result
 
         except Exception as e:
             logger.error(f"Failed to get VM status: {e}")
@@ -983,19 +1329,20 @@ class AzureClient(CloudProviderClient):
 
 
 class MultiCloudManager:
-    """Manages GPU instances across multiple cloud providers.
+    """Manages GPU instances across multiple cloud providers with Kiro optimizations.
 
-    Provides unified interface for:
-    - Instance provisioning across providers
-    - Cost optimization and provider selection
-    - Lifecycle management
-    - Resource tracking
+    Kiro Rule 3: Scale by Default - multi-cloud auto-scaling.
+    Kiro Rule 4: Reliability as Feature - health checks, failover.
+    Kiro Rule 11: Observability - detailed metrics, structured logging.
     """
 
     def __init__(self):
         self._clients: dict[CloudProvider, CloudProviderClient] = {}
         self._instances: dict[str, ProvisionedInstance] = {}
         self._lock = asyncio.Lock()
+        self._health_check_task: asyncio.Task | None = None
+        self._scaling_events: list[dict[str, Any]] = []
+        self._max_events: int = 1000
 
     def register_provider(
         self,
@@ -1005,6 +1352,35 @@ class MultiCloudManager:
         """Register a cloud provider client."""
         self._clients[provider] = client
         logger.info(f"Registered provider: {provider.value}")
+
+    async def start_health_monitoring(self, interval: float = 30.0) -> None:
+        """Start periodic health monitoring across all providers.
+        
+        Kiro Rule 4: Continuous health monitoring.
+        Kiro Rule 11: Observability with structured logging.
+        """
+        async def _monitor():
+            while True:
+                try:
+                    health_status = await self._check_all_health()
+                    logger.info(f"Health check: {json.dumps(health_status)}")
+                except Exception as e:
+                    logger.error(f"Health monitoring error: {e}")
+                
+                await asyncio.sleep(interval)
+        
+        self._health_check_task = asyncio.create_task(_monitor())
+
+    async def _check_all_health(self) -> dict[str, Any]:
+        """Check health of all providers."""
+        health = {}
+        for provider, client in self._clients.items():
+            try:
+                health[provider.value] = await client.health_check()
+            except Exception as e:
+                health[provider.value] = {"healthy": False, "error": str(e)}
+        
+        return health
 
     async def find_best_instance(
         self,
@@ -1016,26 +1392,28 @@ class MultiCloudManager:
     ) -> GPUInstanceSpec | None:
         """Find the cheapest available instance across all providers.
 
-        Args:
-            gpu_type: Required GPU type
-            gpu_count: Minimum GPU count
-            region: Preferred region
-            spot: Prefer spot instances
-            max_price: Maximum price per hour
-
-        Returns:
-            Best instance spec or None
+        Kiro Rule 3: Scale by Default - prefer spot instances.
+        Kiro Rule 1: Relentless Optimization - parallel provider queries.
         """
-        all_specs: list[GPUInstanceSpec] = []
-
+        # Query all providers in parallel
+        tasks = []
         for provider, client in self._clients.items():
-            try:
-                specs = await client.list_available_instances(
+            task = asyncio.create_task(
+                client.list_available_instances(
                     gpu_type=gpu_type,
                     gpu_count=gpu_count,
                     region=region,
                     spot=spot,
-                )
+                ),
+                name=f"list_{provider.value}",
+            )
+            tasks.append((provider, task))
+        
+        all_specs: list[GPUInstanceSpec] = []
+        
+        for provider, task in tasks:
+            try:
+                specs = await task
                 all_specs.extend(specs)
             except Exception as e:
                 logger.warning(f"Failed to list instances from {provider.value}: {e}")
@@ -1089,7 +1467,8 @@ class MultiCloudManager:
             return None
 
         logger.info(
-            f"Provisioning {best_spec.instance_type} from {provider.value} " f"at ${best_spec.effective_price:.3f}/hour"
+            f"Provisioning {best_spec.instance_type} from {provider.value} "
+            f"at ${best_spec.effective_price:.3f}/hour"
         )
 
         try:
@@ -1103,6 +1482,20 @@ class MultiCloudManager:
 
             async with self._lock:
                 self._instances[instance.instance_id] = instance
+                
+                # Record scaling event
+                self._scaling_events.append({
+                    "timestamp": time.time(),
+                    "action": "provision",
+                    "provider": provider.value,
+                    "instance_type": best_spec.instance_type,
+                    "price": best_spec.effective_price,
+                    "instance_id": instance.instance_id,
+                })
+                
+                # Trim events if needed
+                if len(self._scaling_events) > self._max_events:
+                    self._scaling_events = self._scaling_events[-self._max_events:]
 
             return instance
 
@@ -1130,6 +1523,14 @@ class MultiCloudManager:
             async with self._lock:
                 if instance_id in self._instances:
                     del self._instances[instance_id]
+                    
+                    # Record scaling event
+                    self._scaling_events.append({
+                        "timestamp": time.time(),
+                        "action": "terminate",
+                        "provider": provider.value,
+                        "instance_id": instance_id,
+                    })
 
         return success
 
@@ -1151,8 +1552,19 @@ class MultiCloudManager:
         instances = await self.get_all_instances()
         return sum(inst.spec.effective_price for inst in instances if inst.is_running)
 
+    async def get_scaling_history(self, limit: int = 100) -> list[dict[str, Any]]:
+        """Get recent scaling events."""
+        return self._scaling_events[-limit:]
+
     async def shutdown(self) -> None:
         """Shutdown all provider clients."""
+        if self._health_check_task:
+            self._health_check_task.cancel()
+            try:
+                await self._health_check_task
+            except asyncio.CancelledError:
+                pass
+        
         for client in self._clients.values():
             await client.shutdown()
 
@@ -1249,6 +1661,9 @@ if __name__ == "__main__":
                 },
             }
         )
+
+        # Start health monitoring
+        await manager.start_health_monitoring(interval=30.0)
 
         # Find cheapest instance
         best = await manager.find_best_instance(

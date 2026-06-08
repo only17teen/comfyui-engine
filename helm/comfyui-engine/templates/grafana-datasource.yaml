@@ -1,0 +1,19 @@
+{{- if .Values.grafana.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "comfyui-engine.fullname" . }}-grafana-datasource
+  labels:
+    {{- include "comfyui-engine.labels" . | nindent 4 }}
+    {{ .Values.grafana.datasources.label }}: {{ .Values.grafana.datasources.labelValue | quote }}
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+        editable: false
+{{- end }}

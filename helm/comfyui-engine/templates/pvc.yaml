@@ -1,35 +1,14 @@
-{{- if .Values.persistence.output.enabled }}
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ include "comfyui-engine.outputPVCName" . }}
-  labels:
-    {{- include "comfyui-engine.labels" . | nindent 4 }}
-spec:
-  accessModes:
-    - {{ .Values.persistence.output.accessMode }}
-  resources:
-    requests:
-      storage: {{ .Values.persistence.output.size }}
-  {{- if .Values.persistence.output.storageClass }}
-  storageClassName: {{ .Values.persistence.output.storageClass }}
-  {{- end }}
-{{- end }}
----
 {{- if .Values.persistence.models.enabled }}
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ include "comfyui-engine.modelsPVCName" . }}
-  labels:
-    {{- include "comfyui-engine.labels" . | nindent 4 }}
-spec:
-  accessModes:
-    - {{ .Values.persistence.models.accessMode }}
-  resources:
-    requests:
-      storage: {{ .Values.persistence.models.size }}
-  {{- if .Values.persistence.models.storageClass }}
-  storageClassName: {{ .Values.persistence.models.storageClass }}
-  {{- end }}
+---
+{{- include "comfyui-engine.modelsPVC" . }}
+{{- end }}
+
+{{- if .Values.persistence.outputs.enabled }}
+---
+{{- include "comfyui-engine.outputsPVC" . }}
+{{- end }}
+
+{{- if .Values.persistence.cache.enabled }}
+---
+{{- include "comfyui-engine.cachePVC" . }}
 {{- end }}

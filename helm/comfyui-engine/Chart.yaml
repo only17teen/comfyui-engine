@@ -1,29 +1,29 @@
 apiVersion: v2
 name: comfyui-engine
-description: Production-grade async generation engine for ComfyUI with resilience patterns and metrics
+description: A Helm chart for ComfyUI Engine - Kubernetes deployment
 type: application
-version: 4.0.0
-appVersion: "4.0.0"
-home: https://github.com/user/comfyui-engine
-sources:
-  - https://github.com/user/comfyui-engine
-maintainers:
-  - name: Senior MLOps Engineer
-    email: dev@localhost
+version: 1.0.0
+appVersion: "2.0.0"
 keywords:
   - comfyui
-  - stable-diffusion
-  - asyncio
-  - mlops
-  - lora
-  - circuit-breaker
-  - kubernetes
-  - helm
+  - ai
+  - image-generation
+  - gpu
+home: https://github.com/only17teen/comfyui-engine
+sources:
+  - https://github.com/only17teen/comfyui-engine
+maintainers:
+  - name: ComfyUI Engine Team
+    email: team@comfyui-engine.dev
 dependencies:
   - name: redis
     version: "18.x.x"
     repository: "https://charts.bitnami.com/bitnami"
     condition: redis.enabled
+  - name: postgresql
+    version: "13.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled
   - name: prometheus
     version: "25.x.x"
     repository: "https://prometheus-community.github.io/helm-charts"
@@ -34,4 +34,3 @@ dependencies:
     condition: grafana.enabled
 annotations:
   category: AI/ML
-  licenses: MIT

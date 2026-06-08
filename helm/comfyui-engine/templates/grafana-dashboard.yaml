@@ -1,0 +1,5 @@
+{{- if .Values.monitoring.enabled -}}
+{{- if .Values.dashboards.enabled -}}
+{{- include "comfyui-engine.grafanaDashboard" . }}
+{{- end }}
+{{- end }}
