@@ -1,233 +1,125 @@
-"""
-ComfyUI Async Generation Engine v4.0 - Makefile
-Complete automation for development, testing, and deployment.
-"""
+.PHONY: help install test lint format build docker-up docker-down clean docs benchmark
 
-.PHONY: help install install-dev test test-unit test-integration lint format type-check benchmark docker-build docker-run docker-push clean docs profile
+PYTHON := python3
+PIP := pip3
+PYTEST := pytest
+BLACK := black
+ISORT := isort
+FLAKE8 := flake8
+MYPY := mypy
 
-# Default target
 help:
-	@echo "ComfyUI Engine v4.0 - Available commands:"
+	@echo "ComfyUI Engine - Development Commands"
 	@echo ""
-	@echo "  Development:"
-	@echo "    make install       - Install production dependencies"
-	@echo "    make install-dev   - Install development dependencies"
-	@echo "    make install-conda - Install via conda environment"
-	@echo ""
-	@echo "  Testing:"
-	@echo "    make test          - Run all tests"
-	@echo "    make test-unit     - Run unit tests only"
-	@echo "    make test-integration - Run integration tests"
-	@echo "    make test-coverage - Run tests with coverage report"
-	@echo ""
-	@echo "  Code Quality:"
-	@echo "    make lint          - Run ruff linter"
-	@echo "    make format        - Run ruff formatter"
-	@echo "    make type-check    - Run mypy type checker"
-	@echo "    make pre-commit    - Run pre-commit hooks"
-	@echo ""
-	@echo "  Performance:"
-	@echo "    make benchmark     - Run performance benchmarks"
-	@echo "    make profile       - Run profiler on sample workload"
-	@echo ""
-	@echo "  Docker:"
-	@echo "    make docker-build  - Build Docker image"
-	@echo "    make docker-run    - Run Docker container"
-	@echo "    make docker-push   - Push to registry"
-	@echo "    make docker-dev    - Run development container"
-	@echo ""
-	@echo "  Documentation:"
-	@echo "    make docs          - Generate API documentation"
-	@echo "    make docs-serve    - Serve documentation locally"
-	@echo ""
-	@echo "  Operations:"
-	@echo "    make systemd-install - Install systemd service"
-	@echo "    make clean         - Clean generated files"
-	@echo "    make purge         - Deep clean including Docker"
+	@echo "  make install       Install dependencies"
+	@echo "  make install-dev   Install dev dependencies"
+	@echo "  make test          Run all tests"
+	@echo "  make test-fast     Run fast unit tests only"
+	@echo "  make test-slow     Run slow integration tests"
+	@echo "  make lint          Run all linters"
+	@echo "  make format        Format code with black and isort"
+	@echo "  make type-check    Run mypy type checking"
+	@echo "  make build         Build Docker image"
+	@echo "  make docker-up     Start local development stack"
+	@echo "  make docker-down   Stop local development stack"
+	@echo "  make docs          Build documentation"
+	@echo "  make benchmark     Run performance benchmarks"
+	@echo "  make clean         Clean build artifacts"
+	@echo "  make ci            Run full CI pipeline locally"
 
-# ───────────────────────────────────────────────────────────────
-# Installation
-# ───────────────────────────────────────────────────────────────
 install:
-	pip install -e .
+	$(PIP) install -r requirements.txt
 
 install-dev:
-	pip install -e ".[dev]"
+	$(PIP) install -r requirements.txt
+	$(PIP) install -r requirements-dev.txt
+	$(PIP) install pre-commit
 	pre-commit install
 
-install-conda:
-	conda env create -f environment.yml
-	conda activate comfyui-engine
-
-# ───────────────────────────────────────────────────────────────
-# Testing
-# ───────────────────────────────────────────────────────────────
 test:
-	pytest tests/ -v --tb=short
+	$(PYTEST) tests/ -v --tb=short --cov=engine --cov-report=term-missing --cov-report=html:htmlcov
 
-test-unit:
-	pytest tests/test_engine.py -v --tb=short
+test-fast:
+	$(PYTEST) tests/ -v -m "not slow" --tb=short
+
+test-slow:
+	$(PYTEST) tests/ -v -m "slow" --tb=short
 
 test-integration:
-	pytest tests/test_integration.py -v --tb=short
+	$(PYTEST) tests/integration/ -v --tb=short
 
-test-coverage:
-	pytest tests/ -v --tb=short --cov=engine --cov-report=html --cov-report=term
-
-# ───────────────────────────────────────────────────────────────
-# Code Quality
-# ───────────────────────────────────────────────────────────────
 lint:
-	ruff check engine/ tests/ main.py api_server.py dashboard.py benchmark.py
+	$(FLAKE8) engine/ tests/ --max-line-length=100 --extend-ignore=E203,W503
+	$(BLACK) --check engine/ tests/
+	$(ISORT) --check-only engine/ tests/
 
 format:
-	ruff format engine/ tests/ main.py api_server.py dashboard.py benchmark.py
+	$(BLACK) engine/ tests/
+	$(ISORT) engine/ tests/
 
 type-check:
-	mypy engine/ --ignore-missing-imports --show-error-codes
+	$(MYPY) engine/ --ignore-missing-imports --show-error-codes
 
-pre-commit:
-	pre-commit run --all-files
+build:
+	docker build -t comfyui-engine:latest .
 
-# ───────────────────────────────────────────────────────────────
-# Performance
-# ───────────────────────────────────────────────────────────────
-benchmark:
-	python benchmark.py --iterations 1000 --output benchmark_results.json
+docker-up:
+	docker-compose up -d --build
 
-profile:
-	python -m cProfile -o profile.stats main.py --batch 10 --workflow workflows/standard.json
-	python -c "import pstats; p = pstats.Stats('profile.stats'); p.sort_stats('cumulative'); p.print_stats(20)"
+docker-down:
+	docker-compose down -v
 
-# ───────────────────────────────────────────────────────────────
-# Docker
-# ───────────────────────────────────────────────────────────────
-DOCKER_IMAGE ?= comfyui-engine
-DOCKER_TAG ?= latest
-DOCKER_REGISTRY ?= ghcr.io/user
+docker-logs:
+	docker-compose logs -f comfyui-engine
 
-docker-build:
-	docker build --target production -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
-
-docker-build-dev:
-	docker build --target development -t $(DOCKER_IMAGE):dev .
-
-docker-build-minimal:
-	docker build --target minimal -t $(DOCKER_IMAGE):minimal .
-
-docker-run:
-	docker run -d \
-		--name comfyui-engine \
-		-p 8000:8000 \
-		-p 9090:9090 \
-		-v $(PWD)/output_models:/app/output_models \
-		-v $(PWD)/config:/app/config \
-		-v $(PWD)/logs:/app/logs \
-		--env COMFYUI_URL=http://host.docker.internal:8188 \
-		$(DOCKER_IMAGE):$(DOCKER_TAG)
-
-docker-run-dev:
-	docker run -it --rm \
-		--name comfyui-engine-dev \
-		-p 8000:8000 \
-		-p 9090:9090 \
-		-v $(PWD):/app \
-		$(DOCKER_IMAGE):dev bash
-
-docker-push:
-	docker tag $(DOCKER_IMAGE):$(DOCKER_TAG) $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(DOCKER_TAG)
-	docker push $(DOCKER_REGISTRY)/$(DOCKER_IMAGE):$(DOCKER_TAG)
-
-docker-stop:
-	docker stop comfyui-engine || true
-	docker rm comfyui-engine || true
-
-# ───────────────────────────────────────────────────────────────
-# Documentation
-# ───────────────────────────────────────────────────────────────
 docs:
-	python -c "from api_server import create_api_server; from engine.api_docs import APIDocGenerator; import asyncio; s = asyncio.run(create_api_server()); g = APIDocGenerator(); g.generate_all(s.app)"
+	@echo "Building documentation..."
+	python -m docs.generate
 
-docs-serve:
-	cd docs && mkdocs serve
+benchmark:
+	$(PYTHON) benchmark.py
 
-docs-build:
-	cd docs && mkdocs build
-
-# ───────────────────────────────────────────────────────────────
-# Systemd
-# ───────────────────────────────────────────────────────────────
-systemd-install:
-	cd systemd && sudo ./install.sh
-
-systemd-start:
-	sudo systemctl start comfyui-engine@production
-
-systemd-stop:
-	sudo systemctl stop comfyui-engine@production
-
-systemd-status:
-	sudo systemctl status comfyui-engine@production
-
-systemd-logs:
-	sudo journalctl -u comfyui-engine@production -f
-
-# ───────────────────────────────────────────────────────────────
-# Monitoring
-# ───────────────────────────────────────────────────────────────
-monitoring-up:
-	docker-compose -f docker-compose.yml up -d prometheus grafana loki promtail
-
-monitoring-down:
-	docker-compose -f docker-compose.yml down
-
-monitoring-logs:
-	docker-compose -f docker-compose.yml logs -f
-
-# ───────────────────────────────────────────────────────────────
-# Cleanup
-# ───────────────────────────────────────────────────────────────
 clean:
-	rm -rf __pycache__ .pytest_cache .mypy_cache .ruff_cache
-	rm -rf htmlcov .coverage coverage.xml
-	rm -rf profiles/*.prof profiles/*.json
-	rm -rf dead_letter_queue/*.json checkpoints/*.json sessions/*.json
-	rm -f benchmark_results.json profile.stats
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
+	find . -type f -name "*.pyo" -delete
+	find . -type f -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "htmlcov" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "build" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "dist" -exec rm -rf {} + 2>/dev/null || true
 
-purge: clean
-	docker system prune -f
-	docker volume prune -f
+ci: install-dev lint type-check test benchmark
+	@echo "CI pipeline complete"
 
-# ───────────────────────────────────────────────────────────────
-# Development Utilities
-# ───────────────────────────────────────────────────────────────
-run:
-	python main.py --batch 4 --workflow workflows/standard.json
+security-scan:
+	@echo "Running security scans..."
+	bandit -r engine/ -f json -o security-report.json || true
+	safety check || true
 
-run-api:
-	python -m api_server --host 0.0.0.0 --port 8000
+k8s-deploy:
+	kubectl apply -k k8s/base/
+	kubectl apply -k k8s/overlays/production/
 
-run-dashboard:
-	python dashboard.py
+k8s-delete:
+	kubectl delete -k k8s/overlays/production/
+	kubectl delete -k k8s/base/
 
-run-wizard:
-	python setup_wizard.py
+helm-install:
+	helm install comfyui-engine ./helm/comfyui-engine --namespace comfyui --create-namespace
 
-redis-up:
-	docker run -d --name comfyui-redis -p 6379:6379 redis:7-alpine
+helm-upgrade:
+	helm upgrade comfyui-engine ./helm/comfyui-engine --namespace comfyui
 
-redis-down:
-	docker stop comfyui-redis || true
-	docker rm comfyui-redis || true
+helm-uninstall:
+	helm uninstall comfyui-engine --namespace comfyui
 
-# ───────────────────────────────────────────────────────────────
-# Release
-# ───────────────────────────────────────────────────────────────
-version:
-	python -c "import engine; print(engine.__version__)"
+release-patch:
+	bumpversion patch
 
-tag-release:
-	git tag -a v$(shell python -c "import engine; print(engine.__version__)") -m "Release v$(shell python -c "import engine; print(engine.__version__)")"
-	git push origin --tags
+release-minor:
+	bumpversion minor
+
+release-major:
+	bumpversion major
