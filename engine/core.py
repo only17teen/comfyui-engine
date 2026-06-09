@@ -1,6 +1,6 @@
-"""ComfyUI Async Generation Engine v2.0 - Core Infrastructure
+"""ComfyUI Async Generation Engine v5.1 - Core Infrastructure
 Fundamental improvements: structured logging, metrics, circuit breaker, retry logic.
-Optimized for Arch Linux / Python 3.11+
+Optimized for Arch Linux / Python 3.10+
 """
 
 import asyncio

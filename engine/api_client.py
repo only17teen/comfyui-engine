@@ -1,4 +1,4 @@
-"""ComfyUI Async Generation Engine v2.0 - Async API Client
+"""ComfyUI Async Generation Engine v5.1 - Async API Client
 Resilient client with circuit breaker, retry logic, metrics, and WebSocket support.
 """
 
