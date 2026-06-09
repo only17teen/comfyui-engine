@@ -7,6 +7,7 @@ import asyncio
 import functools
 import json
 import logging
+import random
 import sys
 import time
 from collections import deque
@@ -288,6 +289,12 @@ class RetryConfig:
     max_delay: float = 60.0
     exponential_base: float = 2.0
     retryable_exceptions: tuple = (aiohttp.ClientError, asyncio.TimeoutError, OSError)
+    # Kiro Protocol v3.0 enhancements
+    strategy: str = "FULL_JITTER"  # FIXED, LINEAR, EXPONENTIAL, FULL_JITTER, DECORRELATED_JITTER
+    jitter_factor: float = 0.2
+    retryable_statuses: frozenset[int] = frozenset({408, 429, 500, 502, 503, 504})
+    non_retryable_statuses: frozenset[int] = frozenset({400, 401, 403, 404, 405, 422})
+    status_based_retry: bool = True
 
 
 async def with_retry(
@@ -297,7 +304,7 @@ async def with_retry(
     *args,
     **kwargs,
 ) -> Any:
-    """Execute coroutine with exponential backoff retry.
+    """Execute coroutine with advanced retry strategies (Kiro Protocol v3.0).
 
     Args:
         coro: Async callable to execute.
@@ -322,18 +329,56 @@ async def with_retry(
             if attempt == config.max_retries:
                 break
 
-            delay = min(
-                config.base_delay * (config.exponential_base**attempt),
-                config.max_delay,
-            )
-            jitter = delay * 0.1 * (2 * (time.time() % 1) - 1)  # ±10% jitter
-            actual_delay = delay + jitter
+            # Check if we should retry based on status code (for HTTP exceptions)
+            if config.status_based_retry and hasattr(e, 'status'):
+                if e.status in config.non_retryable_statuses:
+                    # Don't retry on non-retryable status codes
+                    break
+                if e.status not in config.retryable_statuses:
+                    # Not in retryable statuses, don't retry
+                    break
+
+            # Calculate delay based on strategy
+            if config.strategy == "FIXED":
+                delay = config.base_delay
+            elif config.strategy == "LINEAR":
+                delay = config.base_delay * (attempt + 1)
+            elif config.strategy == "EXPONENTIAL":
+                delay = config.base_delay * (config.exponential_base ** attempt)
+            elif config.strategy == "FULL_JITTER":
+                # Full jitter: random delay between 0 and calculated exponential backoff
+                max_delay = config.base_delay * (config.exponential_base ** attempt)
+                delay = random.uniform(0, max_delay)
+            elif config.strategy == "DECORRELATED_JITTER":
+                # Decorrelated jitter: random based on previous delay
+                if attempt == 0:
+                    delay = config.base_delay
+                else:
+                    # Use the previous actual delay (we don't have it, so approximate)
+                    delay = random.uniform(
+                        config.base_delay,
+                        min(config.base_delay * (config.exponential_base ** attempt), config.max_delay)
+                    )
+            else:
+                # Default to exponential with jitter
+                delay = config.base_delay * (config.exponential_base ** attempt)
+
+            # Apply max delay cap
+            delay = min(delay, config.max_delay)
+
+            # Apply jitter factor for strategies that don't already include jitter
+            if config.strategy not in ("FULL_JITTER", "DECORRELATED_JITTER"):
+                jitter = delay * config.jitter_factor * (2 * (time.time() % 1) - 1)
+                delay += jitter
+
+            # Ensure delay is non-negative
+            delay = max(0, delay)
 
             await metrics.inc("retries_total")
             logging.getLogger("retry").warning(
-                f"Retry {attempt + 1}/{config.max_retries} after {actual_delay:.1f}s: {e}"
+                f"Retry {attempt + 1}/{config.max_retries} after {delay:.1f}s using {config.strategy}: {e}"
             )
-            await asyncio.sleep(actual_delay)
+            await asyncio.sleep(delay)
 
     raise last_exception
 
