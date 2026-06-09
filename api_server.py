@@ -869,6 +869,161 @@ class RESTAPIServer:
             keys = await self.key_manager.list_keys()
             return {"keys": keys}
 
+        # Kiro Protocol v3.0 Enhanced Engine Management
+        @self.app.post("/api/v1/engine/gc-tuner", tags=["Engine"])
+        async def configure_gc_tuner(
+            config: dict[str, Any],
+            key: APIKey = Depends(get_api_key),
+        ):
+            """Configure garbage collection tuning."""
+            if "admin" not in key.scopes:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Admin scope required",
+                )
+
+            if self.engine and hasattr(self.engine, "configure_gc_tuner"):
+                await self.engine.configure_gc_tuner(config)
+                return {"status": "configured"}
+
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="GC tuner configuration not available",
+            )
+
+        @self.app.get("/api/v1/engine/gc-stats", tags=["Engine"])
+        async def get_gc_stats(key: APIKey = Depends(get_api_key)):
+            """Get garbage collection statistics."""
+            if self.engine and hasattr(self.engine, "get_gc_stats"):
+                stats = await self.engine.get_gc_stats()
+                return stats
+
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="GC stats not available",
+            )
+
+        @self.app.post("/api/v1/engine/retry-policy", tags=["Engine"])
+        async def configure_retry_policy(
+            policy: dict[str, Any],
+            key: APIKey = Depends(get_api_key),
+        ):
+            """Configure advanced retry policies."""
+            if "admin" not in key.scopes:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Admin scope required",
+                )
+
+            if self.engine and hasattr(self.engine, "configure_retry_policy"):
+                await self.engine.configure_retry_policy(policy)
+                return {"status": "configured"}
+
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="Retry policy configuration not available",
+            )
+
+        @self.app.post("/api/v1/engine/tracing", tags=["Engine"])
+        async def initialize_tracing(
+            config: dict[str, Any],
+            key: APIKey = Depends(get_api_key),
+        ):
+            """Initialize OpenTelemetry tracing."""
+            if "admin" not in key.scopes:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Admin scope required",
+                )
+
+            if self.engine and hasattr(self.engine, "initialize_tracing"):
+                await self.engine.initialize_tracing(config)
+                return {"status": "initialized"}
+
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="Tracing initialization not available",
+            )
+
+        @self.app.get("/api/v1/engine/trace-context", tags=["Engine"])
+        async def get_trace_context(key: APIKey = Depends(get_api_key)):
+            """Get current trace context."""
+            if self.engine and hasattr(self.engine, "get_trace_context"):
+                context = await self.engine.get_trace_context()
+                return context
+
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="Trace context not available",
+            )
+
+        @self.app.post("/api/v1/engine/gpu-optimization", tags=["Engine"])
+        async def configure_gpu_optimization(
+            config: dict[str, Any],
+            key: APIKey = Depends(get_api_key),
+        ):
+            """Configure GPU-specific optimizations."""
+            if "admin" not in key.scopes:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Admin scope required",
+                )
+
+            if self.engine and hasattr(self.engine, "configure_gpu_optimization"):
+                await self.engine.configure_gpu_optimization(config)
+                return {"status": "configured"}
+
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="GPU optimization configuration not available",
+            )
+
+        @self.app.get("/api/v1/engine/gpu-stats", tags=["Engine"])
+        async def get_gpu_stats(key: APIKey = Depends(get_api_key)):
+            """Get GPU utilization and memory statistics."""
+            if self.engine and hasattr(self.engine, "get_gpu_stats"):
+                stats = await self.engine.get_gpu_stats()
+                return stats
+
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="GPU stats not available",
+            )
+
+        @self.app.post("/api/v1/engine/batching", tags=["Engine"])
+        async def enable_advanced_batching(
+            config: dict[str, Any],
+            key: APIKey = Depends(get_api_key),
+        ):
+            """Enable or disable advanced batching optimizations."""
+            if "admin" not in key.scopes:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Admin scope required",
+                )
+
+            enabled = config.get("enabled", True)
+            if self.engine and hasattr(self.engine, "enable_advanced_batching"):
+                await self.engine.enable_advanced_batching(enabled)
+                return {"status": "updated", "enabled": enabled}
+
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="Advanced batching configuration not available",
+            )
+
+        @self.app.get("/api/v1/engine/batch-stats", tags=["Engine"])
+        async def get_batch_stats(key: APIKey = Depends(get_api_key)):
+            """Get batching statistics."""
+            if self.engine and hasattr(self.engine, "get_batch_stats"):
+                stats = await self.engine.get_batch_stats()
+                return stats
+
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="Batch stats not available",
+            )
+
     async def _shutdown(self) -> None:
         """Graceful shutdown with connection draining."""
         logger.info("Initiating graceful shutdown...")

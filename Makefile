@@ -155,6 +155,126 @@ docs-build:
 	cd docs && mkdocs build
 
 # ───────────────────────────────────────────────────────────────
+# Enhanced Features
+# ───────────────────────────────────────────────────────────────
+gc-tuner:
+	@echo "Testing GC Tuner configuration..."
+	python -c "
+import asyncio
+from engine import UnifiedGenerationEngine
+from engine.config import ConfigLoader
+async def test():
+    config = ConfigLoader.load()
+    engine = UnifiedGenerationEngine(config)
+    # Test GC tuner configuration
+    gc_config = {
+        'freeze_on_boot': True,
+        'freeze_duration': 300.0,
+        'background_interval': 60.0,
+        'generation_thresholds': (700, 10, 10),
+        'max_latency_ms': 50.0,
+        'emergency_threshold': 0.85
+    }
+    await engine.configure_gc_tuner(gc_config)
+    stats = await engine.get_gc_stats()
+    print('GC Tuner configured successfully')
+    print('GC Stats:', stats)
+asyncio.run(test())
+	"
+
+retry-policy:
+	@echo "Testing Retry Policy configuration..."
+	python -c "
+import asyncio
+from engine import UnifiedGenerationEngine
+from engine.config import ConfigLoader
+async def test():
+    config = ConfigLoader.load()
+    engine = UnifiedGenerationEngine(config)
+    # Test retry policy configuration
+    policy = {
+        'max_retries': 5,
+        'base_delay': 0.5,
+        'max_delay': 30.0,
+        'strategy': 'FULL_JITTER',
+        'jitter_factor': 0.2
+    }
+    await engine.configure_retry_policy(policy)
+    print('Retry Policy configured successfully')
+asyncio.run(test())
+	"
+
+tracing:
+	@echo "Testing OpenTelemetry Tracing configuration..."
+	python -c "
+import asyncio
+from engine import UnifiedGenerationEngine
+from engine.config import ConfigLoader
+async def test():
+    config = ConfigLoader.load()
+    engine = UnifiedGenerationEngine(config)
+    # Test tracing configuration
+    tracing_config = {
+        'service_name': 'comfyui-engine-enhanced',
+        'service_version': '5.0.0',
+        'environment': 'development',
+        'sampler_ratio': 0.2,
+        'enable_debug': True
+    }
+    await engine.initialize_tracing(tracing_config)
+    context = await engine.get_trace_context()
+    print('Tracing initialized successfully')
+    print('Trace Context:', context)
+asyncio.run(test())
+	"
+
+gpu-optimization:
+	@echo "Testing GPU Optimization configuration..."
+	python -c "
+import asyncio
+from engine import UnifiedGenerationEngine
+from engine.config import ConfigLoader
+async def test():
+    config = ConfigLoader.load()
+    engine = UnifiedGenerationEngine(config)
+    # Test GPU optimization configuration
+    gpu_config = {
+        'memory_fraction': 0.85,
+        'enable_memory_pool': True,
+        'enable_stream_prioritization': True,
+        'stream_priority_high': 1,
+        'stream_priority_low': 0,
+        'enable_tensor_core': True,
+        'enable_cuda_graphs': False,
+        'max_batch_size': 16
+    }
+    await engine.configure_gpu_optimization(gpu_config)
+    stats = await engine.get_gpu_stats()
+    print('GPU Optimization configured successfully')
+    print('GPU Stats:', stats)
+asyncio.run(test())
+	"
+
+batching:
+	@echo "Testing Advanced Batching configuration..."
+	python -c "
+import asyncio
+from engine import UnifiedGenerationEngine
+from engine.config import ConfigLoader
+async def test():
+    config = ConfigLoader.load()
+    engine = UnifiedGenerationEngine(config)
+    # Test enabling advanced batching
+    await engine.enable_advanced_batching(True)
+    stats = await engine.get_batch_stats()
+    print('Advanced Batching enabled successfully')
+    print('Batch Stats:', stats)
+    # Test disabling
+    await engine.enable_advanced_batching(False)
+    print('Advanced Batching disabled')
+asyncio.run(test())
+
+# ───────────────────────────────────────────────────────────────
 # Systemd
 # ───────────────────────────────────────────────────────────────
 systemd-install:
