@@ -241,6 +241,10 @@ class APIKeyManager:
         ]
 
 
+    async def shutdown(self) -> None:
+        """FIX #4: Gracefully stop webhook delivery. Was missing before."""
+        self._active = False
+
 class RateLimiter:
     """Rate limiter for API requests."""
 
@@ -282,6 +286,7 @@ class WebhookManager:
     def __init__(self, webhooks_file: Path | None = None):
         self.webhooks_file = webhooks_file or Path("config/webhooks.json")
         self._webhooks: dict[str, WebhookConfig] = {}
+        self._active = True
         self._load_webhooks()
 
     def _load_webhooks(self) -> None:
@@ -442,7 +447,7 @@ class RESTAPIServer:
         self.app = FastAPI(
             title="ComfyUI Engine API",
             description="REST API for ComfyUI Engine external integrations",
-            version="4.0.0",
+            version="5.1.0",
             docs_url="/docs",
             redoc_url="/redoc",
         )
@@ -459,7 +464,7 @@ class RESTAPIServer:
         if self.enable_cors:
             self.app.add_middleware(
                 CORSMiddleware,
-                allow_origins=["*"],
+                allow_origins=self._cors_origins,
                 allow_credentials=True,
                 allow_methods=["*"],
                 allow_headers=["*"],
@@ -562,7 +567,7 @@ class RESTAPIServer:
             # Basic info
             metrics_lines.append(f"# HELP comfyui_engine_info Engine version info")
             metrics_lines.append(f"# TYPE comfyui_engine_info gauge")
-            metrics_lines.append(f'comfyui_engine_info{{version="4.0.0"}} 1')
+            metrics_lines.append(f'comfyui_engine_info{{version="5.1.0"}} 1')
 
             # Uptime
             metrics_lines.append(f"# HELP comfyui_engine_uptime_seconds Engine uptime")

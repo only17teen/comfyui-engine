@@ -1,4 +1,4 @@
-"""ComfyUI Async Generation Engine v2.0 - Configuration System
+"""ComfyUI Async Generation Engine v5.1 - Configuration System
 Pydantic-based validation with env var override and YAML merging.
 """
 

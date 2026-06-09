@@ -1,4 +1,4 @@
-"""ComfyUI Async Generation Engine v2.0 - Unified Main Orchestrator
+"""ComfyUI Async Generation Engine v5.1 - Unified Main Orchestrator
 Full end-to-end pipeline integrating all modules.
 """
 
@@ -316,7 +316,7 @@ class UnifiedGenerationEngine:
 # ───────────────────────────────────────────────────────────────
 async def main():
     parser = argparse.ArgumentParser(
-        description="ComfyUI Async Generation Engine v2.0 - Unified",
+        description="ComfyUI Async Generation Engine v5.1 - Unified",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -432,7 +432,7 @@ Environment Variables:
     setup_logging(level=log_level, json_format=engine_config.json_logging)
     logger = logging.getLogger("main")
 
-    logger.info(f"ComfyUI Engine v2.0 Unified | Config: {args.config}")
+    logger.info(f"ComfyUI Engine v5.1 | Config: {args.config}")
 
     # Health check only
     if args.health_check_only:
