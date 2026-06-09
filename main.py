@@ -95,9 +95,17 @@ class UnifiedGenerationEngine:
         self._setup_signals()
 
     def _setup_signals(self) -> None:
-        loop = asyncio.get_event_loop()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.add_signal_handler(sig, self._signal_handler)
+        # FIX: use get_running_loop() - get_event_loop() is deprecated in Python 3.10+
+        # and raises DeprecationWarning.  _setup_signals() is called from __init__
+        # which is always called from inside an async context (asyncio.run), so
+        # get_running_loop() is always safe here.
+        try:
+            loop = asyncio.get_running_loop()
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                loop.add_signal_handler(sig, self._signal_handler)
+        except RuntimeError:
+            # Not inside a running event loop (e.g. during tests); skip.
+            pass
 
     def _signal_handler(self) -> None:
         self.logger.warning("Shutdown signal received, initiating graceful shutdown...")
@@ -432,7 +440,8 @@ Environment Variables:
     setup_logging(level=log_level, json_format=engine_config.json_logging)
     logger = logging.getLogger("main")
 
-    logger.info(f"ComfyUI Engine v2.0 Unified | Config: {args.config}")
+    from engine import __version__ as _ver
+    logger.info(f"ComfyUI Engine v{_ver} | Config: {args.config}")
 
     # Health check only
     if args.health_check_only:

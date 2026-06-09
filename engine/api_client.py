@@ -125,7 +125,11 @@ class ComfyUIAsyncClient:
         )
 
         self._session: aiohttp.ClientSession | None = None
-        self._semaphore: asyncio.Semaphore | None = None
+        # FIX: initialise semaphore eagerly in __init__ to prevent a race condition
+        # where two concurrent run_job() calls could each create a semaphore before
+        # either stores it, resulting in two independent semaphores and double the
+        # intended concurrency.
+        self._semaphore: asyncio.Semaphore = asyncio.Semaphore(max_concurrent)
         self._jobs: dict[str, ComfyUIJob] = {}
         self._ws_task: asyncio.Task | None = None
         self._ws_queue: asyncio.Queue | None = None
@@ -349,9 +353,6 @@ class ComfyUIAsyncClient:
 
     async def run_job(self, payload: dict, config_meta: dict) -> ComfyUIJob:
         """Submit and fully process a single job (semaphore-guarded)."""
-        if self._semaphore is None:
-            self._semaphore = asyncio.Semaphore(self.max_concurrent)
-
         async with self._semaphore:
             await self.metrics.gauge("active_workers", float(self._semaphore._value))
             job = await self.submit_job(payload, config_meta)
