@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+MANIFEST
+
+# Envs
+.venv/
+venv/
+env/
+.env
+.env.local
+.env.*.local
+config/api_keys.json
+config/webhooks.json
+*.pem
+*.key
+
+# Testing
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+benchmark_results.json
+bandit-report.json
+safety-report.json
+
+# Outputs
+output_models/
+sessions/
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Tools
+.mypy_cache/
+.dmypy.json
+.ruff_cache/
+
+# Terraform
+terraform/.terraform/
+terraform/**/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+
+# Helm
+helm/**/*.tgz
+
+# k6
+tests/load/results/
+*.k6.json
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Misc
+*.tmp
+*.bak
+push_to_github.sh

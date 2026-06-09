@@ -1,4 +1,4 @@
-"""ComfyUI Async Generation Engine v2.0 - Unified Main Orchestrator
+"""ComfyUI Async Generation Engine v5.1 - Unified Main Orchestrator
 Full end-to-end pipeline integrating all modules.
 """
 
