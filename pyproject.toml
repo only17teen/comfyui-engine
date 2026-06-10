@@ -164,7 +164,6 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 
-["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -190,9 +189,7 @@ exclude_lines = [
     "if TYPE_CHECKING:",
 ]
 
-["tests"]
 
-["tests"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
