@@ -581,7 +581,9 @@ class DashboardServer:
                 metrics.queue_length = engine_metrics.get("queue_length", 0)
                 metrics.active_jobs = engine_metrics.get("active_jobs", 0)
                 metrics.completed_today = engine_metrics.get("completed_today", 0)
-                metrics.avg_generation_time = engine_metrics.get("avg_generation_time", 0.0)
+                metrics.avg_generation_time = engine_metrics.get(
+                    "avg_generation_time", 0.0
+                )
                 metrics.success_rate = engine_metrics.get("success_rate", 100.0)
             except Exception as e:
                 logger.warning(f"Failed to fetch engine metrics: {e}")
@@ -597,7 +599,9 @@ class DashboardServer:
 
         # Trim history
         cutoff = time.time() - 24 * 3600
-        self._metrics_history = [m for m in self._metrics_history if m.timestamp > cutoff]
+        self._metrics_history = [
+            m for m in self._metrics_history if m.timestamp > cutoff
+        ]
 
         return metrics
 
@@ -667,7 +671,9 @@ class DashboardServer:
             logger.error(f"Control action failed: {e}")
             return False
 
-    async def _handle_websocket_message(self, websocket: WebSocket, data: dict[str, Any]) -> None:
+    async def _handle_websocket_message(
+        self, websocket: WebSocket, data: dict[str, Any]
+    ) -> None:
         """Handle incoming WebSocket messages."""
         msg_type = data.get("type")
 
@@ -834,7 +840,9 @@ class EngineDashboardBridge:
                 if hasattr(self.engine, "get_recent_logs"):
                     logs = await self.engine.get_recent_logs()
                     for log in logs:
-                        self.dashboard.log(log.get("level", "INFO"), log.get("message", ""))
+                        self.dashboard.log(
+                            log.get("level", "INFO"), log.get("message", "")
+                        )
 
                 await asyncio.sleep(1)
 

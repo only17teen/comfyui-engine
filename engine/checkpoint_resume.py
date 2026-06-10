@@ -111,7 +111,9 @@ class CheckpointResumeManager:
             self.session_manager.pause_session()
             self.logger.info("Emergency checkpoint saved, session paused")
 
-    def _checkpoint_path(self, session_id: str, checkpoint_id: str, emergency: bool = False) -> Path:
+    def _checkpoint_path(
+        self, session_id: str, checkpoint_id: str, emergency: bool = False
+    ) -> Path:
         """Get path for checkpoint file."""
         prefix = "emergency_" if emergency else ""
         return self.checkpoints_dir / f"{prefix}{session_id}_{checkpoint_id}.json"
@@ -134,7 +136,8 @@ class CheckpointResumeManager:
         )
 
         self.logger.info(
-            f"Checkpoint saved: {path.name} " f"({len(checkpoint.completed_jobs)}/{checkpoint.total_batches} completed)"
+            f"Checkpoint saved: {path.name} "
+            f"({len(checkpoint.completed_jobs)}/{checkpoint.total_batches} completed)"
         )
         return path
 
@@ -156,7 +159,9 @@ class CheckpointResumeManager:
         emergency = list(self.checkpoints_dir.glob(f"emergency_{session_id}_*.json"))
         regular = list(self.checkpoints_dir.glob(f"{session_id}_*.json"))
 
-        all_checkpoints = sorted(emergency + regular, key=lambda p: p.stat().st_mtime, reverse=True)
+        all_checkpoints = sorted(
+            emergency + regular, key=lambda p: p.stat().st_mtime, reverse=True
+        )
 
         return all_checkpoints[0] if all_checkpoints else None
 
@@ -195,9 +200,9 @@ class CheckpointResumeManager:
         elif job.status == "error":
             self._current_checkpoint.failed_jobs.append(job.job_id)
 
-        self._current_checkpoint.batch_index = len(self._current_checkpoint.completed_jobs) + len(
-            self._current_checkpoint.failed_jobs
-        )
+        self._current_checkpoint.batch_index = len(
+            self._current_checkpoint.completed_jobs
+        ) + len(self._current_checkpoint.failed_jobs)
 
         # Auto-save checkpoint at interval (only if event loop is running)
         if self._jobs_since_checkpoint >= self.checkpoint_interval:
@@ -324,7 +329,8 @@ class CheckpointResumeManager:
         remaining = total_configs[start_index:]
 
         self.logger.info(
-            f"Resuming batch from index {start_index}: " f"{len(remaining)}/{len(total_configs)} remaining"
+            f"Resuming batch from index {start_index}: "
+            f"{len(remaining)}/{len(total_configs)} remaining"
         )
 
         return remaining

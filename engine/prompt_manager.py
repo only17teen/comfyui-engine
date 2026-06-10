@@ -142,7 +142,9 @@ class PromptManager:
         """Set deterministic RNG seed for reproducible generations."""
         self._rng.seed(seed)
 
-    def _pick_weighted(self, items: list[str], weights: list[float] | None = None) -> str:
+    def _pick_weighted(
+        self, items: list[str], weights: list[float] | None = None
+    ) -> str:
         """Weighted random selection from a list."""
         if not items:
             return ""
@@ -150,7 +152,9 @@ class PromptManager:
             return self._rng.choices(items, weights=weights, k=1)[0]
         return self._rng.choice(items)
 
-    def _pick_multiple(self, items: list[str], count: int, weights: list[float] | None = None) -> list[str]:
+    def _pick_multiple(
+        self, items: list[str], count: int, weights: list[float] | None = None
+    ) -> list[str]:
         """Pick multiple unique items."""
         if not items or count <= 0:
             return []
@@ -158,7 +162,9 @@ class PromptManager:
         if weights and len(weights) == len(items):
             # Weighted sampling without replacement (approximate)
             selected = []
-            available = list(zip(items, weights)) if weights else [(i, 1.0) for i in items]
+            available = (
+                list(zip(items, weights)) if weights else [(i, 1.0) for i in items]
+            )
             for _ in range(count):
                 if not available:
                     break
@@ -226,10 +232,26 @@ class PromptManager:
         # Build components
         triggers = self._build_triggers()
         clothing = self._build_clothing()
-        pose = self._pick_weighted(self.config.prompts.poses) if self.config.prompts.poses else ""
-        location = self._pick_weighted(self.config.prompts.locations) if self.config.prompts.locations else ""
-        expression = self._pick_weighted(self.config.prompts.expressions) if self.config.prompts.expressions else ""
-        lighting = self._pick_weighted(self.config.prompts.lighting) if self.config.prompts.lighting else ""
+        pose = (
+            self._pick_weighted(self.config.prompts.poses)
+            if self.config.prompts.poses
+            else ""
+        )
+        location = (
+            self._pick_weighted(self.config.prompts.locations)
+            if self.config.prompts.locations
+            else ""
+        )
+        expression = (
+            self._pick_weighted(self.config.prompts.expressions)
+            if self.config.prompts.expressions
+            else ""
+        )
+        lighting = (
+            self._pick_weighted(self.config.prompts.lighting)
+            if self.config.prompts.lighting
+            else ""
+        )
 
         positive = template.render(
             triggers=triggers,
@@ -378,7 +400,9 @@ class PromptManager:
             configs.append(cfg)
         return configs
 
-    def to_comfy_payload(self, config: GenerationConfig, workflow_template: dict) -> dict:
+    def to_comfy_payload(
+        self, config: GenerationConfig, workflow_template: dict
+    ) -> dict:
         """Inject GenerationConfig into ComfyUI workflow template.
         Supports both node-ID-based and class_type-based injection.
         """

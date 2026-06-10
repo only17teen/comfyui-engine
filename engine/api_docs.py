@@ -96,7 +96,9 @@ class APIDocGenerator:
                         param_type = param.get("schema", {}).get("type", "any")
                         required = "Yes" if param.get("required", False) else "No"
                         description = param.get("description", "")
-                        md_lines.append(f"| {name} | {param_type} | {required} | {description} |")
+                        md_lines.append(
+                            f"| {name} | {param_type} | {required} | {description} |"
+                        )
 
                     md_lines.append("")
 
@@ -112,7 +114,9 @@ class APIDocGenerator:
                         schema = content_spec.get("schema", {})
                         if "example" in content_spec:
                             md_lines.append("```json")
-                            md_lines.append(json.dumps(content_spec["example"], indent=2))
+                            md_lines.append(
+                                json.dumps(content_spec["example"], indent=2)
+                            )
                             md_lines.append("```")
                             md_lines.append("")
 
@@ -132,7 +136,9 @@ class APIDocGenerator:
         logger.info(f"Markdown docs saved: {output_path}")
         return str(output_path)
 
-    def generate_postman_collection(self, app: Any, base_url: str = "http://localhost:8000") -> str:
+    def generate_postman_collection(
+        self, app: Any, base_url: str = "http://localhost:8000"
+    ) -> str:
         """Generate Postman collection from FastAPI app."""
         openapi_schema = app.openapi()
 
@@ -203,7 +209,9 @@ class APIDocGenerator:
         logger.info(f"Postman collection saved: {output_path}")
         return str(output_path)
 
-    def generate_all(self, app: Any, base_url: str = "http://localhost:8000") -> dict[str, str]:
+    def generate_all(
+        self, app: Any, base_url: str = "http://localhost:8000"
+    ) -> dict[str, str]:
         """Generate all documentation formats."""
         return {
             "openapi": self.generate_openapi_json(app),

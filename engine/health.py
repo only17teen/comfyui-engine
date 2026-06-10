@@ -11,6 +11,7 @@ Kubernetes, the REST API, and monitoring tools.
     if status.is_ready:
         ...
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -158,25 +159,32 @@ class HealthRegistry:
 
 # ── Built-in check factories ───────────────────────────────────────────────
 
+
 def make_http_check(name: str, url: str, timeout: float = 3.0) -> HealthCheckFn:
     """Return a check that GETs *url* and expects HTTP 200."""
     import aiohttp
 
     async def _check() -> CheckResult:
         try:
-            async with aiohttp.ClientSession() as sess:
-                async with sess.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as r:
-                    if r.status == 200:
-                        return CheckResult(name=name, status=HealthStatus.HEALTHY, latency_ms=0.0)
+            async with aiohttp.ClientSession() as sess, sess.get(
+                url, timeout=aiohttp.ClientTimeout(total=timeout)
+            ) as r:
+                if r.status == 200:
                     return CheckResult(
-                        name=name,
-                        status=HealthStatus.UNHEALTHY,
-                        latency_ms=0.0,
-                        message=f"HTTP {r.status}",
+                        name=name, status=HealthStatus.HEALTHY, latency_ms=0.0
                     )
+                return CheckResult(
+                    name=name,
+                    status=HealthStatus.UNHEALTHY,
+                    latency_ms=0.0,
+                    message=f"HTTP {r.status}",
+                )
         except Exception as exc:  # noqa: BLE001
             return CheckResult(
-                name=name, status=HealthStatus.UNHEALTHY, latency_ms=0.0, message=str(exc)
+                name=name,
+                status=HealthStatus.UNHEALTHY,
+                latency_ms=0.0,
+                message=str(exc),
             )
 
     return _check
@@ -184,16 +192,21 @@ def make_http_check(name: str, url: str, timeout: float = 3.0) -> HealthCheckFn:
 
 def make_redis_check(name: str, redis_url: str) -> HealthCheckFn:
     """Return a check that pings Redis."""
+
     async def _check() -> CheckResult:
         try:
             import redis.asyncio as aioredis
+
             r = await aioredis.from_url(redis_url)
             await r.ping()
             await r.aclose()
             return CheckResult(name=name, status=HealthStatus.HEALTHY, latency_ms=0.0)
         except Exception as exc:  # noqa: BLE001
             return CheckResult(
-                name=name, status=HealthStatus.UNHEALTHY, latency_ms=0.0, message=str(exc)
+                name=name,
+                status=HealthStatus.UNHEALTHY,
+                latency_ms=0.0,
+                message=str(exc),
             )
 
     return _check

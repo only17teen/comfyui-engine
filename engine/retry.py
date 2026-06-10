@@ -9,6 +9,7 @@ Key fixes vs original:
   re-computing it from scratch each attempt.
 - `retryable_exceptions` default is a proper tuple, not a mutable default.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -48,23 +49,30 @@ class RetryConfig:
     status_based_retry: bool = True
 
 
-def _compute_delay(strategy: str, attempt: int, base: float, exp: float, max_d: float, prev_delay: float) -> float:
+def _compute_delay(
+    strategy: str,
+    attempt: int,
+    base: float,
+    exp: float,
+    max_d: float,
+    prev_delay: float,
+) -> float:
     """Compute the delay for a given retry attempt."""
     if strategy == "FIXED":
         raw = base
     elif strategy == "LINEAR":
         raw = base * (attempt + 1)
     elif strategy == "EXPONENTIAL":
-        raw = base * (exp ** attempt)
+        raw = base * (exp**attempt)
     elif strategy == "FULL_JITTER":
-        cap = min(max_d, base * (exp ** attempt))
+        cap = min(max_d, base * (exp**attempt))
         return random.uniform(0.0, cap)
     elif strategy == "DECORRELATED_JITTER":
         # Uses previous delay for better spread across concurrent retriers
         raw = random.uniform(base, min(max_d, prev_delay * 3))
         return min(max_d, raw)
     else:
-        raw = base * (exp ** attempt)
+        raw = base * (exp**attempt)
     return min(max_d, raw)
 
 
@@ -110,13 +118,19 @@ async def with_retry(
                 status: int = exc.status  # type: ignore[attr-defined]
                 if status in config.non_retryable_statuses:
                     break
-                if config.retryable_statuses and status not in config.retryable_statuses:
+                if (
+                    config.retryable_statuses
+                    and status not in config.retryable_statuses
+                ):
                     break
 
             delay = _compute_delay(
-                config.strategy, attempt,
-                config.base_delay, config.exponential_base,
-                config.max_delay, prev_delay,
+                config.strategy,
+                attempt,
+                config.base_delay,
+                config.exponential_base,
+                config.max_delay,
+                prev_delay,
             )
             prev_delay = delay
             delay = max(0.0, delay)
@@ -124,7 +138,11 @@ async def with_retry(
             await metrics.inc("retries_total")
             logger.warning(
                 "Retry %d/%d via %s in %.2fs: %s",
-                attempt + 1, config.max_retries, config.strategy, delay, exc,
+                attempt + 1,
+                config.max_retries,
+                config.strategy,
+                delay,
+                exc,
             )
             await asyncio.sleep(delay)
 

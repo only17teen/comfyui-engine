@@ -140,7 +140,9 @@ class SessionManager:
     def _save_session(self, session: SessionManifest) -> None:
         """Persist session manifest to disk."""
         path = self._session_path(session.session_id)
-        path.write_text(json.dumps(session.to_dict(), indent=2, default=str), encoding="utf-8")
+        path.write_text(
+            json.dumps(session.to_dict(), indent=2, default=str), encoding="utf-8"
+        )
 
     def load_session(self, session_id: str) -> SessionManifest | None:
         """Load session from disk."""
@@ -210,8 +212,12 @@ class SessionManager:
         if not self._current_session:
             return
 
-        completed = sum(1 for j in self._current_session.jobs if j.get("status") == "completed")
-        failed = sum(1 for j in self._current_session.jobs if j.get("status") == "error")
+        completed = sum(
+            1 for j in self._current_session.jobs if j.get("status") == "completed"
+        )
+        failed = sum(
+            1 for j in self._current_session.jobs if j.get("status") == "error"
+        )
         pending = self._current_session.total_jobs - completed - failed
 
         self._current_session.completed_count = completed
@@ -228,10 +234,20 @@ class SessionManager:
             timestamp=time.time(),
             batch_index=self._current_session.completed_count,
             total_batches=self._current_session.total_jobs,
-            completed_jobs=[j["job_id"] for j in self._current_session.jobs if j.get("status") == "completed"],
-            failed_jobs=[j["job_id"] for j in self._current_session.jobs if j.get("status") == "error"],
+            completed_jobs=[
+                j["job_id"]
+                for j in self._current_session.jobs
+                if j.get("status") == "completed"
+            ],
+            failed_jobs=[
+                j["job_id"]
+                for j in self._current_session.jobs
+                if j.get("status") == "error"
+            ],
             pending_jobs=[
-                j["job_id"] for j in self._current_session.jobs if j.get("status") not in ("completed", "error")
+                j["job_id"]
+                for j in self._current_session.jobs
+                if j.get("status") not in ("completed", "error")
             ],
             config_snapshot=self._current_session.to_dict(),
         )
@@ -241,7 +257,9 @@ class SessionManager:
             self._current_session.session_id,
             checkpoint.checkpoint_id,
         )
-        path.write_text(json.dumps(checkpoint.to_dict(), indent=2, default=str), encoding="utf-8")
+        path.write_text(
+            json.dumps(checkpoint.to_dict(), indent=2, default=str), encoding="utf-8"
+        )
 
         # Add to session
         self._current_session.checkpoints.append(checkpoint.to_dict())
@@ -315,18 +333,27 @@ class SessionManager:
                 "completed_jobs": checkpoint.completed_jobs,
                 "failed_jobs": checkpoint.failed_jobs,
                 "config_snapshot": checkpoint.config_snapshot,
-                "resume_from_index": len(checkpoint.completed_jobs) + len(checkpoint.failed_jobs),
+                "resume_from_index": len(checkpoint.completed_jobs)
+                + len(checkpoint.failed_jobs),
             }
 
         # No checkpoint, resume from session manifest
-        pending = [j["job_id"] for j in session.jobs if j.get("status") not in ("completed", "error")]
+        pending = [
+            j["job_id"]
+            for j in session.jobs
+            if j.get("status") not in ("completed", "error")
+        ]
 
         return {
             "session_id": session_id,
             "checkpoint_id": None,
             "pending_jobs": pending,
-            "completed_jobs": [j["job_id"] for j in session.jobs if j.get("status") == "completed"],
-            "failed_jobs": [j["job_id"] for j in session.jobs if j.get("status") == "error"],
+            "completed_jobs": [
+                j["job_id"] for j in session.jobs if j.get("status") == "completed"
+            ],
+            "failed_jobs": [
+                j["job_id"] for j in session.jobs if j.get("status") == "error"
+            ],
             "config_snapshot": session.to_dict(),
             "resume_from_index": 0,
         }

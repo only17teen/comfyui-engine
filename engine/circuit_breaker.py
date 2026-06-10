@@ -8,6 +8,7 @@ Improvements vs original:
 - Cleaner HALF_OPEN logic: max_calls checked before increment
 - get_status() helper for dashboards / health endpoints
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -25,9 +26,9 @@ logger = logging.getLogger(__name__)
 class CircuitState(Enum):
     """Circuit breaker state."""
 
-    CLOSED = auto()    # Normal operation
-    OPEN = auto()      # Failing - reject all calls
-    HALF_OPEN = auto() # Testing recovery
+    CLOSED = auto()  # Normal operation
+    OPEN = auto()  # Failing - reject all calls
+    HALF_OPEN = auto()  # Testing recovery
 
 
 @dataclass
@@ -88,7 +89,9 @@ class CircuitBreaker:
             except Exception:  # noqa: BLE001
                 logger.exception("State-change callback raised")
 
-    async def call(self, coro_factory: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    async def call(
+        self, coro_factory: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> Any:
         """Execute coroutine with circuit breaker protection."""
         async with self._get_lock():
             if self.state == CircuitState.OPEN:
@@ -121,7 +124,9 @@ class CircuitBreaker:
     def _should_attempt_reset(self) -> bool:
         if self._last_failure_time is None:
             return True
-        return time.monotonic() - self._last_failure_time >= self.config.recovery_timeout
+        return (
+            time.monotonic() - self._last_failure_time >= self.config.recovery_timeout
+        )
 
     async def _on_success(self) -> None:
         async with self._get_lock():

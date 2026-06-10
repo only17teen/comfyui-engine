@@ -201,7 +201,9 @@ class ModelCache:
         """Get cached model info."""
         return await self.cache.get(self._key(model_name))
 
-    async def set_model_info(self, model_name: str, info: dict, ttl: int = 86400) -> bool:
+    async def set_model_info(
+        self, model_name: str, info: dict, ttl: int = 86400
+    ) -> bool:
         """Cache model info."""
         return await self.cache.set(self._key(model_name), info, ttl)
 
@@ -251,7 +253,9 @@ class PromptCache:
         key = self.cache.key_builder.build(self.namespace, "template", template_id)
         return await self.cache.get(key)
 
-    async def set_template(self, template_id: str, template: dict, ttl: int = 3600) -> bool:
+    async def set_template(
+        self, template_id: str, template: dict, ttl: int = 3600
+    ) -> bool:
         """Cache prompt template."""
         key = self.cache.key_builder.build(self.namespace, "template", template_id)
         return await self.cache.set(key, template, ttl)
@@ -436,7 +440,9 @@ class CacheManager:
     def cache(self) -> RedisCache[Any]:
         """Get generic cache."""
         if self._cache is None:
-            self._cache = RedisCache(self.redis, self._key_builder, self.config.default_ttl)
+            self._cache = RedisCache(
+                self.redis, self._key_builder, self.config.default_ttl
+            )
         return self._cache
 
     @property

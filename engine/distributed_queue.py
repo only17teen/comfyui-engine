@@ -20,7 +20,10 @@ try:
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-    logger.warning("redis not installed, distributed queue unavailable. " "Install: pip install redis")
+    logger.warning(
+        "redis not installed, distributed queue unavailable. "
+        "Install: pip install redis"
+    )
 
 
 @dataclass

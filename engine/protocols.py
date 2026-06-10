@@ -3,7 +3,17 @@ Type safety improvements and protocol definitions.
 Enhanced with Kiro Protocol v3.0 optimizations.
 """
 
-from typing import Any, Dict, List, Optional, Protocol, Tuple, runtime_checkable, Callable, AsyncIterator
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Protocol,
+    Tuple,
+    runtime_checkable,
+    Callable,
+    AsyncIterator,
+)
 from dataclasses import dataclass
 
 
@@ -23,7 +33,9 @@ class EngineProtocol(Protocol):
         """Get status of a specific job."""
         ...
 
-    async def list_jobs(self, status: str | None, limit: int, offset: int) -> list[dict[str, Any]]:
+    async def list_jobs(
+        self, status: str | None, limit: int, offset: int
+    ) -> list[dict[str, Any]]:
         """List jobs with optional filtering."""
         ...
 
@@ -206,7 +218,9 @@ class StorageProtocol(Protocol):
 class NotifierProtocol(Protocol):
     """Protocol for notification services."""
 
-    async def send(self, message: str, level: str = "info", metadata: dict[str, Any] | None = None) -> bool:
+    async def send(
+        self, message: str, level: str = "info", metadata: dict[str, Any] | None = None
+    ) -> bool:
         """Send a notification."""
         ...
 
@@ -215,7 +229,9 @@ class NotifierProtocol(Protocol):
         ...
 
     # Enhanced notifier features
-    async def register_webhook(self, url: str, events: list[str], secret: str | None = None) -> str:
+    async def register_webhook(
+        self, url: str, events: list[str], secret: str | None = None
+    ) -> str:
         """Register a webhook for notifications."""
         ...
 
@@ -223,7 +239,9 @@ class NotifierProtocol(Protocol):
         """Unregister a webhook."""
         ...
 
-    async def send_batch_notification(self, batch_id: str, results: dict[str, Any]) -> bool:
+    async def send_batch_notification(
+        self, batch_id: str, results: dict[str, Any]
+    ) -> bool:
         """Send a batch completion notification."""
         ...
 
@@ -238,10 +256,12 @@ SamplingParams = dict[str, Any]
 Resolution = tuple[int, int]
 SeedValue = int
 
+
 # Kiro Protocol v3.0 specific types
 @dataclass
 class GCTunerConfig:
     """Configuration for GC tuning."""
+
     freeze_on_boot: bool = True
     freeze_duration: float = 300.0  # 5 minutes
     background_interval: float = 60.0
@@ -253,10 +273,13 @@ class GCTunerConfig:
 @dataclass
 class RetryPolicy:
     """Advanced retry policy configuration."""
+
     max_retries: int = 3
     base_delay: float = 1.0
     max_delay: float = 60.0
-    strategy: str = "FULL_JITTER"  # FIXED, LINEAR, EXPONENTIAL, FULL_JITTER, DECORRELATED_JITTER
+    strategy: str = (
+        "FULL_JITTER"  # FIXED, LINEAR, EXPONENTIAL, FULL_JITTER, DECORRELATED_JITTER
+    )
     retryable_statuses: set[int] = None
     non_retryable_statuses: set[int] = None
     timeout_multiplier: float = 2.0
@@ -272,6 +295,7 @@ class RetryPolicy:
 @dataclass
 class TracingConfig:
     """OpenTelemetry tracing configuration."""
+
     service_name: str = "comfyui-engine"
     service_version: str = "5.0.0"
     environment: str = "production"
@@ -283,6 +307,7 @@ class TracingConfig:
 @dataclass
 class GPUOptimizationConfig:
     """GPU optimization configuration."""
+
     memory_fraction: float = 0.9
     enable_memory_pool: bool = True
     enable_stream_prioritization: bool = True

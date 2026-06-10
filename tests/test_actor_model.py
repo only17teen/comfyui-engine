@@ -29,14 +29,14 @@ class TestActor(Actor):
         return {
             "status": "test_received",
             "actor_id": self.actor_id,
-            "payload": message.payload
+            "payload": message.payload,
         }
 
     async def _handle_get_received(self, message: ActorMessage) -> Any:
         """Handle get received messages request."""
         return {
             "count": len(self.received_messages),
-            "messages": [msg.payload for msg in self.received_messages[-5:]]  # Last 5
+            "messages": [msg.payload for msg in self.received_messages[-5:]],  # Last 5
         }
 
 
@@ -51,7 +51,7 @@ async def test_actor_creation_and_messaging():
         sender="test_sender",
         recipient="test_actor",
         payload={"type": "test_message", "data": "hello world"},
-        priority=MessagePriority.NORMAL
+        priority=MessagePriority.NORMAL,
     )
 
     # Enqueue the message
@@ -96,7 +96,7 @@ async def test_actor_router():
         sender="test",
         recipient="actor_1",
         payload={"type": "test_message", "data": "router test"},
-        priority=MessagePriority.HIGH
+        priority=MessagePriority.HIGH,
     )
 
     start_actors_processed = actor1.stats.messages_processed
@@ -132,10 +132,10 @@ async def test_actor_manager():
     assert retrieved_actor.actor_id == "job_processor_1"
 
     # Send a message via manager
-    message_id = await manager.send_message("job_processor_1", {
-        "type": "process_job",
-        "job_data": {"job_id": "test_job_123", "data": "test"}
-    })
+    message_id = await manager.send_message(
+        "job_processor_1",
+        {"type": "process_job", "job_data": {"job_id": "test_job_123", "data": "test"}},
+    )
     # Note: send_message is simplified in our implementation
 
     # Check stats
@@ -158,7 +158,7 @@ async def test_priority_mailbox():
             sender="test",
             recipient="priority_test",
             payload={"type": "test_message", "data": f"message_{i}"},
-            priority=MessagePriority.LOW if i % 2 == 0 else MessagePriority.HIGH
+            priority=MessagePriority.LOW if i % 2 == 0 else MessagePriority.HIGH,
         )
         messages.append(msg)
         await actor.enqueue(msg)

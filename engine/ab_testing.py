@@ -235,7 +235,9 @@ class ABTestFramework:
             if "lora_weight_range" in overrides:
                 # Adjust LoRA weights
                 for lora in config.lora_stack:
-                    lora.weight = self.prompt_manager._rng.uniform(*overrides["lora_weight_range"])
+                    lora.weight = self.prompt_manager._rng.uniform(
+                        *overrides["lora_weight_range"]
+                    )
 
             configs.append(config)
 
@@ -283,7 +285,9 @@ class ABTestFramework:
             consistency_score = 1.0 - (result.stddev_time / max_stddev)
 
             # Weighted composite score
-            scores[result.variant_id] = success_score * 0.5 + speed_score * 0.3 + consistency_score * 0.2
+            scores[result.variant_id] = (
+                success_score * 0.5 + speed_score * 0.3 + consistency_score * 0.2
+            )
 
         # Select winner
         winner_id = max(scores, key=scores.get)
@@ -294,7 +298,9 @@ class ABTestFramework:
         other_scores = [s for vid, s in scores.items() if vid != winner_id]
         if other_scores:
             second_best = max(other_scores)
-            confidence = (winner_score - second_best) / winner_score if winner_score > 0 else 0.0
+            confidence = (
+                (winner_score - second_best) / winner_score if winner_score > 0 else 0.0
+            )
         else:
             confidence = 1.0
 
@@ -307,7 +313,8 @@ class ABTestFramework:
             )
         elif confidence > 0.05:
             recommendation = (
-                f"Variant '{winner_id}' shows slight improvement. " f"Consider running more tests for confirmation."
+                f"Variant '{winner_id}' shows slight improvement. "
+                f"Consider running more tests for confirmation."
             )
         else:
             recommendation = (
@@ -325,7 +332,9 @@ class ABTestFramework:
             recommendation=recommendation,
         )
 
-    def save_results(self, result: ABTestResult, path: str = "ab_test_results.json") -> None:
+    def save_results(
+        self, result: ABTestResult, path: str = "ab_test_results.json"
+    ) -> None:
         """Save A/B test results to JSON."""
         Path(path).write_text(
             json.dumps(result.to_dict(), indent=2, ensure_ascii=False),
@@ -354,10 +363,14 @@ class ABTestFramework:
         print("=" * 70)
         print(f"  Test ID:     {result.test_id}")
         print(f"  Hypothesis:  {result.hypothesis}")
-        print(f"  Timestamp:   {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(result.timestamp))}")
+        print(
+            f"  Timestamp:   {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(result.timestamp))}"
+        )
         print()
 
-        print(f"  {'Variant':<25} {'Success':>8} {'Avg Time':>10} {'P95 Time':>10} {'StdDev':>10}")
+        print(
+            f"  {'Variant':<25} {'Success':>8} {'Avg Time':>10} {'P95 Time':>10} {'StdDev':>10}"
+        )
         print("  " + "-" * 65)
 
         for variant in result.variants:
@@ -470,7 +483,9 @@ class ABTestRunner:
                 config_overrides=variant.get("config_overrides", {}),
             )
 
-            configs = framework.generate_variant_configs(variant, generations_per_variant)
+            configs = framework.generate_variant_configs(
+                variant, generations_per_variant
+            )
 
             for config in configs:
                 result.total_generations += 1
@@ -482,7 +497,11 @@ class ABTestRunner:
                 result.successful += 1
                 result.processing_times.append(15.0 + (result.total_generations % 10))
 
-            result.avg_processing_time = statistics.mean(result.processing_times) if result.processing_times else 0.0
+            result.avg_processing_time = (
+                statistics.mean(result.processing_times)
+                if result.processing_times
+                else 0.0
+            )
             results.append(result)
 
         analysis = framework.analyze_results(results)

@@ -129,7 +129,9 @@ class UnifiedGenerationEngine:
 
     async def start_websocket(self) -> None:
         """Start WebSocket connection for real-time updates."""
-        ws_url = self.config.base_url.replace("http://", "ws://").replace("https://", "wss://")
+        ws_url = self.config.base_url.replace("http://", "ws://").replace(
+            "https://", "wss://"
+        )
         self.ws_manager = WebSocketManager(
             config=WSConfig(url=f"{ws_url}/ws"),
             metrics=self.metrics,
@@ -149,7 +151,9 @@ class UnifiedGenerationEngine:
             self.logger.warning(f"Workflow validation: {warning}")
 
         if result.suggested_mappings:
-            self.logger.info(f"Auto-detected node mappings: {result.suggested_mappings}")
+            self.logger.info(
+                f"Auto-detected node mappings: {result.suggested_mappings}"
+            )
 
         return True
 
@@ -175,7 +179,9 @@ class UnifiedGenerationEngine:
         if resume_session:
             resume_state = self.checkpoint_manager.get_resume_state(resume_session)
             if resume_state and resume_state.can_resume:
-                self.logger.info(f"Resuming session {resume_session} from index {resume_state.resume_from_index}")
+                self.logger.info(
+                    f"Resuming session {resume_session} from index {resume_state.resume_from_index}"
+                )
 
         # Generate configurations
         if resume_state and resume_state.can_resume and resume_state.remaining_configs:
@@ -221,7 +227,9 @@ class UnifiedGenerationEngine:
 
         # Execute batch
         cb = print_progress if progress else None
-        self._current_jobs = await self.client.run_batch(payloads, metas, progress_callback=cb)
+        self._current_jobs = await self.client.run_batch(
+            payloads, metas, progress_callback=cb
+        )
 
         # Update checkpoint manager with results
         for job in self._current_jobs:
@@ -233,7 +241,8 @@ class UnifiedGenerationEngine:
         failed = [j for j in self._current_jobs if j.status == "error"]
 
         self.logger.info(
-            f"Batch complete: {len(completed)} OK, {len(failed)} FAILED, " f"{len(self._current_jobs)} TOTAL"
+            f"Batch complete: {len(completed)} OK, {len(failed)} FAILED, "
+            f"{len(self._current_jobs)} TOTAL"
         )
 
         if completed:
@@ -292,7 +301,9 @@ class UnifiedGenerationEngine:
         await worker.start(process_job)
         return []
 
-    async def sync_git(self, repo_path: str = ".", commit_msg: str | None = None) -> dict:
+    async def sync_git(
+        self, repo_path: str = ".", commit_msg: str | None = None
+    ) -> dict:
         """Sync with git repository."""
         self.logger.info(f"Git sync: {repo_path}")
         try:
@@ -354,7 +365,9 @@ Environment Variables:
 
     # Batch configuration
     parser.add_argument("--batch", type=int, default=4, help="Number of generations")
-    parser.add_argument("--lora", type=int, default=2, help="LoRA models per generation")
+    parser.add_argument(
+        "--lora", type=int, default=2, help="LoRA models per generation"
+    )
     parser.add_argument(
         "--template",
         type=str,
@@ -373,18 +386,34 @@ Environment Variables:
     parser.add_argument("--tags", type=str, default=None, help="Comma-separated tags")
 
     # Workflow and connection
-    parser.add_argument("--workflow", type=str, required=True, help="Path to ComfyUI workflow JSON")
-    parser.add_argument("--max-concurrent", type=int, default=None, help="Override parallel jobs")
-    parser.add_argument("--base-url", type=str, default=None, help="Override ComfyUI URL")
+    parser.add_argument(
+        "--workflow", type=str, required=True, help="Path to ComfyUI workflow JSON"
+    )
+    parser.add_argument(
+        "--max-concurrent", type=int, default=None, help="Override parallel jobs"
+    )
+    parser.add_argument(
+        "--base-url", type=str, default=None, help="Override ComfyUI URL"
+    )
 
     # Output and logging
-    parser.add_argument("--output-dir", type=str, default=None, help="Override output directory")
-    parser.add_argument("--config", type=str, default="config/prompts.yaml", help="Config YAML")
-    parser.add_argument("--timeout", type=float, default=None, help="Override job timeout")
-    parser.add_argument("--poll-interval", type=float, default=None, help="Override poll interval")
+    parser.add_argument(
+        "--output-dir", type=str, default=None, help="Override output directory"
+    )
+    parser.add_argument(
+        "--config", type=str, default="config/prompts.yaml", help="Config YAML"
+    )
+    parser.add_argument(
+        "--timeout", type=float, default=None, help="Override job timeout"
+    )
+    parser.add_argument(
+        "--poll-interval", type=float, default=None, help="Override poll interval"
+    )
 
     # Resume
-    parser.add_argument("--resume-session", type=str, default=None, help="Resume from session ID")
+    parser.add_argument(
+        "--resume-session", type=str, default=None, help="Resume from session ID"
+    )
 
     # Metrics server
     parser.add_argument(
@@ -395,7 +424,9 @@ Environment Variables:
     )
 
     # Distributed mode
-    parser.add_argument("--distributed", action="store_true", help="Run as distributed worker (Redis)")
+    parser.add_argument(
+        "--distributed", action="store_true", help="Run as distributed worker (Redis)"
+    )
     parser.add_argument(
         "--redis-url",
         type=str,
@@ -404,17 +435,29 @@ Environment Variables:
     )
 
     # Git integration
-    parser.add_argument("--git-sync", action="store_true", help="Sync to git after batch")
-    parser.add_argument("--repo-path", type=str, default=".", help="Git repository path")
+    parser.add_argument(
+        "--git-sync", action="store_true", help="Sync to git after batch"
+    )
+    parser.add_argument(
+        "--repo-path", type=str, default=".", help="Git repository path"
+    )
     parser.add_argument("--init-repo", action="store_true", help="Initialize git repo")
     parser.add_argument("--remote", type=str, default=None, help="Git remote URL")
-    parser.add_argument("--commit-msg", type=str, default=None, help="Custom commit message")
+    parser.add_argument(
+        "--commit-msg", type=str, default=None, help="Custom commit message"
+    )
 
     # Control
     parser.add_argument("--verbose", "-v", action="store_true", help="DEBUG logging")
-    parser.add_argument("--no-progress", action="store_true", help="Disable progress bar")
-    parser.add_argument("--health-check-only", action="store_true", help="Check ComfyUI health and exit")
-    parser.add_argument("--validate-workflow", action="store_true", help="Validate workflow and exit")
+    parser.add_argument(
+        "--no-progress", action="store_true", help="Disable progress bar"
+    )
+    parser.add_argument(
+        "--health-check-only", action="store_true", help="Check ComfyUI health and exit"
+    )
+    parser.add_argument(
+        "--validate-workflow", action="store_true", help="Validate workflow and exit"
+    )
 
     args = parser.parse_args()
 
@@ -436,11 +479,14 @@ Environment Variables:
         engine_config.metrics_port = args.metrics_port
 
     # Setup logging
-    log_level = logging.DEBUG if args.verbose else getattr(logging, engine_config.log_level)
+    log_level = (
+        logging.DEBUG if args.verbose else getattr(logging, engine_config.log_level)
+    )
     setup_logging(level=log_level, json_format=engine_config.json_logging)
     logger = logging.getLogger("main")
 
     from engine import __version__ as _ver
+
     logger.info(f"ComfyUI Engine v{_ver} | Config: {args.config}")
 
     # Health check only

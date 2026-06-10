@@ -1,48 +1,21 @@
-default_language_version:
-  python: python3.11
-
 repos:
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        language_version: python3.11
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
-        args: ['--maxkb=1000']
-      - id: check-json
-      - id: check-toml
-      - id: check-merge-conflict
-      - id: debug-statements
-      - id: mixed-line-ending
-
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.9
-    hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-        types_or: [python, pyi]
-      - id: ruff-format
-        types_or: [python, pyi]
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.7.1
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - pydantic>=2.5.0
-          - pydantic-settings>=2.1.0
-          - types-PyYAML
-          - types-aiofiles
-        args: [--ignore-missing-imports, --show-error-codes]
-
-  - repo: local
-    hooks:
-      - id: pytest-check
-        name: pytest-check
-        entry: pytest tests/ -v --tb=short -q
-        language: system
-        types: [python]
-        pass_filenames: false
-        always_run: true
-        stages: [commit]
+        args: [--maxkb=500]

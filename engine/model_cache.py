@@ -266,7 +266,9 @@ class ModelCache:
             if model is not None and info.model_type in self._unloaders:
                 try:
                     loop = asyncio.get_event_loop()
-                    await loop.run_in_executor(None, self._unloaders[info.model_type], model)
+                    await loop.run_in_executor(
+                        None, self._unloaders[info.model_type], model
+                    )
                 except Exception as e:
                     logger.warning(f"Error unloading {name}: {e}")
 
@@ -276,12 +278,15 @@ class ModelCache:
 
             del self._cache[name]
 
-            logger.info(f"Evicted model: {name} (freed {info.memory_footprint_mb:.1f} MB)")
+            logger.info(
+                f"Evicted model: {name} (freed {info.memory_footprint_mb:.1f} MB)"
+            )
 
     async def _ensure_space(self, needed_mb: float) -> None:
         """Ensure enough memory is available by evicting models."""
         while (
-            self._current_memory_mb + needed_mb > self.max_memory_mb or len(self._cache) >= self.max_models
+            self._current_memory_mb + needed_mb > self.max_memory_mb
+            or len(self._cache) >= self.max_models
         ) and self._cache:
             # Select victim based on policy
             victim = self._select_victim()
@@ -339,8 +344,12 @@ class ModelCache:
             import torch
 
             if hasattr(model, "parameters"):
-                param_size = sum(p.nelement() * p.element_size() for p in model.parameters())
-                buffer_size = sum(b.nelement() * b.element_size() for b in model.buffers())
+                param_size = sum(
+                    p.nelement() * p.element_size() for p in model.parameters()
+                )
+                buffer_size = sum(
+                    b.nelement() * b.element_size() for b in model.buffers()
+                )
                 return (param_size + buffer_size) / (1024 * 1024)
         except ImportError:
             pass
@@ -525,7 +534,9 @@ class ModelWarmupManager:
             schedule: Schedule type
             time_of_day: Time in HH:MM format
         """
-        self._schedule_task = asyncio.create_task(self._scheduled_warmup_loop(model_configs, schedule, time_of_day))
+        self._schedule_task = asyncio.create_task(
+            self._scheduled_warmup_loop(model_configs, schedule, time_of_day)
+        )
 
     async def _scheduled_warmup_loop(
         self,

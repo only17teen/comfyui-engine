@@ -4,6 +4,7 @@ This module is now a thin facade that re-exports from the individual
 focused modules extracted in v5.1.  Import from the specific module
 for new code; import from here for backward compatibility.
 """
+
 from __future__ import annotations
 
 import json
@@ -23,8 +24,8 @@ from engine.circuit_breaker import (  # noqa: F401
 from engine.retry import RetryConfig, with_retry  # noqa: F401
 from engine.queue import JobQueue, PrioritizedJob, QueueFullError  # noqa: F401
 
-
 # ── Structured Logging ─────────────────────────────────────────────────────────
+
 
 class JSONFormatter(logging.Formatter):
     """Emit log records as JSON lines for Loki / Vector / jq."""
@@ -96,9 +97,11 @@ class SessionState:
         return asdict(self)
 
     def save(self, path: Path) -> None:
-        path.write_text(_json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8")
+        path.write_text(
+            _json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8"
+        )
 
     @classmethod
-    def load(cls, path: Path) -> "SessionState":
+    def load(cls, path: Path) -> SessionState:
         data = _json.loads(path.read_text(encoding="utf-8"))
         return cls(**data)

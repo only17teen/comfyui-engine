@@ -161,11 +161,15 @@ class GPUAutoscaler:
                 if time_since_scale < pool.scale_up_cooldown:
                     action = ScalingAction.MAINTAIN
                     target_nodes = current_nodes
-                    reason = f"Scale up cooldown active ({time_since_scale:.0f}s remaining)"
+                    reason = (
+                        f"Scale up cooldown active ({time_since_scale:.0f}s remaining)"
+                    )
                 else:
                     action = ScalingAction.SCALE_UP
                     target_nodes = min(current_nodes + 1, pool.max_nodes)
-                    reason = f"High load: {load_score:.2f} > {pool.target_utilization:.2f}"
+                    reason = (
+                        f"High load: {load_score:.2f} > {pool.target_utilization:.2f}"
+                    )
 
             elif load_score <= pool.target_utilization - 0.2:
                 if time_since_scale < pool.scale_down_cooldown:
@@ -175,7 +179,9 @@ class GPUAutoscaler:
                 else:
                     action = ScalingAction.SCALE_DOWN
                     target_nodes = max(current_nodes - 1, pool.min_nodes)
-                    reason = f"Low load: {load_score:.2f} < {pool.target_utilization:.2f}"
+                    reason = (
+                        f"Low load: {load_score:.2f} < {pool.target_utilization:.2f}"
+                    )
 
             else:
                 action = ScalingAction.MAINTAIN
@@ -192,7 +198,9 @@ class GPUAutoscaler:
 
             return decision
 
-    async def apply_scaling_decision(self, pool_name: str, decision: ScalingDecision) -> bool:
+    async def apply_scaling_decision(
+        self, pool_name: str, decision: ScalingDecision
+    ) -> bool:
         """Apply a scaling decision to a node pool.
 
         Returns:
@@ -220,7 +228,9 @@ class GPUAutoscaler:
             # Record decision
             self._scaling_history.append(decision)
 
-            logger.info(f"Scaled {pool_name}: {current} -> {target} nodes ({decision.action.name})")
+            logger.info(
+                f"Scaled {pool_name}: {current} -> {target} nodes ({decision.action.name})"
+            )
             return True
 
     async def get_node_pool_status(self, pool_name: str) -> dict[str, Any] | None:
@@ -248,7 +258,10 @@ class GPUAutoscaler:
 
     async def get_all_status(self) -> dict[str, dict[str, Any]]:
         """Get status for all node pools."""
-        return {name: await self.get_node_pool_status(name) for name in self.node_pools.keys()}
+        return {
+            name: await self.get_node_pool_status(name)
+            for name in self.node_pools.keys()
+        }
 
     async def get_scaling_history(
         self,
@@ -335,7 +348,9 @@ class GPUAutoscaler:
         return {
             "node_pools": len(self.node_pools),
             "total_nodes": sum(self._current_nodes.values()),
-            "scaling_decisions_1h": len([d for d in self._scaling_history if time.time() - d.timestamp < 3600]),
+            "scaling_decisions_1h": len(
+                [d for d in self._scaling_history if time.time() - d.timestamp < 3600]
+            ),
             "total_scaling_decisions": len(self._scaling_history),
             "running": self._running,
         }

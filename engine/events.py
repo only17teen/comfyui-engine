@@ -15,6 +15,7 @@ Usage::
 
     await bus.publish(JobEvent(job_id="abc", status="completed"))
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -87,13 +88,13 @@ class EventBus:
         self._handlers: dict[type[BaseEvent], list[HandlerFn]] = {}
         self._global_handlers: list[HandlerFn] = []
 
-    def subscribe(
-        self, event_type: type[E]
-    ) -> Callable[[HandlerFn], HandlerFn]:
+    def subscribe(self, event_type: type[E]) -> Callable[[HandlerFn], HandlerFn]:
         """Decorator that subscribes a function to *event_type* events."""
+
         def decorator(fn: HandlerFn) -> HandlerFn:
             self._handlers.setdefault(event_type, []).append(fn)
             return fn
+
         return decorator
 
     def subscribe_all(self, fn: HandlerFn) -> HandlerFn:
@@ -103,10 +104,7 @@ class EventBus:
 
     async def publish(self, event: BaseEvent) -> None:
         """Publish *event* to all relevant subscribers."""
-        handlers = (
-            self._handlers.get(type(event), [])
-            + self._global_handlers
-        )
+        handlers = self._handlers.get(type(event), []) + self._global_handlers
         if not handlers:
             return
 
@@ -116,7 +114,9 @@ class EventBus:
                 if asyncio.iscoroutine(result):
                     await result
             except Exception:  # noqa: BLE001
-                logger.exception("Event handler %s failed for %s", fn, type(ev).__name__)
+                logger.exception(
+                    "Event handler %s failed for %s", fn, type(ev).__name__
+                )
 
         await asyncio.gather(*[_safe_call(fn, event) for fn in handlers])
 
@@ -125,7 +125,9 @@ class EventBus:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
-            logger.warning("emit_sync called outside event loop; event dropped: %s", event)
+            logger.warning(
+                "emit_sync called outside event loop; event dropped: %s", event
+            )
             return
         loop.create_task(self.publish(event))
 

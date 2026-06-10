@@ -396,7 +396,9 @@ class TokenManager:
             logger.warning(f"Invalid token: {e}")
             return None
 
-    async def refresh_access_token(self, refresh_token: str) -> tuple[AccessToken, RefreshToken] | None:
+    async def refresh_access_token(
+        self, refresh_token: str
+    ) -> tuple[AccessToken, RefreshToken] | None:
         """Refresh access token using refresh token."""
         try:
             payload = jwt.decode(
@@ -608,7 +610,9 @@ class AuditLogger:
                     json.dumps(
                         {
                             "timestamp": entry.timestamp,
-                            "datetime": datetime.fromtimestamp(entry.timestamp).isoformat(),
+                            "datetime": datetime.fromtimestamp(
+                                entry.timestamp
+                            ).isoformat(),
                             "event_type": entry.event_type,
                             "user_id": entry.user_id,
                             "ip_address": entry.ip_address,
@@ -1192,7 +1196,9 @@ if __name__ == "__main__":
 
             # Create tokens
             access_token = await security.token_manager.create_access_token(user)
-            refresh_token = await security.token_manager.create_refresh_token(user, access_token.jti)
+            refresh_token = await security.token_manager.create_refresh_token(
+                user, access_token.jti
+            )
 
             print(f"Access token: {access_token.token[:50]}...")
             print(f"Refresh token: {refresh_token.token[:50]}...")

@@ -16,10 +16,11 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RoutingStats:
     """Statistics for the router."""
+
     messages_routed: int = 0
     messages_failed: int = 0
     average_routing_time: float = 0.0
-    shard_utilization: List[int] = None
+    shard_utilization: list[int] = None
 
     def __post_init__(self):
         if self.shard_utilization is None:
@@ -27,15 +28,14 @@ class RoutingStats:
 
 
 class ShardedActorRouter:
-    """
-    Sharded router for actor messaging inspired by DashMap.
+    """Sharded router for actor messaging inspired by DashMap.
     Provides concurrent access to actors with minimal locking.
     """
 
     def __init__(self, num_shards: int = 16):
         self.num_shards = num_shards
         # Each shard has its own lock and actor dictionary
-        self._shards: List[Tuple[asyncio.Lock, Dict[str, Actor]]] = [
+        self._shards: list[tuple[asyncio.Lock, dict[str, Actor]]] = [
             (asyncio.Lock(), {}) for _ in range(num_shards)
         ]
         self._stats = RoutingStats()
@@ -45,7 +45,7 @@ class ShardedActorRouter:
         """Determine which shard a key belongs to."""
         return hash(key) % self.num_shards
 
-    async def get_actor(self, actor_id: str) -> Optional[Actor]:
+    async def get_actor(self, actor_id: str) -> Actor | None:
         """Get an actor by ID with sharded locking."""
         shard_index = self._get_shard(actor_id)
         lock, shard_dict = self._shards[shard_index]
@@ -63,7 +63,9 @@ class ShardedActorRouter:
 
         async with lock:
             if actor.actor_id in shard_dict:
-                logger.warning(f"Actor {actor.actor_id} already registered in shard {shard_index}")
+                logger.warning(
+                    f"Actor {actor.actor_id} already registered in shard {shard_index}"
+                )
                 return False
 
             shard_dict[actor.actor_id] = actor
@@ -87,8 +89,7 @@ class ShardedActorRouter:
             return True
 
     async def route_message(self, recipient: str, message: ActorMessage) -> bool:
-        """
-        Route a message to the recipient actor.
+        """Route a message to the recipient actor.
         Returns True if message was successfully queued, False otherwise.
         """
         start_time = time.time()
@@ -109,9 +110,10 @@ class ShardedActorRouter:
                     self._stats.average_routing_time = routing_time
                 else:
                     self._stats.average_routing_time = (
-                        (self._stats.average_routing_time * (self._stats.messages_routed - 1) + routing_time) /
-                        self._stats.messages_routed
-                    )
+                        self._stats.average_routing_time
+                        * (self._stats.messages_routed - 1)
+                        + routing_time
+                    ) / self._stats.messages_routed
 
                 return success
             else:
@@ -124,11 +126,13 @@ class ShardedActorRouter:
             logger.error(f"Error routing message to {recipient}: {e}")
             return False
 
-    async def broadcast_message(self, message: ActorMessage,
-                               exclude_sender: bool = False,
-                               sender_id: Optional[str] = None) -> int:
-        """
-        Broadcast a message to all actors.
+    async def broadcast_message(
+        self,
+        message: ActorMessage,
+        exclude_sender: bool = False,
+        sender_id: str | None = None,
+    ) -> int:
+        """Broadcast a message to all actors.
         Returns the number of actors the message was sent to.
         """
         sent_count = 0
@@ -149,7 +153,7 @@ class ShardedActorRouter:
                         payload=message.payload,
                         priority=message.priority,
                         timestamp=message.timestamp,
-                        ttl=message.ttl
+                        ttl=message.ttl,
                     )
 
                     if await actor.enqueue(message_copy):
@@ -167,7 +171,7 @@ class ShardedActorRouter:
                 total += len(shard_dict)
         return total
 
-    async def get_shard_stats(self) -> List[int]:
+    async def get_shard_stats(self) -> list[int]:
         """Get actor count per shard."""
         stats = []
         for shard_index in range(self.num_shards):
@@ -187,7 +191,7 @@ class ShardedActorRouter:
 
 
 # Global router instance
-_router: Optional[ShardedActorRouter] = None
+_router: ShardedActorRouter | None = None
 
 
 def get_actor_router() -> ShardedActorRouter:

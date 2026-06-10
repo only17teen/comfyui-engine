@@ -248,7 +248,9 @@ class RateLimiter:
         self._limits: dict[str, RateLimitInfo] = {}
         self._lock = asyncio.Lock()
 
-    async def check_rate_limit(self, key_id: str, limit: int = 100) -> tuple[bool, int, int]:
+    async def check_rate_limit(
+        self, key_id: str, limit: int = 100
+    ) -> tuple[bool, int, int]:
         """Check if request is within rate limit.
 
         Returns:
@@ -386,7 +388,9 @@ class WebhookManager:
         for attempt in range(webhook.retry_count):
             try:
                 async with (
-                    aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=webhook.timeout)) as session,
+                    aiohttp.ClientSession(
+                        timeout=aiohttp.ClientTimeout(total=webhook.timeout)
+                    ) as session,
                     session.post(
                         webhook.url,
                         data=body,
@@ -397,7 +401,9 @@ class WebhookManager:
                         logger.debug(f"Webhook delivered: {webhook.url}")
                         return
                     else:
-                        logger.warning(f"Webhook failed: {webhook.url} ({response.status})")
+                        logger.warning(
+                            f"Webhook failed: {webhook.url} ({response.status})"
+                        )
 
             except Exception as e:
                 logger.warning(f"Webhook error: {webhook.url} - {e}")
@@ -609,7 +615,9 @@ class RESTAPIServer:
             }
 
         # Job management
-        @self.app.post("/api/v1/jobs", tags=["Jobs"], status_code=status.HTTP_202_ACCEPTED)
+        @self.app.post(
+            "/api/v1/jobs", tags=["Jobs"], status_code=status.HTTP_202_ACCEPTED
+        )
         async def submit_job(
             request: Request,
             job_data: dict[str, Any],

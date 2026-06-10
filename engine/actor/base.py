@@ -13,12 +13,12 @@ from enum import Enum
 import time
 import heapq
 
-
 logger = logging.getLogger(__name__)
 
 
 class MessagePriority(Enum):
     """Priority levels for actor mailbox."""
+
     CRITICAL = 0
     HIGH = 1
     NORMAL = 2
@@ -29,8 +29,9 @@ class MessagePriority(Enum):
 @dataclass
 class ActorMessage:
     """Message passed between actors."""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    sender: Optional[str] = None
+    sender: str | None = None
     recipient: str = ""
     payload: Any = None
     priority: MessagePriority = MessagePriority.NORMAL
@@ -51,6 +52,7 @@ class ActorMessage:
 @dataclass
 class ActorStats:
     """Statistics for an actor."""
+
     messages_processed: int = 0
     messages_failed: int = 0
     average_processing_time: float = 0.0
@@ -64,24 +66,26 @@ class Actor(ABC):
     def __init__(self, actor_id: str, mailbox_size: int = 1000):
         self.actor_id = actor_id
         self.mailbox_size = mailbox_size
-        self._mailbox: List[ActorMessage] = []  # Priority queue
+        self._mailbox: list[ActorMessage] = []  # Priority queue
         self._mailbox_lock = asyncio.Lock()
         self._processing = False
         self._stopped = False
         self._stats = ActorStats()
-        self._message_handlers: Dict[str, Callable] = {}
-        self._background_task: Optional[asyncio.Task] = None
+        self._message_handlers: dict[str, Callable] = {}
+        self._background_task: asyncio.Task | None = None
 
         # Register default handlers
         self._register_default_handlers()
 
     def _register_default_handlers(self):
         """Register default message handlers."""
-        self._message_handlers.update({
-            "ping": self._handle_ping,
-            "get_stats": self._handle_get_stats,
-            "stop": self._handle_stop,
-        })
+        self._message_handlers.update(
+            {
+                "ping": self._handle_ping,
+                "get_stats": self._handle_get_stats,
+                "stop": self._handle_stop,
+            }
+        )
 
     async def _handle_ping(self, message: ActorMessage) -> Any:
         """Handle ping message."""
@@ -96,13 +100,19 @@ class Actor(ABC):
         await self.stop()
         return {"status": "stopping"}
 
-    def register_handler(self, message_type: str, handler: Callable[[ActorMessage], Any]):
+    def register_handler(
+        self, message_type: str, handler: Callable[[ActorMessage], Any]
+    ):
         """Register a handler for a specific message type."""
         self._message_handlers[message_type] = handler
 
-    async def send(self, recipient: str, payload: Any,
-                   priority: MessagePriority = MessagePriority.NORMAL,
-                   ttl: float = 30.0) -> str:
+    async def send(
+        self,
+        recipient: str,
+        payload: Any,
+        priority: MessagePriority = MessagePriority.NORMAL,
+        ttl: float = 30.0,
+    ) -> str:
         """Send a message to another actor.
 
         Returns:
@@ -115,10 +125,12 @@ class Actor(ABC):
             recipient=recipient,
             payload=payload,
             priority=priority,
-            ttl=ttl
+            ttl=ttl,
         )
         # In a full implementation, this would go through the actor system
-        logger.debug(f"Actor {self.actor_id} sending message {message.id} to {recipient}")
+        logger.debug(
+            f"Actor {self.actor_id} sending message {message.id} to {recipient}"
+        )
         return message.id
 
     async def enqueue(self, message: ActorMessage):
@@ -141,8 +153,8 @@ class Actor(ABC):
         try:
             # Check if we have a handler for this message type
             # For simplicity, we'll treat payload as dict with 'type' field
-            if isinstance(message.payload, dict) and 'type' in message.payload:
-                message_type = message.payload['type']
+            if isinstance(message.payload, dict) and "type" in message.payload:
+                message_type = message.payload["type"]
                 handler = self._message_handlers.get(message_type)
 
                 if handler:
@@ -164,14 +176,17 @@ class Actor(ABC):
                 self._stats.average_processing_time = processing_time
             else:
                 self._stats.average_processing_time = (
-                    (self._stats.average_processing_time * (self._stats.messages_processed - 1) + processing_time) /
-                    self._stats.messages_processed
-                )
+                    self._stats.average_processing_time
+                    * (self._stats.messages_processed - 1)
+                    + processing_time
+                ) / self._stats.messages_processed
 
             return result
 
         except Exception as e:
-            logger.error(f"Actor {self.actor_id} failed to process message {message.id}: {e}")
+            logger.error(
+                f"Actor {self.actor_id} failed to process message {message.id}: {e}"
+            )
             self._stats.messages_failed += 1
             await self.handle_failure(message, e)
             raise
@@ -183,7 +198,9 @@ class Actor(ABC):
 
     async def handle_failure(self, message: ActorMessage, exception: Exception):
         """Handle message processing failure."""
-        logger.warning(f"Actor {self.actor_id} handling failure for message {message.id}: {exception}")
+        logger.warning(
+            f"Actor {self.actor_id} handling failure for message {message.id}: {exception}"
+        )
         # Default implementation - can be overridden
 
     async def _mailbox_processor(self):
@@ -198,7 +215,9 @@ class Actor(ABC):
                 # Skip expired messages
                 while self._mailbox and self._mailbox[0].is_expired():
                     expired_msg = heapq.heappop(self._mailbox)
-                    logger.debug(f"Actor {self.actor_id} dropping expired message {expired_msg.id}")
+                    logger.debug(
+                        f"Actor {self.actor_id} dropping expired message {expired_msg.id}"
+                    )
 
                 if self._mailbox:
                     message = heapq.heappop(self._mailbox)
@@ -254,9 +273,9 @@ class ActorSystem:
     """Actor system managing multiple actors and message routing."""
 
     def __init__(self):
-        self._actors: Dict[str, Actor] = {}
+        self._actors: dict[str, Actor] = {}
         self._actor_lock = asyncio.Lock()
-        self._sharded_router: Dict[int, Dict[str, Actor]] = defaultdict(dict)
+        self._sharded_router: dict[int, dict[str, Actor]] = defaultdict(dict)
         self._num_shards = 16  # DashMap-style sharding
         logger.info("ActorSystem initialized")
 
@@ -282,15 +301,19 @@ class ActorSystem:
                     del self._sharded_router[shard][actor_id]
                 logger.info(f"Unregistered actor {actor_id}")
 
-    async def get_actor(self, actor_id: str) -> Optional[Actor]:
+    async def get_actor(self, actor_id: str) -> Actor | None:
         """Get an actor by ID using sharded lookup."""
         shard = self._get_shard(actor_id)
         async with self._actor_lock:
             return self._sharded_router[shard].get(actor_id)
 
-    async def send(self, recipient: str, payload: Any,
-                   priority: MessagePriority = MessagePriority.NORMAL,
-                   ttl: float = 30.0) -> Optional[str]:
+    async def send(
+        self,
+        recipient: str,
+        payload: Any,
+        priority: MessagePriority = MessagePriority.NORMAL,
+        ttl: float = 30.0,
+    ) -> str | None:
         """Send a message to an actor."""
         actor = await self.get_actor(recipient)
         if actor:
@@ -311,12 +334,12 @@ class ActorSystem:
             for actor in self._actors.values():
                 await actor.stop()
 
-    async def get_system_stats(self) -> Dict[str, Any]:
+    async def get_system_stats(self) -> dict[str, Any]:
         """Get statistics for the entire actor system."""
         stats = {
             "total_actors": len(self._actors),
             "actors": {},
-            "shard_distribution": {}
+            "shard_distribution": {},
         }
 
         async with self._actor_lock:
@@ -333,7 +356,7 @@ class ActorSystem:
 
 
 # Global actor system instance
-_actor_system: Optional[ActorSystem] = None
+_actor_system: ActorSystem | None = None
 
 
 def get_actor_system() -> ActorSystem:

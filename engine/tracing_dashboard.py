@@ -87,7 +87,9 @@ class TracingDashboard:
 
     async def start(self) -> None:
         """Start the tracing dashboard."""
-        self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.api_timeout))
+        self._session = aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=self.api_timeout)
+        )
         self._running = True
         logger.info(f"Tracing dashboard started (Jaeger: {self.jaeger_url})")
 
@@ -357,7 +359,8 @@ class TracingDashboard:
             "p90_ms": durations[int(n * 0.9)],
             "p95_ms": durations[int(n * 0.95)],
             "p99_ms": durations[int(n * 0.99)],
-            "stddev_ms": (sum((d - sum(durations) / n) ** 2 for d in durations) / n) ** 0.5,
+            "stddev_ms": (sum((d - sum(durations) / n) ** 2 for d in durations) / n)
+            ** 0.5,
             "histogram": self._create_histogram(durations),
         }
 
@@ -407,7 +410,9 @@ class TracingDashboard:
                 svc: {
                     "errors": data["errors"],
                     "total": data["total"],
-                    "error_rate": (data["errors"] / data["total"] if data["total"] > 0 else 0.0),
+                    "error_rate": (
+                        data["errors"] / data["total"] if data["total"] > 0 else 0.0
+                    ),
                 }
                 for svc, data in service_errors.items()
             },
@@ -439,17 +444,29 @@ class TracingDashboard:
                 root_span = span
                 break
 
-        services = list({span.get("process", {}).get("serviceName", "unknown") for span in spans})
+        services = list(
+            {span.get("process", {}).get("serviceName", "unknown") for span in spans}
+        )
 
         start_times = [span.get("startTime", 0) for span in spans]
         durations = [span.get("duration", 0) for span in spans]
 
         errors = sum(
-            1 for span in spans if any(tag.get("key") == "error" and tag.get("value") for tag in span.get("tags", []))
+            1
+            for span in spans
+            if any(
+                tag.get("key") == "error" and tag.get("value")
+                for tag in span.get("tags", [])
+            )
         )
 
         warnings = sum(
-            1 for span in spans if any(tag.get("key") == "warning" and tag.get("value") for tag in span.get("tags", []))
+            1
+            for span in spans
+            if any(
+                tag.get("key") == "warning" and tag.get("value")
+                for tag in span.get("tags", [])
+            )
         )
 
         return TraceSummary(
@@ -462,7 +479,9 @@ class TracingDashboard:
             errors=errors,
             warnings=warnings,
             start_time=min(start_times) / 1000000 if start_times else 0.0,
-            end_time=((max(start_times) + max(durations)) / 1000000 if start_times else 0.0),
+            end_time=(
+                (max(start_times) + max(durations)) / 1000000 if start_times else 0.0
+            ),
         )
 
     def _parse_trace_spans(self, trace_data: dict[str, Any]) -> list[TraceSpan]:
@@ -470,7 +489,10 @@ class TracingDashboard:
         spans = []
         for span_data in trace_data.get("spans", []):
             process = span_data.get("process", {})
-            tags = {tag.get("key", ""): str(tag.get("value", "")) for tag in span_data.get("tags", [])}
+            tags = {
+                tag.get("key", ""): str(tag.get("value", ""))
+                for tag in span_data.get("tags", [])
+            }
 
             parent_id = None
             for ref in span_data.get("references", []):
@@ -496,7 +518,9 @@ class TracingDashboard:
 
         return spans
 
-    def _create_histogram(self, data: list[float], bins: int = 10) -> list[dict[str, float]]:
+    def _create_histogram(
+        self, data: list[float], bins: int = 10
+    ) -> list[dict[str, float]]:
         """Create histogram from latency data."""
         if not data:
             return []

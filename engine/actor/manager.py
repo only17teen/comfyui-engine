@@ -13,15 +13,14 @@ logger = logging.getLogger(__name__)
 
 
 class ActorManager:
-    """
-    Manages actor lifecycle and integration with engine components.
+    """Manages actor lifecycle and integration with engine components.
     Provides a bridge between the existing engine and the actor system.
     """
 
     def __init__(self):
         self._actor_system = ActorSystem()
         self._router = ShardedActorRouter()
-        self._managed_actors: Dict[str, Actor] = {}
+        self._managed_actors: dict[str, Actor] = {}
         self._started = False
 
     async def initialize(self):
@@ -31,7 +30,7 @@ class ActorManager:
             return
 
         await self._actor_system.start_all()
-        await self._router.__ainit__() if hasattr(self._router, '__ainit__') else None
+        await self._router.__ainit__() if hasattr(self._router, "__ainit__") else None
         self._started = True
         logger.info("ActorManager initialized")
 
@@ -50,8 +49,7 @@ class ActorManager:
         logger.info("ActorManager shutdown")
 
     def register_actor(self, actor: Actor) -> bool:
-        """
-        Register an actor with both the actor system and router.
+        """Register an actor with both the actor system and router.
         Returns True if successful, False if actor already exists.
         """
         if actor.actor_id in self._managed_actors:
@@ -69,8 +67,7 @@ class ActorManager:
         return True
 
     def unregister_actor(self, actor_id: str) -> bool:
-        """
-        Unregister an actor from the manager.
+        """Unregister an actor from the manager.
         Returns True if successful, False if actor not found.
         """
         if actor_id not in self._managed_actors:
@@ -86,23 +83,24 @@ class ActorManager:
         logger.info(f"Unregistered actor {actor_id} from ActorManager")
         return True
 
-    def get_actor(self, actor_id: str) -> Optional[Actor]:
+    def get_actor(self, actor_id: str) -> Actor | None:
         """Get a managed actor by ID."""
         return self._managed_actors.get(actor_id)
 
-    async def get_actor_via_router(self, actor_id: str) -> Optional[Actor]:
+    async def get_actor_via_router(self, actor_id: str) -> Actor | None:
         """Get an actor via the sharded router."""
         return await self._router.get_actor(actor_id)
 
-    async def send_message(self, recipient: str, payload: Any,
-                          priority: Any = None) -> Optional[str]:
-        """
-        Send a message to an actor via the router.
+    async def send_message(
+        self, recipient: str, payload: Any, priority: Any = None
+    ) -> str | None:
+        """Send a message to an actor via the router.
         Returns message ID if successful, None otherwise.
         """
         # Convert priority if needed
         if priority is not None and not isinstance(priority, type(None)):
             from .base import MessagePriority
+
             if isinstance(priority, int):
                 # Convert integer to MessagePriority
                 try:
@@ -115,35 +113,43 @@ class ActorManager:
                 except KeyError:
                     priority = MessagePriority.NORMAL
 
-        return await self._router.route_message(recipient,
-                                               # We need to create an ActorMessage here
-                                               # For simplicity, let's assume the caller handles this
-                                               # This is a simplified version
-                                              )
+        return await self._router.route_message(
+            recipient,
+            # We need to create an ActorMessage here
+            # For simplicity, let's assume the caller handles this
+            # This is a simplified version
+        )
         # Actually, let's implement this properly
 
-    async def broadcast(self, payload: Any, exclude_sender: bool = False,
-                       sender_id: Optional[str] = None) -> int:
+    async def broadcast(
+        self,
+        payload: Any,
+        exclude_sender: bool = False,
+        sender_id: str | None = None,
+    ) -> int:
         """Broadcast a message to all actors."""
         from .base import ActorMessage, MessagePriority
+
         message = ActorMessage(
-            sender=sender_id,
-            payload=payload,
-            priority=MessagePriority.NORMAL
+            sender=sender_id, payload=payload, priority=MessagePriority.NORMAL
         )
         return await self._router.broadcast_message(message, exclude_sender, sender_id)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get statistics from the actor manager."""
         return {
             "managed_actors": len(self._managed_actors),
             "actor_system": "initialized" if self._started else "not_started",
-            "router": self._router.get_stats().__dict__ if hasattr(self._router, 'get_stats') else {}
+            "router": (
+                self._router.get_stats().__dict__
+                if hasattr(self._router, "get_stats")
+                else {}
+            ),
         }
 
 
 # Global actor manager instance
-_actor_manager: Optional[ActorManager] = None
+_actor_manager: ActorManager | None = None
 
 
 def get_actor_manager() -> ActorManager:
@@ -169,9 +175,10 @@ async def shutdown_actor_manager():
 
 
 # Convenience functions for engine integration
-async def create_engine_actor(actor_id: str, handler_class: type, *args, **kwargs) -> Actor:
-    """
-    Create and register an engine actor.
+async def create_engine_actor(
+    actor_id: str, handler_class: type, *args, **kwargs
+) -> Actor:
+    """Create and register an engine actor.
 
     Args:
         actor_id: Unique ID for the actor
@@ -210,8 +217,10 @@ class JobProcessorActor(Actor):
 
     async def _handle_process_job(self, message: ActorMessage) -> Any:
         """Handle job processing requests."""
-        job_data = message.payload.get('job_data', {})
-        logger.info(f"JobProcessorActor {self.actor_id} processing job: {job_data.get('job_id', 'unknown')}")
+        job_data = message.payload.get("job_data", {})
+        logger.info(
+            f"JobProcessorActor {self.actor_id} processing job: {job_data.get('job_id', 'unknown')}"
+        )
 
         # Simulate job processing
         # In reality, this would call into the engine's job processing logic
@@ -219,15 +228,15 @@ class JobProcessorActor(Actor):
 
         return {
             "status": "completed",
-            "job_id": job_data.get('job_id'),
+            "job_id": job_data.get("job_id"),
             "actor_id": self.actor_id,
-            "result": "Job processed successfully"
+            "result": "Job processed successfully",
         }
 
     async def _handle_get_queue_status(self, message: ActorMessage) -> Any:
         """Handle queue status requests."""
         # Return queue status from engine if available
-        if self.engine_ref and hasattr(self.engine_ref, 'get_queue_status'):
+        if self.engine_ref and hasattr(self.engine_ref, "get_queue_status"):
             try:
                 queue_status = await self.engine_ref.get_queue_status()
                 return queue_status

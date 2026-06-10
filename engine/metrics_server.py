@@ -79,7 +79,9 @@ class MetricsServer:
         # Engine info
         lines.append("# HELP comfyui_engine_info Engine version and uptime")
         lines.append("# TYPE comfyui_engine_info gauge")
-        lines.append(f'comfyui_engine_info{{version="2.0.0"}} {time.time() - self._start_time}')
+        lines.append(
+            f'comfyui_engine_info{{version="2.0.0"}} {time.time() - self._start_time}'
+        )
 
         # Counters
         lines.append("")
@@ -110,7 +112,9 @@ class MetricsServer:
         for name, stats in histograms.items():
             safe_name = name.replace("-", "_").replace(".", "_")
             lines.append(f'comfyui_engine_{safe_name}_count {stats.get("count", 0)}')
-            lines.append(f'comfyui_engine_{safe_name}_sum {stats.get("mean", 0) * stats.get("count", 0)}')
+            lines.append(
+                f'comfyui_engine_{safe_name}_sum {stats.get("mean", 0) * stats.get("count", 0)}'
+            )
             lines.append(f'comfyui_engine_{safe_name}_p50 {stats.get("p50", 0)}')
             lines.append(f'comfyui_engine_{safe_name}_p95 {stats.get("p95", 0)}')
             lines.append(f'comfyui_engine_{safe_name}_p99 {stats.get("p99", 0)}')

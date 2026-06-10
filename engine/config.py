@@ -3,6 +3,7 @@
 Key fix: Field(env=...) was silently ignored in Pydantic v2.  We now use
 pydantic-settings BaseSettings which reads env vars correctly.
 """
+
 from __future__ import annotations
 
 import os
@@ -14,6 +15,7 @@ from pydantic import BaseModel, Field, field_validator
 
 try:
     from pydantic_settings import BaseSettings, SettingsConfigDict
+
     _HAS_SETTINGS = True
 except ImportError:
     # Graceful degradation: fall back to plain BaseModel (env vars via loader)
@@ -23,6 +25,7 @@ except ImportError:
 
 
 # ── Sub-models ─────────────────────────────────────────────────────────────
+
 
 class LoRAModelConfig(BaseModel):
     """Single LoRA model specification."""
@@ -35,7 +38,9 @@ class LoRAModelConfig(BaseModel):
     @classmethod
     def validate_range(cls, v: tuple[float, float]) -> tuple[float, float]:
         if v[0] < 0 or v[1] > 2.0 or v[0] > v[1]:
-            raise ValueError(f"Invalid weight range: {v}. Must be 0 <= min <= max <= 2.0")
+            raise ValueError(
+                f"Invalid weight range: {v}. Must be 0 <= min <= max <= 2.0"
+            )
         return v
 
 
@@ -44,7 +49,9 @@ class SamplingConfig(BaseModel):
 
     steps_range: tuple[int, int] = (20, 40)
     cfg_scale_range: tuple[float, float] = (5.0, 9.0)
-    sampler_names: list[str] = Field(default_factory=lambda: ["DPM++ 2M Karras", "Euler a"])
+    sampler_names: list[str] = Field(
+        default_factory=lambda: ["DPM++ 2M Karras", "Euler a"]
+    )
     scheduler: str = "Karras"
 
     @field_validator("steps_range")
@@ -111,6 +118,7 @@ class LoRAConfig(BaseModel):
 # ── Root config: uses BaseSettings for automatic env-var reading ───────────────
 
 if _HAS_SETTINGS and SettingsConfigDict is not None:
+
     class EngineConfig(BaseSettings):  # type: ignore[misc]
         """Root engine configuration.  Env vars are read automatically by pydantic-settings.
 
@@ -132,8 +140,16 @@ if _HAS_SETTINGS and SettingsConfigDict is not None:
         lora: LoRAConfig = Field(default_factory=LoRAConfig)
 
         # Connection (COMFYUI_URL / COMFYUI_MAX_CONCURRENT override ENGINE_ prefix)
-        base_url: str = Field(default="http://127.0.0.1:8188", alias="COMFYUI_URL", validation_alias="COMFYUI_URL")
-        max_concurrent: int = Field(default=3, alias="COMFYUI_MAX_CONCURRENT", validation_alias="COMFYUI_MAX_CONCURRENT")
+        base_url: str = Field(
+            default="http://127.0.0.1:8188",
+            alias="COMFYUI_URL",
+            validation_alias="COMFYUI_URL",
+        )
+        max_concurrent: int = Field(
+            default=3,
+            alias="COMFYUI_MAX_CONCURRENT",
+            validation_alias="COMFYUI_MAX_CONCURRENT",
+        )
 
         # Paths
         output_dir: str = "output_models"
@@ -163,7 +179,9 @@ if _HAS_SETTINGS and SettingsConfigDict is not None:
         @classmethod
         def validate_url(cls, v: str) -> str:
             if not str(v).startswith(("http://", "https://")):
-                raise ValueError(f"Invalid URL: {v}. Must start with http:// or https://")
+                raise ValueError(
+                    f"Invalid URL: {v}. Must start with http:// or https://"
+                )
             return str(v).rstrip("/")
 
 else:
@@ -191,6 +209,7 @@ else:
 
 
 # ── ConfigLoader ────────────────────────────────────────────────────────────
+
 
 class ConfigLoader:
     """Loads configuration from YAML with pydantic-settings validation.
@@ -275,5 +294,7 @@ class ConfigLoader:
         }
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as fh:
-            yaml.dump(data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
+            yaml.dump(
+                data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False
+            )
         print(f"Example config saved to: {path}")

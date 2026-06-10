@@ -6,6 +6,7 @@ Improvements:
 - Dedicated module for easy unit-testing.
 - Type annotations use modern union syntax.
 """
+
 from __future__ import annotations
 
 import asyncio

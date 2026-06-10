@@ -4,6 +4,7 @@ Covers: errors module, circuit-breaker race fix, actor message routing,
 shutdown manager parallel cleanup, session manager async I/O,
 and api_client context manager.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -36,7 +37,12 @@ class TestErrorHierarchy:
     """All custom exceptions derive correctly from EngineError."""
 
     def test_transient_errors_catchable_as_engine_error(self):
-        for cls in (CircuitBreakerOpenError, QueueFullError, RateLimitError, WebSocketError):
+        for cls in (
+            CircuitBreakerOpenError,
+            QueueFullError,
+            RateLimitError,
+            WebSocketError,
+        ):
             with pytest.raises(EngineError):
                 if cls is CircuitBreakerOpenError:
                     raise cls("cb")
@@ -231,6 +237,7 @@ class TestSessionManagerAsync:
 
         data = (tmp_path / "ctx_s1.json").read_text()
         import json
+
         manifest = json.loads(data)
         assert manifest["status"] == "completed"
 
@@ -264,5 +271,3 @@ class TestAPIClientImprovements:
             assert not client._shutdown
 
         assert client._shutdown
-
-

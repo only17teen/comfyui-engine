@@ -216,7 +216,9 @@ class DeadLetterQueue:
                 reason = entry.reason.value
                 by_reason[reason] = by_reason.get(reason, 0) + 1
 
-            replayable = sum(1 for e in self._entries if e.reason in self._replay_handlers)
+            replayable = sum(
+                1 for e in self._entries if e.reason in self._replay_handlers
+            )
 
             return {
                 "total_entries": total,
