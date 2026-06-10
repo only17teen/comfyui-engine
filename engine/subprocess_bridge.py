@@ -12,10 +12,14 @@ log = logging.getLogger(__name__)
 
 
 class BridgeError(RuntimeError):
+    """Raised when the SubprocessBridge encounters a protocol error."""
+
     pass
 
 
 class BridgeTimeoutError(TimeoutError):
+    """Raised when a SubprocessBridge request times out."""
+
     pass
 
 
@@ -26,6 +30,8 @@ class _PendingCall:
 
 
 class SubprocessBridge:
+    """JSON-lines IPC bridge to a subprocess with multiplexed futures."""
+
     def __init__(
         self,
         cmd: list[str],
@@ -132,6 +138,7 @@ class SubprocessBridge:
             p.future.set_result(msg.get("result"))
 
     async def __aenter__(self) -> SubprocessBridge:
+        """JSON-lines IPC bridge to a subprocess with multiplexed futures."""
         await self.start()
         return self
 

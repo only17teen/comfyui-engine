@@ -7,6 +7,8 @@ __all__ = ["ShmChannel", "ShmHeader"]
 
 
 class ShmHeader(ctypes.Structure):
+    """C-compatible ctypes structure for the shared-memory ring-buffer header."""
+
     _pack_ = 8
     _fields_ = [
         ("write_seq", ctypes.c_uint64),
@@ -21,6 +23,8 @@ HEADER_SIZE = ctypes.sizeof(ShmHeader)
 
 
 class ShmChannel:
+    """Zero-copy SPSC shared-memory channel compatible with C++ mmap layout."""
+
     def __init__(
         self, name: str, size: int = 1024 * 1024, *, create: bool = False
     ) -> None:
@@ -33,12 +37,14 @@ class ShmChannel:
 
     @classmethod
     def create(cls, name: str, size: int = 1024 * 1024) -> ShmChannel:
+        """Zero-copy SPSC shared-memory channel compatible with C++ mmap layout."""
         ch = cls(name, size, create=True)
         ch._header.write_seq = ch._header.read_seq = ch._header.data_len = 0
         return ch
 
     @classmethod
     def open(cls, name: str, size: int = 1024 * 1024) -> ShmChannel:
+        """Zero-copy SPSC shared-memory channel compatible with C++ mmap layout."""
         return cls(name, size, create=False)
 
     def write(self, data: bytes | bytearray | memoryview) -> None:
@@ -78,6 +84,7 @@ class ShmChannel:
             pass
 
     def __enter__(self) -> ShmChannel:
+        """Zero-copy SPSC shared-memory channel compatible with C++ mmap layout."""
         return self
 
     def __exit__(self, *_: object) -> None:

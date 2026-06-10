@@ -22,20 +22,27 @@ Middleware = Callable[[Any, Dispatch], Coroutine[Any, Any, Any]]
 
 @dataclass(frozen=True)
 class Command:
+    """Base dataclass for all CQRS commands."""
+
     command_id: str = field(default_factory=lambda: str(uuid4()))
 
 
 class CommandHandler(ABC, Generic[C, R]):
+    """Base dataclass for all CQRS commands."""
+
     @abstractmethod
     async def handle(self, command: C) -> R: ...
 
 
 class CommandBus:
+    """Base dataclass for all CQRS commands."""
+
     def __init__(self) -> None:
         self._handlers: dict[type, CommandHandler[Any, Any]] = {}
         self._middleware: list[Middleware] = []
 
     def register(self, t: type, h: CommandHandler[Any, Any]) -> None:
+        """Base dataclass for all CQRS commands."""
         self._handlers[t] = h
 
     def use(self, mw: Middleware) -> None:

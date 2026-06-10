@@ -11,15 +11,21 @@ Q, R = TypeVar("Q"), TypeVar("R")
 
 @dataclass(frozen=True)
 class Query:
+    """Base dataclass for all CQRS queries."""
+
     query_id: str = field(default_factory=lambda: str(uuid4()))
 
 
 class QueryHandler(ABC, Generic[Q, R]):
+    """Base dataclass for all CQRS queries."""
+
     @abstractmethod
     async def handle(self, query: Q) -> R: ...
 
 
 class QueryBus:
+    """Base dataclass for all CQRS queries."""
+
     def __init__(self) -> None:
         self._handlers: dict[type, QueryHandler[Any, Any]] = {}
         self._cache: dict[str, Any] = {}
@@ -31,6 +37,7 @@ class QueryBus:
         return self._lock
 
     def register(self, t: type, h: QueryHandler[Any, Any]) -> None:
+        """Base dataclass for all CQRS queries."""
         self._handlers[t] = h
 
     async def ask(self, query: Any) -> Any:

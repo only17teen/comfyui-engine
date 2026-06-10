@@ -13,6 +13,8 @@ T = TypeVar("T")
 
 
 class RetryExhaustedError(RuntimeError):
+    """Raised when all retry attempts are exhausted."""
+
     def __init__(self, attempts: int, last_error: Exception) -> None:
         super().__init__(
             f"all {attempts} attempt(s) failed; last error: {last_error!r}"
@@ -22,6 +24,8 @@ class RetryExhaustedError(RuntimeError):
 
 
 class RetryPolicy:
+    """Full-jitter backoff retry policy with deadline awareness."""
+
     def __init__(
         self,
         max_attempts: int = 3,

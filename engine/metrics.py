@@ -19,6 +19,8 @@ class _Noop:
 
 
 class MetricsRegistry:
+    """OTEL-backed metrics registry with counter, histogram and gauge support."""
+
     def __init__(self, meter_name: str = "comfyui_engine") -> None:
         self._gauge: dict[str, float] = {}
         self._meter: Any = _otel.get_meter(meter_name, version="1.0") if _OTEL else None
@@ -77,6 +79,7 @@ _registry: MetricsRegistry | None = None
 
 
 def get_registry() -> MetricsRegistry:
+    """OTEL-backed metrics registry with counter, histogram and gauge support."""
     global _registry
     if _registry is None:
         _registry = MetricsRegistry()

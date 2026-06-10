@@ -63,6 +63,8 @@ class _NL:
 
 @dataclass
 class Span:
+    """Lightweight span wrapping an OTEL span for structured tracing."""
+
     name: str
     _otel_span: Any = field(repr=False)
     _log: Any = field(repr=False)

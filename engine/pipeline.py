@@ -16,11 +16,15 @@ T, R = TypeVar("T"), TypeVar("R")
 
 
 class PipelineStage(ABC, Generic[T, R]):
+    """Abstract stage in a composable AsyncIterator pipeline."""
+
     @abstractmethod
     async def process(self, items: AsyncIterator[T]) -> AsyncIterator[R]: ...
 
 
 class MapStage(PipelineStage[T, R]):
+    """Abstract stage in a composable AsyncIterator pipeline."""
+
     def __init__(self, fn: Callable[[T], Any]) -> None:
         self._fn = fn
 
@@ -31,6 +35,8 @@ class MapStage(PipelineStage[T, R]):
 
 
 class FilterStage(PipelineStage[T, T]):
+    """Abstract stage in a composable AsyncIterator pipeline."""
+
     def __init__(self, pred: Callable[[T], bool]) -> None:
         self._pred = pred
 
@@ -41,6 +47,8 @@ class FilterStage(PipelineStage[T, T]):
 
 
 class BatchStage(PipelineStage[T, list[T]]):
+    """Abstract stage in a composable AsyncIterator pipeline."""
+
     def __init__(self, size: int) -> None:
         if size < 1:
             raise ValueError(f"size must be >= 1, got {size}")
@@ -58,20 +66,26 @@ class BatchStage(PipelineStage[T, list[T]]):
 
 
 class Pipeline(Generic[T]):
+    """Composable async pipeline builder over an AsyncIterator source."""
+
     def __init__(self, source: AsyncIterator[T]) -> None:
         self._stream: AsyncIterator[Any] = source
 
     def pipe(self, stage: PipelineStage[Any, Any]) -> Pipeline[Any]:
+        """Abstract stage in a composable AsyncIterator pipeline."""
         self._stream = stage.process(self._stream)
         return self
 
     def map(self, fn: Callable[[Any], Any]) -> Pipeline[Any]:
+        """Composable async pipeline builder over an AsyncIterator source."""
         return self.pipe(MapStage(fn))
 
     def filter(self, pred: Callable[[Any], bool]) -> Pipeline[Any]:
+        """Composable async pipeline builder over an AsyncIterator source."""
         return self.pipe(FilterStage(pred))
 
     def batch(self, size: int) -> Pipeline[Any]:
+        """Composable async pipeline builder over an AsyncIterator source."""
         return self.pipe(BatchStage(size))
 
     def __aiter__(self) -> AsyncIterator[Any]:
@@ -89,4 +103,5 @@ class Pipeline(Generic[T]):
 
 
 def pipeline(source: AsyncIterator[T]) -> Pipeline[T]:
+    """Composable async pipeline builder over an AsyncIterator source."""
     return Pipeline(source)

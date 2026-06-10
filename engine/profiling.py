@@ -9,6 +9,8 @@ log = logging.getLogger(__name__)
 
 
 class AsyncProfiler:
+    """Async context-manager profiler backed by yappi (no-op fallback)."""
+
     def __init__(self, clock_type: str = "wall", builtins: bool = False) -> None:
         self._clock_type = clock_type
         self._builtins = builtins
@@ -16,6 +18,7 @@ class AsyncProfiler:
         self._available = False
 
     async def __aenter__(self) -> AsyncProfiler:
+        """Async context-manager profiler backed by yappi (no-op fallback)."""
         try:
             import yappi
 

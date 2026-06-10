@@ -166,9 +166,10 @@ def make_http_check(name: str, url: str, timeout: float = 3.0) -> HealthCheckFn:
 
     async def _check() -> CheckResult:
         try:
-            async with aiohttp.ClientSession() as sess, sess.get(
-                url, timeout=aiohttp.ClientTimeout(total=timeout)
-            ) as r:
+            async with (
+                aiohttp.ClientSession() as sess,
+                sess.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as r,
+            ):
                 if r.status == 200:
                     return CheckResult(
                         name=name, status=HealthStatus.HEALTHY, latency_ms=0.0

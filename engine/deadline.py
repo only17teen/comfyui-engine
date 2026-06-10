@@ -14,6 +14,8 @@ DEADLINE_VAR: ContextVar[float | None] = ContextVar("engine.deadline", default=N
 
 
 class DeadlineContext:
+    """Propagates a deadline via ContextVar; narrows on re-entry."""
+
     def __init__(self, timeout: float) -> None:
         if timeout <= 0:
             raise ValueError(f"timeout must be > 0, got {timeout}")
@@ -22,6 +24,7 @@ class DeadlineContext:
         self._token: Any = None
 
     async def __aenter__(self) -> DeadlineContext:
+        """Propagates a deadline via ContextVar; narrows on re-entry."""
         now = time.monotonic()
         new_expiry = now + self._timeout
         existing = DEADLINE_VAR.get()

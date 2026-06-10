@@ -8,6 +8,8 @@ T = TypeVar("T")
 
 
 class BatchAccumulator(Generic[T]):
+    """Accumulates items and flushes on size or timeout triggers."""
+
     def __init__(self, max_size: int = 100, flush_timeout: float = 1.0) -> None:
         if max_size < 1:
             raise ValueError(f"max_size >= 1 required, got {max_size}")

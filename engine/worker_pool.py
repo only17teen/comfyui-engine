@@ -10,6 +10,8 @@ log = logging.getLogger(__name__)
 
 
 class PoolExhaustedError(RuntimeError):
+    """Raised when no workers are available in the pool."""
+
     pass
 
 
@@ -22,6 +24,8 @@ class _WorkerSlot:
 
 
 class WorkerPool:
+    """N-worker subprocess pool with least-loaded dispatch and auto-restart."""
+
     def __init__(
         self,
         cmd: list[str],
@@ -105,6 +109,7 @@ class WorkerPool:
                         )
 
     async def __aenter__(self) -> WorkerPool:
+        """N-worker subprocess pool with least-loaded dispatch and auto-restart."""
         await self.start()
         return self
 

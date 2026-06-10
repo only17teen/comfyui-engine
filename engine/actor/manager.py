@@ -178,15 +178,27 @@ async def shutdown_actor_manager():
 async def create_engine_actor(
     actor_id: str, handler_class: type, *args, **kwargs
 ) -> Actor:
-    """Create and register an engine actor.
+   """Create and register an Actor for engine integration.
+
+   Args:
+       actor_id: Unique identifier for the actor.
+       handler_class: The handler class to instantiate.
+       *args: Positional arguments forwarded to handler_class.
+       **kwargs: Keyword arguments forwarded to handler_class.
+
+   Returns:
+       The newly created Actor instance.
+   """
+    """Create and register an Actor for engine integration.
 
     Args:
-        actor_id: Unique ID for the actor
-        handler_class: Class that inherits from Actor and implements handle_message
-        *args, **kwargs: Arguments to pass to handler_class constructor
+        actor_id: Unique identifier for the actor.
+        handler_class: The handler class to instantiate.
+        *args: Positional arguments forwarded to handler_class.
+        **kwargs: Keyword arguments forwarded to handler_class.
 
     Returns:
-        The created and registered actor
+        The newly created Actor instance.
     """
     actor = handler_class(actor_id, *args, **kwargs)
     manager = get_actor_manager()

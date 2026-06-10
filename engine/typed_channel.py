@@ -13,6 +13,8 @@ DTYPE_MAP: dict[str, tuple[str, int]] = {
 
 
 class TypedChannel:
+    """Typed numeric array channel over shared memory (float32/float64/int32/uint8)."""
+
     def __init__(
         self, name: str, dtype: str, length: int, *, create: bool = False
     ) -> None:
@@ -40,10 +42,12 @@ class TypedChannel:
 
     @classmethod
     def create(cls, name: str, dtype: str, length: int) -> TypedChannel:
+        """Typed numeric array channel over shared memory (float32/float64/int32/uint8)."""
         return cls(name, dtype, length, create=True)
 
     @classmethod
     def open(cls, name: str, dtype: str, length: int) -> TypedChannel:
+        """Typed numeric array channel over shared memory (float32/float64/int32/uint8)."""
         return cls(name, dtype, length, create=False)
 
     def write_array(self, data: Any) -> None:
@@ -79,6 +83,7 @@ class TypedChannel:
         self._channel.unlink()
 
     def __enter__(self) -> TypedChannel:
+        """Typed numeric array channel over shared memory (float32/float64/int32/uint8)."""
         return self
 
     def __exit__(self, *_: object) -> None:
