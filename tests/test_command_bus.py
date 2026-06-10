@@ -102,7 +102,5 @@ async def test_validation_rejects() -> None:
 async def test_concurrent_dispatch() -> None:
     bus = CommandBus()
     bus.register(EchoCmd, EchoHandler())
-    results = await asyncio.gather(
-        *[bus.dispatch(EchoCmd(message=str(i))) for i in range(10)]
-    )
+    results = await asyncio.gather(*[bus.dispatch(EchoCmd(message=str(i))) for i in range(10)])
     assert results == [f"echo:{i}" for i in range(10)]

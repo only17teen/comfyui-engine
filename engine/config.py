@@ -38,9 +38,7 @@ class LoRAModelConfig(BaseModel):
     @classmethod
     def validate_range(cls, v: tuple[float, float]) -> tuple[float, float]:
         if v[0] < 0 or v[1] > 2.0 or v[0] > v[1]:
-            raise ValueError(
-                f"Invalid weight range: {v}. Must be 0 <= min <= max <= 2.0"
-            )
+            raise ValueError(f"Invalid weight range: {v}. Must be 0 <= min <= max <= 2.0")
         return v
 
 
@@ -49,9 +47,7 @@ class SamplingConfig(BaseModel):
 
     steps_range: tuple[int, int] = (20, 40)
     cfg_scale_range: tuple[float, float] = (5.0, 9.0)
-    sampler_names: list[str] = Field(
-        default_factory=lambda: ["DPM++ 2M Karras", "Euler a"]
-    )
+    sampler_names: list[str] = Field(default_factory=lambda: ["DPM++ 2M Karras", "Euler a"])
     scheduler: str = "Karras"
 
     @field_validator("steps_range")
@@ -179,9 +175,7 @@ if _HAS_SETTINGS and SettingsConfigDict is not None:
         @classmethod
         def validate_url(cls, v: str) -> str:
             if not str(v).startswith(("http://", "https://")):
-                raise ValueError(
-                    f"Invalid URL: {v}. Must start with http:// or https://"
-                )
+                raise ValueError(f"Invalid URL: {v}. Must start with http:// or https://")
             return str(v).rstrip("/")
 
 else:
@@ -294,7 +288,5 @@ class ConfigLoader:
         }
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as fh:
-            yaml.dump(
-                data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False
-            )
+            yaml.dump(data, fh, default_flow_style=False, allow_unicode=True, sort_keys=False)
         print(f"Example config saved to: {path}")

@@ -137,10 +137,7 @@ class HealthRegistry:
 
     async def run_all(self) -> AggregateHealth:
         """Run all registered checks concurrently."""
-        tasks = [
-            asyncio.create_task(self._run_one(name, fn))
-            for name, fn in self._checks.items()
-        ]
+        tasks = [asyncio.create_task(self._run_one(name, fn)) for name, fn in self._checks.items()]
         results = await asyncio.gather(*tasks)
         return AggregateHealth(checks=list(results))
 
@@ -171,9 +168,7 @@ def make_http_check(name: str, url: str, timeout: float = 3.0) -> HealthCheckFn:
                 sess.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as r,
             ):
                 if r.status == 200:
-                    return CheckResult(
-                        name=name, status=HealthStatus.HEALTHY, latency_ms=0.0
-                    )
+                    return CheckResult(name=name, status=HealthStatus.HEALTHY, latency_ms=0.0)
                 return CheckResult(
                     name=name,
                     status=HealthStatus.UNHEALTHY,

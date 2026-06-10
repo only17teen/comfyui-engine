@@ -170,9 +170,7 @@ class AWSProvider(CloudProviderBase):
                 "TagSpecifications": [
                     {
                         "ResourceType": "instance",
-                        "Tags": [
-                            {"Key": k, "Value": v} for k, v in (tags or {}).items()
-                        ]
+                        "Tags": [{"Key": k, "Value": v} for k, v in (tags or {}).items()]
                         + [
                             {"Key": "Name", "Value": "comfyui-engine-worker"},
                             {"Key": "ManagedBy", "Value": "comfyui-engine"},
@@ -186,10 +184,7 @@ class AWSProvider(CloudProviderBase):
                 response = ec2.request_spot_instances(
                     InstanceCount=1,
                     LaunchSpecification=launch_spec,
-                    SpotPrice=str(
-                        self.INSTANCE_TYPES.get(instance_type, {}).get("cost", 1.0)
-                        * 1.5
-                    ),
+                    SpotPrice=str(self.INSTANCE_TYPES.get(instance_type, {}).get("cost", 1.0) * 1.5),
                 )
                 instance_id = response["SpotInstanceRequests"][0]["InstanceId"]
             else:
@@ -334,16 +329,12 @@ class GCPProvider(CloudProviderBase):
 
             instance = compute_v1.Instance()
             instance.name = f"comfyui-engine-{int(time.time())}"
-            instance.machine_type = (
-                f"zones/{zone or self.zone}/machineTypes/{instance_type}"
-            )
+            instance.machine_type = f"zones/{zone or self.zone}/machineTypes/{instance_type}"
 
             # Add GPU
             guest_accelerator = compute_v1.AcceleratorConfig()
             guest_accelerator.accelerator_count = gpu_count
-            guest_accelerator.accelerator_type = (
-                f"zones/{zone or self.zone}/acceleratorTypes/nvidia-tesla-t4"
-            )
+            guest_accelerator.accelerator_type = f"zones/{zone or self.zone}/acceleratorTypes/nvidia-tesla-t4"
             instance.guest_accelerators = [guest_accelerator]
 
             # Spot/preemptible
@@ -354,10 +345,7 @@ class GCPProvider(CloudProviderBase):
             # Labels
             labels = {"managed-by": "comfyui-engine"}
             labels.update(
-                {
-                    k.lower().replace("-", "_"): v.lower().replace("-", "_")[:63]
-                    for k, v in (tags or {}).items()
-                }
+                {k.lower().replace("-", "_"): v.lower().replace("-", "_")[:63] for k, v in (tags or {}).items()}
             )
             instance.labels = labels
 
@@ -383,9 +371,7 @@ class GCPProvider(CloudProviderBase):
             )
 
         except ImportError:
-            logger.error(
-                "google-cloud-compute not installed. GCP provider unavailable."
-            )
+            logger.error("google-cloud-compute not installed. GCP provider unavailable.")
             return None
         except Exception as e:
             logger.error(f"Failed to launch GCP instance: {e}")
@@ -497,9 +483,7 @@ class AutoScaler:
 
     async def _get_cluster_metrics(self) -> dict[str, Any] | None:
         """Get metrics from cluster coordinator."""
-        if self.cluster_coordinator and hasattr(
-            self.cluster_coordinator, "get_cluster_status"
-        ):
+        if self.cluster_coordinator and hasattr(self.cluster_coordinator, "get_cluster_status"):
             try:
                 status = await self.cluster_coordinator.get_cluster_status()
                 return {
@@ -517,11 +501,7 @@ class AutoScaler:
     async def _calculate_current_cost(self) -> float:
         """Calculate current hourly cost of running instances."""
         async with self._lock:
-            return sum(
-                inst.cost_per_hour
-                for inst in self._instances.values()
-                if inst.status == "running"
-            )
+            return sum(inst.cost_per_hour for inst in self._instances.values() if inst.status == "running")
 
     def _make_decision(
         self,
@@ -534,12 +514,8 @@ class AutoScaler:
         now = time.time()
 
         # Check cooldowns
-        scale_up_cooled = (
-            now - self._last_scale_up
-        ) > self.policy.scale_up_cooldown_sec
-        scale_down_cooled = (
-            now - self._last_scale_down
-        ) > self.policy.scale_down_cooldown_sec
+        scale_up_cooled = (now - self._last_scale_up) > self.policy.scale_up_cooldown_sec
+        scale_down_cooled = (now - self._last_scale_down) > self.policy.scale_down_cooldown_sec
 
         # Emergency scale up
         if queue_depth > self.policy.scale_up_queue_depth * 3:
@@ -639,9 +615,7 @@ class AutoScaler:
                 async with self._lock:
                     self._instances[instance.instance_id] = instance
 
-                logger.info(
-                    f"Launched instance: {instance.instance_id} ({instance.instance_type})"
-                )
+                logger.info(f"Launched instance: {instance.instance_id} ({instance.instance_type})")
 
         self._last_scale_up = time.time()
 
@@ -772,9 +746,7 @@ async def create_aws_autoscaler(
 ) -> AutoScaler:
     """Create AWS auto-scaler."""
     provider = AWSProvider(region=region)
-    return AutoScaler(
-        provider=provider, policy=policy, cluster_coordinator=cluster_coordinator
-    )
+    return AutoScaler(provider=provider, policy=policy, cluster_coordinator=cluster_coordinator)
 
 
 async def create_gcp_autoscaler(
@@ -785,9 +757,7 @@ async def create_gcp_autoscaler(
 ) -> AutoScaler:
     """Create GCP auto-scaler."""
     provider = GCPProvider(project=project, zone=zone)
-    return AutoScaler(
-        provider=provider, policy=policy, cluster_coordinator=cluster_coordinator
-    )
+    return AutoScaler(provider=provider, policy=policy, cluster_coordinator=cluster_coordinator)
 
 
 if __name__ == "__main__":

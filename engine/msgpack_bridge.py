@@ -160,8 +160,4 @@ class MsgpackBridge:
 
     @property
     def is_running(self) -> bool:
-        return (
-            self._running
-            and self._process is not None
-            and self._process.returncode is None
-        )
+        return self._running and self._process is not None and self._process.returncode is None

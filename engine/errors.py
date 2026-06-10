@@ -50,9 +50,7 @@ class QueueFullError(TransientError):
     """In-process job queue has reached its capacity limit."""
 
     def __init__(self, max_size: int) -> None:
-        super().__init__(
-            f"Queue full (max_size={max_size})", context={"max_size": max_size}
-        )
+        super().__init__(f"Queue full (max_size={max_size})", context={"max_size": max_size})
         self.max_size = max_size
 
 

@@ -38,9 +38,7 @@ class ComfyUIJob:
         self.job_id = job_id or f"job_{uuid.uuid4().hex[:8]}"
         self.payload = payload
         self.config_meta = config_meta
-        self.status = (
-            "pending"  # pending | queued | running | completed | error | cancelled
-        )
+        self.status = "pending"  # pending | queued | running | completed | error | cancelled
         self.outputs: list[dict] = []
         self.error_msg: str | None = None
         self.created_at = time.time()
@@ -167,9 +165,7 @@ class ComfyUIAsyncClient:
         """Quick health check against ComfyUI server."""
         try:
             session = await self._get_session()
-            async with session.get(
-                f"{self.base_url}/system_stats", timeout=5.0
-            ) as resp:
+            async with session.get(f"{self.base_url}/system_stats", timeout=5.0) as resp:
                 return resp.status == 200
         except Exception:
             return False
@@ -206,9 +202,7 @@ class ComfyUIAsyncClient:
                     )
                 if resp.status != 200:
                     text = await resp.text()
-                    raise RuntimeError(
-                        f"Prompt submission failed: {resp.status} - {text}"
-                    )
+                    raise RuntimeError(f"Prompt submission failed: {resp.status} - {text}")
 
                 data = await resp.json()
                 prompt_id = data.get("prompt_id")
@@ -284,8 +278,7 @@ class ComfyUIAsyncClient:
                     await self.metrics.inc("jobs_completed")
                     await self.metrics.observe("processing_time", job.processing_time)
                     logger.info(
-                        f"Job {job.prompt_id} completed in {job.processing_time:.1f}s "
-                        f"({len(job.outputs)} outputs)"
+                        f"Job {job.prompt_id} completed in {job.processing_time:.1f}s " f"({len(job.outputs)} outputs)"
                     )
                     return
 
@@ -332,11 +325,7 @@ class ComfyUIAsyncClient:
         if msg_type == "status":
             status_data = data.get("data", {})
             # Could track queue depth here
-            queue_remaining = (
-                status_data.get("status", {})
-                .get("exec_info", {})
-                .get("queue_remaining", 0)
-            )
+            queue_remaining = status_data.get("status", {}).get("exec_info", {}).get("queue_remaining", 0)
             if queue_remaining > 0:
                 await self.metrics.gauge("comfyui_queue_depth", float(queue_remaining))
 
@@ -406,10 +395,7 @@ class ComfyUIAsyncClient:
                 progress_callback(total, completed, job.status)
             return job
 
-        tasks = [
-            asyncio.create_task(_wrapped_run(i, p, m))
-            for i, (p, m) in enumerate(zip(payloads, config_metas))
-        ]
+        tasks = [asyncio.create_task(_wrapped_run(i, p, m)) for i, (p, m) in enumerate(zip(payloads, config_metas))]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 

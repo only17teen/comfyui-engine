@@ -82,9 +82,7 @@ class OutputHandler:
             for i, lora in enumerate(loras, 1):
                 lines.append(f"  [{i}] {lora['name']}")
                 lines.append(f"      Path:   {lora['path']}")
-                lines.append(
-                    f"      Weight: {lora['weight']} (clip: {lora.get('weight_clip', 'N/A')})"
-                )
+                lines.append(f"      Weight: {lora['weight']} (clip: {lora.get('weight_clip', 'N/A')})")
             lines.append("")
 
         # Tags
@@ -120,9 +118,7 @@ class OutputHandler:
             return "N/A"
         return datetime.fromtimestamp(ts).isoformat()
 
-    def _save_metadata_file(
-        self, image_path: Path, job: ComfyUIJob, output_idx: int
-    ) -> Path:
+    def _save_metadata_file(self, image_path: Path, job: ComfyUIJob, output_idx: int) -> Path:
         """Write .txt sidecar next to image."""
         meta_path = image_path.with_suffix(image_path.suffix + ".txt")
         content = self._build_metadata(job, output_idx)
@@ -232,10 +228,7 @@ class OutputHandler:
         downloaded: list[Path] = []
 
         # Concurrent downloads for this job's outputs
-        tasks = [
-            self._download_single(output, job, api, idx)
-            for idx, output in enumerate(job.outputs)
-        ]
+        tasks = [self._download_single(output, job, api, idx) for idx, output in enumerate(job.outputs)]
         results = await asyncio.gather(*tasks)
 
         for path in results:
@@ -245,9 +238,7 @@ class OutputHandler:
         # Save JSON metadata
         self._save_json_metadata(job)
 
-        logger.info(
-            f"Job {job.job_id}: downloaded {len(downloaded)}/{len(job.outputs)} files"
-        )
+        logger.info(f"Job {job.job_id}: downloaded {len(downloaded)}/{len(job.outputs)} files")
         return downloaded
 
     async def process_batch(

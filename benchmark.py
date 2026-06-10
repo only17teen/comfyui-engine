@@ -133,9 +133,7 @@ class EngineBenchmark:
                 "negative_prompt": "bad",
             },
             "lora": {
-                "models": [
-                    {"name": "test", "path": "test.pt", "weight_range": [0.5, 0.8]}
-                ],
+                "models": [{"name": "test", "path": "test.pt", "weight_range": [0.5, 0.8]}],
                 "batch_size": 1,
             },
         }
@@ -240,9 +238,7 @@ class EngineBenchmark:
             retries=retry_count,
             p50_ms=latencies[len(latencies) // 2] if latencies else 0,
             p95_ms=latencies[int(len(latencies) * 0.95)] if latencies else 0,
-            p99_ms=(
-                latencies[int(len(latencies) * 0.99)] if len(latencies) >= 100 else 0
-            ),
+            p99_ms=(latencies[int(len(latencies) * 0.99)] if len(latencies) >= 100 else 0),
         )
 
     async def benchmark_metrics_collection(self) -> BenchmarkResult:
@@ -359,31 +355,22 @@ class EngineBenchmark:
         print(f"Average throughput: {total_ops / (total_time / 1000):.0f} ops/sec")
         print()
 
-        print(
-            f"{'Benchmark':<25} {'Throughput':>12} {'p50 (ms)':>10} {'p95 (ms)':>10} {'Errors':>8}"
-        )
+        print(f"{'Benchmark':<25} {'Throughput':>12} {'p50 (ms)':>10} {'p95 (ms)':>10} {'Errors':>8}")
         print("-" * 70)
 
         for r in suite.results:
-            print(
-                f"{r.name:<25} {r.throughput:>12.0f} {r.p50_ms:>10.2f} "
-                f"{r.p95_ms:>10.2f} {r.errors:>8}"
-            )
+            print(f"{r.name:<25} {r.throughput:>12.0f} {r.p50_ms:>10.2f} " f"{r.p95_ms:>10.2f} {r.errors:>8}")
 
         print()
         print("Key Improvements vs v1.0:")
         print("  - Pydantic validation: Type-safe configs with zero runtime surprises")
-        print(
-            "  - Circuit breaker: ~5μs overhead per call, prevents cascading failures"
-        )
+        print("  - Circuit breaker: ~5μs overhead per call, prevents cascading failures")
         print("  - Retry mechanism: Exponential backoff with jitter, ~1ms per retry")
         print("  - Metrics collection: Async-safe, ~0.1ms per 3 metrics")
         print("  - Seed strategies: Deterministic reproducibility for testing")
         print()
 
-    def save_results(
-        self, suite: BenchmarkSuite, path: str = "benchmark_results.json"
-    ) -> None:
+    def save_results(self, suite: BenchmarkSuite, path: str = "benchmark_results.json") -> None:
         """Save results to JSON."""
         Path(path).write_text(json.dumps(suite.to_dict(), indent=2), encoding="utf-8")
         print(f"Results saved to: {path}")
@@ -394,12 +381,8 @@ async def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="ComfyUI Engine Benchmark Suite")
-    parser.add_argument(
-        "--iterations", type=int, default=1000, help="Iterations per test"
-    )
-    parser.add_argument(
-        "--output", type=str, default="benchmark_results.json", help="Output file"
-    )
+    parser.add_argument("--iterations", type=int, default=1000, help="Iterations per test")
+    parser.add_argument("--output", type=str, default="benchmark_results.json", help="Output file")
     args = parser.parse_args()
 
     benchmark = EngineBenchmark(iterations=args.iterations)

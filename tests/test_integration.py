@@ -95,9 +95,7 @@ lora:
                     "negative_prompt": "bad quality",
                 },
                 "lora": {
-                    "models": [
-                        {"name": "test", "path": "test.pt", "weight_range": [0.5, 0.8]}
-                    ],
+                    "models": [{"name": "test", "path": "test.pt", "weight_range": [0.5, 0.8]}],
                     "sampling": {
                         "steps_range": [20, 30],
                         "cfg_scale_range": [7.0, 7.5],
@@ -141,11 +139,7 @@ class TestPromptManagerIntegration:
                 "negative_prompt": "bad quality",
             },
             lora={
-                "models": [
-                    LoRAModelConfig(
-                        name="test", path="test.pt", weight_range=(0.5, 0.8)
-                    )
-                ],
+                "models": [LoRAModelConfig(name="test", path="test.pt", weight_range=(0.5, 0.8))],
                 "sampling": SamplingConfig(),
                 "resolutions": [(512, 768), (768, 512)],
                 "batch_size": 1,
@@ -192,9 +186,7 @@ class TestPromptManagerIntegration:
         """Test LoRA stack generation."""
         for num_lora in [1, 2, 3]:
             config = manager.generate_config(num_lora=num_lora)
-            assert len(config.lora_stack) == min(
-                num_lora, len(manager.config.lora.models)
-            )
+            assert len(config.lora_stack) == min(num_lora, len(manager.config.lora.models))
 
             for lora in config.lora_stack:
                 assert 0.0 <= lora.weight <= 2.0
@@ -247,18 +239,12 @@ class TestAPIClientIntegration:
             mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
             mock_resp.__aexit__ = AsyncMock(return_value=False)
 
-            mock_session.return_value.__aenter__ = AsyncMock(
-                return_value=mock_session.return_value
-            )
+            mock_session.return_value.__aenter__ = AsyncMock(return_value=mock_session.return_value)
             mock_session.return_value.get = AsyncMock(return_value=mock_resp)
 
             # Mock the actual get call
-            mock_session.return_value.get.return_value.__aenter__ = AsyncMock(
-                return_value=mock_resp
-            )
-            mock_session.return_value.get.return_value.__aexit__ = AsyncMock(
-                return_value=False
-            )
+            mock_session.return_value.get.return_value.__aenter__ = AsyncMock(return_value=mock_resp)
+            mock_session.return_value.get.return_value.__aexit__ = AsyncMock(return_value=False)
 
             # This is a simplified test - real implementation would need more mocking
             pass
@@ -531,9 +517,7 @@ class TestABTestingIntegration:
         config.prompts.locations = ["city", "forest", "beach"]
         framework = ABTestFramework(config)
 
-        diversity = framework.compare_prompt_diversity(
-            "standard", "cinematic", sample_size=50
-        )
+        diversity = framework.compare_prompt_diversity("standard", "cinematic", sample_size=50)
 
         assert diversity["sample_size"] == 50
         assert diversity["unique_words_a"] >= 0
@@ -630,9 +614,7 @@ class TestEndToEndPipeline:
         engine = UnifiedGenerationEngine(config)
 
         # Mock health check
-        with patch.object(
-            engine.client, "health_check", new_callable=AsyncMock
-        ) as mock_health:
+        with patch.object(engine.client, "health_check", new_callable=AsyncMock) as mock_health:
             mock_health.return_value = True
 
             healthy = await engine.health_check()

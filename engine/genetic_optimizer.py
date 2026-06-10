@@ -172,9 +172,7 @@ class PromptFitnessEvaluator:
         self.metric = metric
         self.history: list[GenerationResult] = []
 
-    def evaluate(
-        self, chromosome: Chromosome, results: list[GenerationResult]
-    ) -> float:
+    def evaluate(self, chromosome: Chromosome, results: list[GenerationResult]) -> float:
         """Calculate fitness score from generation results."""
         if not results:
             return 0.0
@@ -182,9 +180,7 @@ class PromptFitnessEvaluator:
         # Update chromosome statistics
         chromosome.generation_count = len(results)
         chromosome.success_count = sum(1 for r in results if r.success)
-        chromosome.avg_time = (
-            statistics.mean(r.generation_time for r in results) if results else 0.0
-        )
+        chromosome.avg_time = statistics.mean(r.generation_time for r in results) if results else 0.0
 
         if self.metric == FitnessMetric.SUCCESS_RATE:
             return chromosome.success_count / max(chromosome.generation_count, 1)
@@ -202,21 +198,14 @@ class PromptFitnessEvaluator:
             return statistics.mean(ratings) if ratings else 0.0
 
         elif self.metric == FitnessMetric.COMBINED:
-            success_rate = chromosome.success_count / max(
-                chromosome.generation_count, 1
-            )
+            success_rate = chromosome.success_count / max(chromosome.generation_count, 1)
             speed_score = 1.0 / max(chromosome.avg_time, 1.0)
             diversity = self._calculate_diversity(chromosome, results)
             ratings = [r.user_rating for r in results if r.user_rating is not None]
             rating_score = statistics.mean(ratings) if ratings else 0.5
 
             # Weighted combination
-            return (
-                success_rate * 0.4
-                + speed_score * 0.2
-                + diversity * 0.2
-                + rating_score * 0.2
-            )
+            return success_rate * 0.4 + speed_score * 0.2 + diversity * 0.2 + rating_score * 0.2
 
         return 0.0
 
@@ -289,9 +278,7 @@ class GeneticPromptOptimizer:
         # Random LoRA weights
         lora_weights = {}
         for lora in self.engine_config.lora.models:
-            lora_weights[lora.name] = random.uniform(
-                lora.weight_range[0], lora.weight_range[1]
-            )
+            lora_weights[lora.name] = random.uniform(lora.weight_range[0], lora.weight_range[1])
 
         return Chromosome(
             genes=genes,
@@ -356,10 +343,7 @@ class GeneticPromptOptimizer:
 
     def initialize_population(self) -> Population:
         """Create initial random population."""
-        chromosomes = [
-            self._create_random_chromosome()
-            for _ in range(self.ga_config.population_size)
-        ]
+        chromosomes = [self._create_random_chromosome() for _ in range(self.ga_config.population_size)]
 
         self._population = Population(
             chromosomes=chromosomes,
@@ -424,9 +408,7 @@ class GeneticPromptOptimizer:
         # Adaptive mutation rate based on stagnation
         mutation_rate = self.ga_config.mutation_rate
         if self._stagnation_count > 2:
-            mutation_rate = min(
-                mutation_rate * 1.5, 0.5
-            )  # Increase mutation when stuck
+            mutation_rate = min(mutation_rate * 1.5, 0.5)  # Increase mutation when stuck
 
         # Mutate genes
         for key in chromosome.genes:
@@ -453,9 +435,7 @@ class GeneticPromptOptimizer:
                 self.engine_config.lora.sampling.steps_range[1],
             )
         if random.random() < mutation_rate:
-            chromosome.sampler = random.choice(
-                self.engine_config.lora.sampling.sampler_names
-            )
+            chromosome.sampler = random.choice(self.engine_config.lora.sampling.sampler_names)
 
         # Mutate LoRA weights
         for key in chromosome.lora_weights:
@@ -535,10 +515,7 @@ class GeneticPromptOptimizer:
 
     def _check_convergence(self, population: Population) -> bool:
         """Check if population has converged."""
-        if (
-            population.best_fitness - self._last_best_fitness
-            < self.ga_config.convergence_threshold
-        ):
+        if population.best_fitness - self._last_best_fitness < self.ga_config.convergence_threshold:
             self._stagnation_count += 1
         else:
             self._stagnation_count = 0
@@ -588,9 +565,7 @@ class GeneticPromptOptimizer:
         )
 
         # Elitism: keep best chromosomes
-        new_chromosomes = [
-            c.copy() for c in sorted_chromosomes[: self.ga_config.elite_count]
-        ]
+        new_chromosomes = [c.copy() for c in sorted_chromosomes[: self.ga_config.elite_count]]
 
         # Generate offspring
         while len(new_chromosomes) < self.ga_config.population_size:
@@ -674,10 +649,7 @@ class GeneticPromptOptimizer:
 
             # Check convergence
             if self._check_convergence(population):
-                self.logger.info(
-                    f"Converged at generation {generation} "
-                    f"(stagnation: {self._stagnation_count})"
-                )
+                self.logger.info(f"Converged at generation {generation} " f"(stagnation: {self._stagnation_count})")
                 break
 
         self.logger.info(f"GA complete. Best fitness: {best_chromosome.fitness:.4f}")
@@ -699,19 +671,11 @@ class GeneticPromptOptimizer:
             "population": self._population.to_dict(),
             "best_chromosome": {
                 "genes": self._best_chromosome.genes if self._best_chromosome else {},
-                "lora_weights": (
-                    self._best_chromosome.lora_weights if self._best_chromosome else {}
-                ),
-                "cfg_scale": (
-                    self._best_chromosome.cfg_scale if self._best_chromosome else 0
-                ),
+                "lora_weights": (self._best_chromosome.lora_weights if self._best_chromosome else {}),
+                "cfg_scale": (self._best_chromosome.cfg_scale if self._best_chromosome else 0),
                 "steps": self._best_chromosome.steps if self._best_chromosome else 0,
-                "sampler": (
-                    self._best_chromosome.sampler if self._best_chromosome else ""
-                ),
-                "fitness": (
-                    self._best_chromosome.fitness if self._best_chromosome else 0
-                ),
+                "sampler": (self._best_chromosome.sampler if self._best_chromosome else ""),
+                "fitness": (self._best_chromosome.fitness if self._best_chromosome else 0),
             },
             "stagnation_count": self._stagnation_count,
         }

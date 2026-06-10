@@ -16,9 +16,7 @@ class RetryExhaustedError(RuntimeError):
     """Raised when all retry attempts are exhausted."""
 
     def __init__(self, attempts: int, last_error: Exception) -> None:
-        super().__init__(
-            f"all {attempts} attempt(s) failed; last error: {last_error!r}"
-        )
+        super().__init__(f"all {attempts} attempt(s) failed; last error: {last_error!r}")
         self.last_error = last_error
         self.attempts = attempts
 
@@ -45,9 +43,7 @@ class RetryPolicy:
         self._retryable = retryable_exceptions
 
     def _compute_delay(self, attempt: int) -> float:
-        capped = min(
-            self._base_delay * (self._backoff_factor**attempt), self._max_delay
-        )
+        capped = min(self._base_delay * (self._backoff_factor**attempt), self._max_delay)
         return random.uniform(0.0, capped) if self._jitter else capped
 
     async def execute(self, fn: Callable[[], Coroutine[Any, Any, T]]) -> T:
@@ -78,9 +74,7 @@ class RetryPolicy:
                 await asyncio.sleep(delay)
         raise RetryExhaustedError(attempts=attempt + 1, last_error=last_exc)
 
-    def retry(
-        self, fn: Callable[..., Coroutine[Any, Any, T]]
-    ) -> Callable[..., Coroutine[Any, Any, T]]:
+    def retry(self, fn: Callable[..., Coroutine[Any, Any, T]]) -> Callable[..., Coroutine[Any, Any, T]]:
         @functools.wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> T:
             return await self.execute(lambda: fn(*args, **kwargs))

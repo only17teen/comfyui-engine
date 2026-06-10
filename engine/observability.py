@@ -81,9 +81,7 @@ class Span:
         except Exception:
             pass
 
-    def record_metric(
-        self, name: str, value: float, attrs: dict[str, Any] | None = None
-    ) -> None:
+    def record_metric(self, name: str, value: float, attrs: dict[str, Any] | None = None) -> None:
         if not _METRICS:
             return
         try:
@@ -115,9 +113,7 @@ class Span:
 
 
 @asynccontextmanager
-async def observe(
-    name: str, *, attributes: dict[str, Any] | None = None, record_duration: bool = True
-):
+async def observe(name: str, *, attributes: dict[str, Any] | None = None, record_duration: bool = True):
     otel_span: Any = _N()
     otel_ctx = None
     trace_id = "noop"
@@ -137,14 +133,10 @@ async def observe(
     log: Any = _NL()
     if _STRUCTLOG:
         try:
-            log = _structlog.get_logger().bind(
-                span=name, trace_id=trace_id, **(attributes or {})
-            )
+            log = _structlog.get_logger().bind(span=name, trace_id=trace_id, **(attributes or {}))
         except Exception:
             pass
-    span = Span(
-        name=name, _otel_span=otel_span, _log=log, _start_ns=time.perf_counter()
-    )
+    span = Span(name=name, _otel_span=otel_span, _log=log, _start_ns=time.perf_counter())
     try:
         yield span
         try:
@@ -163,9 +155,7 @@ async def observe(
     finally:
         if record_duration and _METRICS:
             try:
-                _get_registry().request_duration().record(
-                    span.elapsed_ms, {"span": name}
-                )
+                _get_registry().request_duration().record(span.elapsed_ms, {"span": name})
             except Exception:
                 pass
         if otel_ctx is not None:

@@ -83,9 +83,7 @@ class WebhookNotifier:
             ) as resp:
                 if resp.status in (200, 204):
                     self._last_notification_time = asyncio.get_event_loop().time()
-                    logger.info(
-                        f"Notification sent to {self.config.webhook_type.value}"
-                    )
+                    logger.info(f"Notification sent to {self.config.webhook_type.value}")
                     return True
                 else:
                     text = await resp.text()
@@ -140,10 +138,7 @@ class WebhookNotifier:
             },
             {
                 "type": "section",
-                "fields": [
-                    {"type": "mrkdwn", "text": f"*{f['name']}:*\n{f['value']}"}
-                    for f in fields
-                ],
+                "fields": [{"type": "mrkdwn", "text": f"*{f['name']}:*\n{f['value']}"} for f in fields],
             },
         ]
 
@@ -195,15 +190,9 @@ class WebhookNotifier:
             return False
 
         success_rate = (completed / total_jobs * 100) if total_jobs > 0 else 0
-        status = (
-            "✅ SUCCESS"
-            if failed == 0
-            else "⚠️ PARTIAL" if completed > 0 else "❌ FAILED"
-        )
+        status = "✅ SUCCESS" if failed == 0 else "⚠️ PARTIAL" if completed > 0 else "❌ FAILED"
         color = 0x00FF00 if failed == 0 else 0xFFA500 if completed > 0 else 0xFF0000
-        slack_color = (
-            "good" if failed == 0 else "warning" if completed > 0 else "danger"
-        )
+        slack_color = "good" if failed == 0 else "warning" if completed > 0 else "danger"
 
         fields = [
             {"name": "Session", "value": session_id, "inline": True},
@@ -227,13 +216,9 @@ class WebhookNotifier:
         description = f"{mention}Generation batch completed with {completed}/{total_jobs} jobs successful."
 
         if self.config.webhook_type == WebhookType.DISCORD:
-            payload = self._build_discord_embed(
-                title, description, color, fields, image_urls
-            )
+            payload = self._build_discord_embed(title, description, color, fields, image_urls)
         elif self.config.webhook_type == WebhookType.SLACK:
-            payload = self._build_slack_blocks(
-                title, description, slack_color, fields, image_urls
-            )
+            payload = self._build_slack_blocks(title, description, slack_color, fields, image_urls)
         else:
             payload = self._build_generic_payload(title, description, fields)
 
@@ -297,9 +282,7 @@ class WebhookNotifier:
         ]
 
         if eta_seconds:
-            fields.append(
-                {"name": "ETA", "value": f"{eta_seconds:.0f}s", "inline": True}
-            )
+            fields.append({"name": "ETA", "value": f"{eta_seconds:.0f}s", "inline": True})
 
         title = f"📊 Progress Update ({progress_pct:.0f}%)"
         description = f"Batch generation in progress..."

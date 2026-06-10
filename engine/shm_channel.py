@@ -25,9 +25,7 @@ HEADER_SIZE = ctypes.sizeof(ShmHeader)
 class ShmChannel:
     """Zero-copy SPSC shared-memory channel compatible with C++ mmap layout."""
 
-    def __init__(
-        self, name: str, size: int = 1024 * 1024, *, create: bool = False
-    ) -> None:
+    def __init__(self, name: str, size: int = 1024 * 1024, *, create: bool = False) -> None:
         self._name = name
         self._data_size = size
         self._shm = SharedMemory(name=name, create=create, size=HEADER_SIZE + size)

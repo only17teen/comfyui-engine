@@ -58,6 +58,4 @@ def remaining_time() -> float | None:
 def check_deadline(label: str = "") -> None:
     rem = remaining_time()
     if rem is not None and rem <= 0:
-        raise TimeoutError(
-            f"deadline exceeded{f' [{label}]' if label else ''} (overdue by {-rem:.3f}s)"
-        )
+        raise TimeoutError(f"deadline exceeded{f' [{label}]' if label else ''} (overdue by {-rem:.3f}s)")

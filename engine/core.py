@@ -58,17 +58,13 @@ def setup_logging(
     log_file = Path(log_dir) / f"engine_{ts}.log"
 
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(
-        logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")
-    )
+    console_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"))
 
     file_handler = logging.FileHandler(log_file, encoding="utf-8")
     if json_format:
         file_handler.setFormatter(JSONFormatter())
     else:
-        file_handler.setFormatter(
-            logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")
-        )
+        file_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"))
 
     root = logging.getLogger()
     root.setLevel(level)
@@ -97,9 +93,7 @@ class SessionState:
         return asdict(self)
 
     def save(self, path: Path) -> None:
-        path.write_text(
-            _json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8"
-        )
+        path.write_text(_json.dumps(self.to_dict(), indent=2, default=str), encoding="utf-8")
 
     @classmethod
     def load(cls, path: Path) -> SessionState:

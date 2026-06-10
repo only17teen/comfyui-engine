@@ -124,12 +124,8 @@ async def _run_git(
 
     proc = await asyncio.create_subprocess_exec(
         *cmd,
-        stdout=(
-            asyncio.subprocess.PIPE if capture_output else asyncio.subprocess.DEVNULL
-        ),
-        stderr=(
-            asyncio.subprocess.PIPE if capture_output else asyncio.subprocess.DEVNULL
-        ),
+        stdout=(asyncio.subprocess.PIPE if capture_output else asyncio.subprocess.DEVNULL),
+        stderr=(asyncio.subprocess.PIPE if capture_output else asyncio.subprocess.DEVNULL),
         cwd=str(working_dir),
         env=os.environ,
     )
@@ -139,9 +135,7 @@ async def _run_git(
     stderr_decoded = stderr.decode("utf-8", errors="replace").strip() if stderr else ""
 
     if check and proc.returncode != 0:
-        raise RuntimeError(
-            f"git {' '.join(args)} failed (exit {proc.returncode}): {stderr_decoded}"
-        )
+        raise RuntimeError(f"git {' '.join(args)} failed (exit {proc.returncode}): {stderr_decoded}")
 
     return proc.returncode, stdout_decoded, stderr_decoded
 
@@ -257,9 +251,7 @@ async def sync_to_git(
 
     # Commit
     try:
-        rc, stdout, stderr = await _run_git(
-            repo, "commit", "-m", commit_message, check=False
-        )
+        rc, stdout, stderr = await _run_git(repo, "commit", "-m", commit_message, check=False)
         if rc == 0:
             # Extract commit hash
             commit_hash = stdout.split("\n")[0] if stdout else "unknown"
@@ -285,9 +277,7 @@ async def sync_to_git(
     # Push
     if push and results["status"] == "committed":
         try:
-            rc, stdout, stderr = await _run_git(
-                repo, "push", "origin", branch, check=False
-            )
+            rc, stdout, stderr = await _run_git(repo, "push", "origin", branch, check=False)
             if rc == 0:
                 results["push"] = "success"
                 logger.info("Pushed to origin")
@@ -345,16 +335,8 @@ async def get_repo_info(repo_path: str) -> dict[str, any]:
 
     return {
         "branch": branch.strip() if rc == 0 else "unknown",
-        "remotes": (
-            [line.strip() for line in remote.split("\n") if line.strip()]
-            if rc2 == 0
-            else []
-        ),
-        "recent_commits": (
-            [line.strip() for line in log.split("\n") if line.strip()]
-            if rc3 == 0
-            else []
-        ),
+        "remotes": ([line.strip() for line in remote.split("\n") if line.strip()] if rc2 == 0 else []),
+        "recent_commits": ([line.strip() for line in log.split("\n") if line.strip()] if rc3 == 0 else []),
     }
 
 

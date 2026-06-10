@@ -118,13 +118,8 @@ class PerformanceProfiler:
                 function_name=name,
                 total_time=elapsed,
                 call_count=sum(1 for _ in stats.stats.items()),
-                per_call_time=elapsed
-                / max(
-                    sum(nc for _, (cc, nc, tt, ct, callers) in stats.stats.items()), 1
-                ),
-                cumulative_time=sum(
-                    ct for _, (cc, nc, tt, ct, callers) in stats.stats.items()
-                ),
+                per_call_time=elapsed / max(sum(nc for _, (cc, nc, tt, ct, callers) in stats.stats.items()), 1),
+                cumulative_time=sum(ct for _, (cc, nc, tt, ct, callers) in stats.stats.items()),
                 memory_peak_mb=peak / (1024 * 1024),
                 memory_current_mb=current / (1024 * 1024),
                 top_calls=top_calls,
@@ -135,8 +130,7 @@ class PerformanceProfiler:
             # Alert on slow execution
             if elapsed > self.slow_threshold_ms / 1000:
                 logger.warning(
-                    f"SLOW: {name} took {elapsed*1000:.1f}ms "
-                    f"(threshold: {self.slow_threshold_ms:.1f}ms)"
+                    f"SLOW: {name} took {elapsed*1000:.1f}ms " f"(threshold: {self.slow_threshold_ms:.1f}ms)"
                 )
 
             # Alert on high memory
@@ -204,12 +198,8 @@ class PerformanceProfiler:
         total_time = sum(r.total_time for r in self._results)
         total_memory = sum(r.memory_peak_mb for r in self._results)
 
-        slow_count = sum(
-            1 for r in self._results if r.total_time > self.slow_threshold_ms / 1000
-        )
-        high_memory_count = sum(
-            1 for r in self._results if r.memory_peak_mb > self.memory_threshold_mb
-        )
+        slow_count = sum(1 for r in self._results if r.total_time > self.slow_threshold_ms / 1000)
+        high_memory_count = sum(1 for r in self._results if r.memory_peak_mb > self.memory_threshold_mb)
 
         return {
             "total_sessions": len(self._results),

@@ -296,19 +296,13 @@ class WebSocketManager:
         """Reconnection with exponential backoff."""
         self._state = WSState.RECONNECTING
 
-        while (
-            not self._shutdown
-            and self._connection_attempts < self.config.reconnect_max_attempts
-        ):
+        while not self._shutdown and self._connection_attempts < self.config.reconnect_max_attempts:
             self._connection_attempts += 1
 
             # Calculate delay with exponential backoff and jitter
             delay = min(
                 self.config.reconnect_base_delay
-                * (
-                    self.config.reconnect_exponential_base
-                    ** (self._connection_attempts - 1)
-                ),
+                * (self.config.reconnect_exponential_base ** (self._connection_attempts - 1)),
                 self.config.reconnect_max_delay,
             )
             jitter = delay * 0.1 * (2 * (time.time() % 1) - 1)
@@ -327,9 +321,7 @@ class WebSocketManager:
 
         # Max attempts reached
         self._state = WSState.FAILED
-        self.logger.error(
-            f"WebSocket failed after {self._connection_attempts} reconnection attempts"
-        )
+        self.logger.error(f"WebSocket failed after {self._connection_attempts} reconnection attempts")
         if self.metrics:
             await self.metrics.inc("ws_reconnect_failed")
 
@@ -357,9 +349,7 @@ class WebSocketManager:
             if handler is None:
                 self._event_handlers[event_type] = []
             else:
-                self._event_handlers[event_type] = [
-                    h for h in self._event_handlers[event_type] if h != handler
-                ]
+                self._event_handlers[event_type] = [h for h in self._event_handlers[event_type] if h != handler]
 
     async def send(self, data: dict[str, Any]) -> bool:
         """Send message with queueing during disconnections."""
@@ -403,7 +393,5 @@ class WebSocketManager:
             "connection_attempts": self._connection_attempts,
             "last_pong_age": time.time() - self._last_pong if self._last_pong else None,
             "queued_messages": self._message_queue.qsize(),
-            "registered_handlers": {
-                event: len(handlers) for event, handlers in self._event_handlers.items()
-            },
+            "registered_handlers": {event: len(handlers) for event, handlers in self._event_handlers.items()},
         }

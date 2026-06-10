@@ -114,9 +114,7 @@ class EventBus:
                 if asyncio.iscoroutine(result):
                     await result
             except Exception:  # noqa: BLE001
-                logger.exception(
-                    "Event handler %s failed for %s", fn, type(ev).__name__
-                )
+                logger.exception("Event handler %s failed for %s", fn, type(ev).__name__)
 
         await asyncio.gather(*[_safe_call(fn, event) for fn in handlers])
 
@@ -125,9 +123,7 @@ class EventBus:
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
-            logger.warning(
-                "emit_sync called outside event loop; event dropped: %s", event
-            )
+            logger.warning("emit_sync called outside event loop; event dropped: %s", event)
             return
         loop.create_task(self.publish(event))
 

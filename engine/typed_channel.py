@@ -15,9 +15,7 @@ DTYPE_MAP: dict[str, tuple[str, int]] = {
 class TypedChannel:
     """Typed numeric array channel over shared memory (float32/float64/int32/uint8)."""
 
-    def __init__(
-        self, name: str, dtype: str, length: int, *, create: bool = False
-    ) -> None:
+    def __init__(self, name: str, dtype: str, length: int, *, create: bool = False) -> None:
         if dtype not in DTYPE_MAP:
             raise ValueError(f"unsupported dtype {dtype!r}")
         self._dtype = dtype

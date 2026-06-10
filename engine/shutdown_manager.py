@@ -52,9 +52,7 @@ class GracefulShutdownManager:
             return
 
         for sig in (signal.SIGTERM, signal.SIGINT):
-            loop.add_signal_handler(
-                sig, lambda s=sig: asyncio.create_task(self._handle_signal(s.name))
-            )
+            loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(self._handle_signal(s.name)))
             logger.info(f"Registered signal handler for {sig.name}")
 
     async def _handle_signal(self, signal_name: str) -> None:
@@ -151,9 +149,7 @@ class GracefulShutdownManager:
 
         if self._shutdown_start_time:
             status["elapsed_seconds"] = time.time() - self._shutdown_start_time
-            status["grace_period_remaining"] = max(
-                0, self.grace_period - status["elapsed_seconds"]
-            )
+            status["grace_period_remaining"] = max(0, self.grace_period - status["elapsed_seconds"])
 
         return status
 

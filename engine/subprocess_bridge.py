@@ -95,10 +95,7 @@ class SubprocessBridge:
         eff = timeout if timeout is not None else self._default_timeout
         handle = loop.call_later(eff, self._on_timeout, call_id)
         self._pending[call_id] = _PendingCall(future=future, timeout_handle=handle)
-        req = (
-            json.dumps({"id": call_id, "method": method, "params": dict(params or {})})
-            + "\n"
-        )
+        req = json.dumps({"id": call_id, "method": method, "params": dict(params or {})}) + "\n"
         assert self._process.stdin is not None
         self._process.stdin.write(req.encode())
         await self._process.stdin.drain()
@@ -151,8 +148,4 @@ class SubprocessBridge:
 
     @property
     def is_running(self) -> bool:
-        return (
-            self._running
-            and self._process is not None
-            and self._process.returncode is None
-        )
+        return self._running and self._process is not None and self._process.returncode is None

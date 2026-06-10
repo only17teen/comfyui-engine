@@ -134,14 +134,9 @@ class MultiRegionManager:
     def add_replication_rule(self, rule: ReplicationRule) -> None:
         """Add a cross-region replication rule."""
         self._replication_rules.append(rule)
-        logger.info(
-            f"Added replication rule: {rule.source_region} -> {rule.target_region} "
-            f"({rule.strategy.name})"
-        )
+        logger.info(f"Added replication rule: {rule.source_region} -> {rule.target_region} " f"({rule.strategy.name})")
 
-    async def get_best_region(
-        self, job_requirements: dict[str, Any] | None = None
-    ) -> str | None:
+    async def get_best_region(self, job_requirements: dict[str, Any] | None = None) -> str | None:
         """Get the best region for job execution based on health, capacity, and cost.
 
         Args:
@@ -225,9 +220,7 @@ class MultiRegionManager:
                 await self._replicate_to_region(rule, data)
                 success_count += 1
             except Exception as e:
-                logger.error(
-                    f"Replication failed {source_region} -> {rule.target_region}: {e}"
-                )
+                logger.error(f"Replication failed {source_region} -> {rule.target_region}: {e}")
 
         return success_count
 
@@ -361,9 +354,7 @@ class MultiRegionManager:
         # For now, this is a placeholder for the replication logic
         pass
 
-    async def _replicate_to_region(
-        self, rule: ReplicationRule, data: dict[str, Any]
-    ) -> None:
+    async def _replicate_to_region(self, rule: ReplicationRule, data: dict[str, Any]) -> None:
         """Replicate data to a target region."""
         target_config = self.regions.get(rule.target_region)
         if not target_config:
@@ -390,15 +381,9 @@ class MultiRegionManager:
         return {
             "total_regions": len(self.regions),
             "active_regions": sum(1 for r in self.regions.values() if r.is_active),
-            "healthy_regions": sum(
-                1 for h in self._health.values() if h.status == RegionStatus.HEALTHY
-            ),
-            "degraded_regions": sum(
-                1 for h in self._health.values() if h.status == RegionStatus.DEGRADED
-            ),
-            "unavailable_regions": sum(
-                1 for h in self._health.values() if h.status == RegionStatus.UNAVAILABLE
-            ),
+            "healthy_regions": sum(1 for h in self._health.values() if h.status == RegionStatus.HEALTHY),
+            "degraded_regions": sum(1 for h in self._health.values() if h.status == RegionStatus.DEGRADED),
+            "unavailable_regions": sum(1 for h in self._health.values() if h.status == RegionStatus.UNAVAILABLE),
             "replication_rules": len(self._replication_rules),
             "running": self._running,
         }

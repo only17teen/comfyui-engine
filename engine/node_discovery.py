@@ -148,10 +148,7 @@ class NodeRegistry:
         results = []
         query_lower = query.lower()
         for name, info in cls.KNOWN_NODES.items():
-            if (
-                query_lower in name.lower()
-                or query_lower in info.get("description", "").lower()
-            ):
+            if query_lower in name.lower() or query_lower in info.get("description", "").lower():
                 results.append({"name": name, **info})
         return results
 
@@ -166,9 +163,7 @@ class NodeDiscovery:
             comfyui_path: Path to ComfyUI root. Auto-detected if None.
         """
         self.comfyui_path = comfyui_path or self._find_comfyui()
-        self.custom_nodes_path = (
-            self.comfyui_path / "custom_nodes" if self.comfyui_path else None
-        )
+        self.custom_nodes_path = self.comfyui_path / "custom_nodes" if self.comfyui_path else None
         self._session: aiohttp.ClientSession | None = None
 
     def _find_comfyui(self) -> Path | None:
@@ -429,9 +424,7 @@ class NodeDiscovery:
 
         return "custom"
 
-    async def check_dependencies(
-        self, nodes: list[NodeInfo]
-    ) -> tuple[list[str], list[dict]]:
+    async def check_dependencies(self, nodes: list[NodeInfo]) -> tuple[list[str], list[dict]]:
         """Check Python dependencies for installed nodes.
 
         Returns:
@@ -457,9 +450,7 @@ class NodeDiscovery:
                 importlib.import_module(pkg)
             except ImportError:
                 missing.append(pkg)
-                logger.info(
-                    f"Missing dependency: {pkg} (required by: {', '.join(node_sources)})"
-                )
+                logger.info(f"Missing dependency: {pkg} (required by: {', '.join(node_sources)})")
 
         return missing, conflicts
 
@@ -519,9 +510,7 @@ class NodeDiscovery:
         report.error_nodes = sum(1 for n in report.nodes if n.has_errors)
 
         # Check dependencies
-        report.missing_dependencies, report.version_conflicts = (
-            await self.check_dependencies(report.nodes)
-        )
+        report.missing_dependencies, report.version_conflicts = await self.check_dependencies(report.nodes)
 
         return report
 
@@ -745,9 +734,7 @@ async def main():
 
     args = parser.parse_args()
 
-    discovery = NodeDiscovery(
-        comfyui_path=Path(args.comfyui_path) if args.comfyui_path else None
-    )
+    discovery = NodeDiscovery(comfyui_path=Path(args.comfyui_path) if args.comfyui_path else None)
     checker = NodeCompatibilityChecker(discovery)
 
     if args.scan or args.check:
@@ -768,17 +755,13 @@ async def main():
                 print(f"Errors: {report.error_nodes} nodes have issues")
 
             if report.missing_dependencies:
-                print(
-                    f"\nMissing dependencies: {', '.join(report.missing_dependencies)}"
-                )
+                print(f"\nMissing dependencies: {', '.join(report.missing_dependencies)}")
 
             print("\nInstalled Nodes:")
             for node in report.nodes:
                 status = "✓" if node.enabled else "✗"
                 error = " [ERROR]" if node.has_errors else ""
-                print(
-                    f"  {status} {node.name} ({node.version}) - {node.category}{error}"
-                )
+                print(f"  {status} {node.name} ({node.version}) - {node.category}{error}")
                 if node.python_dependencies:
                     print(f"    Dependencies: {', '.join(node.python_dependencies)}")
 

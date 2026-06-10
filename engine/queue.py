@@ -45,9 +45,7 @@ class JobQueue:
         rate_limit: float | None = None,
         metrics: MetricsCollector | None = None,
     ) -> None:
-        self._queue: asyncio.PriorityQueue[PrioritizedJob] = asyncio.PriorityQueue(
-            maxsize=max_size
-        )
+        self._queue: asyncio.PriorityQueue[PrioritizedJob] = asyncio.PriorityQueue(maxsize=max_size)
         self.max_size = max_size
         self.rate_limit = rate_limit
         self.metrics = metrics
@@ -87,9 +85,7 @@ class JobQueue:
         try:
             await asyncio.wait_for(self._queue.put(item), timeout=timeout)
         except asyncio.TimeoutError as exc:
-            raise QueueFullError(
-                f"Queue full (max={self.max_size}); job rejected after {timeout}s"
-            ) from exc
+            raise QueueFullError(f"Queue full (max={self.max_size}); job rejected after {timeout}s") from exc
 
         if self.metrics:
             await self.metrics.gauge("queue_depth", float(self._queue.qsize()))

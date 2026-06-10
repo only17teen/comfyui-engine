@@ -67,9 +67,7 @@ class WorkerPool:
                 await self._monitor_task
             except asyncio.CancelledError:
                 pass
-        await asyncio.gather(
-            *[s.bridge.stop() for s in self._slots], return_exceptions=True
-        )
+        await asyncio.gather(*[s.bridge.stop() for s in self._slots], return_exceptions=True)
         self._slots.clear()
 
     def _pick_slot(self) -> _WorkerSlot:
@@ -104,9 +102,7 @@ class WorkerPool:
                         slot.restarts += 1
                         slot.healthy = True
                     except Exception as e:
-                        log.error(
-                            "restart failed", extra={"worker": i, "error": str(e)}
-                        )
+                        log.error("restart failed", extra={"worker": i, "error": str(e)})
 
     async def __aenter__(self) -> WorkerPool:
         """N-worker subprocess pool with least-loaded dispatch and auto-restart."""

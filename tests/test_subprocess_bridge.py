@@ -47,9 +47,7 @@ async def test_error_raises(worker: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_timeout_raises(worker: Path) -> None:
-    async with SubprocessBridge(
-        [sys.executable, str(worker)], default_timeout=0.05
-    ) as b:
+    async with SubprocessBridge([sys.executable, str(worker)], default_timeout=0.05) as b:
         with pytest.raises(BridgeTimeoutError):
             await b.call("slow", {})
 

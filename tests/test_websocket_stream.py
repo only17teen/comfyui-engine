@@ -110,9 +110,7 @@ class TestWebSocketStreamManager:
             await stream_manager.register_connection(f"conn_{i}", mock_websocket)
 
         # Next should fail
-        result = await stream_manager.register_connection(
-            "conn_overflow", mock_websocket
-        )
+        result = await stream_manager.register_connection("conn_overflow", mock_websocket)
         assert result is False
 
     @pytest.mark.asyncio
@@ -136,9 +134,7 @@ class TestWebSocketStreamManager:
     @pytest.mark.asyncio
     async def test_event_filtering(self, stream_manager, mock_websocket):
         # Register with specific event type filter
-        await stream_manager.register_connection(
-            "conn_1", mock_websocket, event_types=[StreamEventType.JOB_COMPLETED]
-        )
+        await stream_manager.register_connection("conn_1", mock_websocket, event_types=[StreamEventType.JOB_COMPLETED])
 
         # Send unfiltered event - should not be delivered
         event = StreamEvent(
@@ -158,9 +154,7 @@ class TestWebSocketStreamManager:
 
     @pytest.mark.asyncio
     async def test_job_filtering(self, stream_manager, mock_websocket):
-        await stream_manager.register_connection(
-            "conn_1", mock_websocket, job_ids=["job_1"]
-        )
+        await stream_manager.register_connection("conn_1", mock_websocket, job_ids=["job_1"])
 
         # Wrong job ID
         event = StreamEvent(
@@ -231,10 +225,7 @@ class TestWebSocketHandler:
         )
 
         # Verify subscription was updated
-        assert (
-            StreamEventType.JOB_CREATED
-            in handler.stream_manager._subscriptions["conn_1"]
-        )
+        assert StreamEventType.JOB_CREATED in handler.stream_manager._subscriptions["conn_1"]
         assert "job_1" in handler.stream_manager._job_subscriptions["conn_1"]
 
         await handler.stream_manager.stop()

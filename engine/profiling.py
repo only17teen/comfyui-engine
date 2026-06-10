@@ -49,9 +49,7 @@ class AsyncProfiler:
         self._yappi.get_func_stats().save(str(path), type=fmt)
 
     def get_thread_stats(self) -> Any:
-        return (
-            self._yappi.get_thread_stats() if self._available and self._yappi else None
-        )
+        return self._yappi.get_thread_stats() if self._available and self._yappi else None
 
     @property
     def is_available(self) -> bool:

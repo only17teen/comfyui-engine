@@ -309,9 +309,7 @@ class AWSClient(CloudProviderClient):
                     SpotPrice=str(spec.on_demand_price * 1.5),
                 )
 
-                spot_request_id = response["SpotInstanceRequests"][0][
-                    "SpotInstanceRequestId"
-                ]
+                spot_request_id = response["SpotInstanceRequests"][0]["SpotInstanceRequestId"]
 
                 # Wait for instance to be created
                 instance_id = await self._wait_for_spot_instance(spot_request_id)
@@ -339,9 +337,7 @@ class AWSClient(CloudProviderClient):
             logger.error(f"Failed to provision AWS instance: {e}")
             raise
 
-    async def _wait_for_spot_instance(
-        self, spot_request_id: str, timeout: int = 300
-    ) -> str:
+    async def _wait_for_spot_instance(self, spot_request_id: str, timeout: int = 300) -> str:
         """Wait for spot instance to be fulfilled."""
         import boto3
 
@@ -349,9 +345,7 @@ class AWSClient(CloudProviderClient):
 
         start_time = time.time()
         while time.time() - start_time < timeout:
-            response = ec2.describe_spot_instance_requests(
-                SpotInstanceRequestIds=[spot_request_id]
-            )
+            response = ec2.describe_spot_instance_requests(SpotInstanceRequestIds=[spot_request_id])
 
             request = response["SpotInstanceRequests"][0]
             status = request["Status"]["Code"]
@@ -554,16 +548,12 @@ class GCPClient(CloudProviderClient):
 
             instance = compute_v1.Instance()
             instance.name = name
-            instance.machine_type = (
-                f"zones/{self.zone}/machineTypes/{spec.instance_type}"
-            )
+            instance.machine_type = f"zones/{self.zone}/machineTypes/{spec.instance_type}"
 
             # Add GPU
             accelerator = compute_v1.AcceleratorConfig()
             accelerator.accelerator_count = spec.gpu_count
-            accelerator.accelerator_type = (
-                f"zones/{self.zone}/acceleratorTypes/{spec.gpu_type.value}"
-            )
+            accelerator.accelerator_type = f"zones/{self.zone}/acceleratorTypes/{spec.gpu_type.value}"
             instance.guest_accelerators = [accelerator]
 
             # Boot disk
@@ -589,10 +579,7 @@ class GCPClient(CloudProviderClient):
                 "gpu-type": spec.gpu_type.value.replace("nvidia-", ""),
             }
             labels.update(
-                {
-                    k.lower().replace("-", "_")[:63]: v.lower().replace("-", "_")[:63]
-                    for k, v in (tags or {}).items()
-                }
+                {k.lower().replace("-", "_")[:63]: v.lower().replace("-", "_")[:63] for k, v in (tags or {}).items()}
             )
             instance.labels = labels
 
@@ -605,13 +592,9 @@ class GCPClient(CloudProviderClient):
             # Metadata (startup script, SSH keys)
             metadata_items = []
             if startup_script:
-                metadata_items.append(
-                    compute_v1.Items(key="startup-script", value=startup_script)
-                )
+                metadata_items.append(compute_v1.Items(key="startup-script", value=startup_script))
             if ssh_key:
-                metadata_items.append(
-                    compute_v1.Items(key="ssh-keys", value=f"ubuntu:{ssh_key}")
-                )
+                metadata_items.append(compute_v1.Items(key="ssh-keys", value=f"ubuntu:{ssh_key}"))
 
             if metadata_items:
                 instance.metadata = compute_v1.Metadata(items=metadata_items)
@@ -668,9 +651,7 @@ class GCPClient(CloudProviderClient):
             )
 
             gpu_type_str = instance.labels.get("gpu-type", "")
-            gpu_type = (
-                GPUType(f"nvidia-{gpu_type_str}") if gpu_type_str else GPUType.NVIDIA_T4
-            )
+            gpu_type = GPUType(f"nvidia-{gpu_type_str}") if gpu_type_str else GPUType.NVIDIA_T4
 
             spec = GPUInstanceSpec(
                 provider=CloudProvider.GCP,
@@ -684,21 +665,14 @@ class GCPClient(CloudProviderClient):
             )
 
             public_ip = None
-            if (
-                instance.network_interfaces
-                and instance.network_interfaces[0].access_configs
-            ):
+            if instance.network_interfaces and instance.network_interfaces[0].access_configs:
                 public_ip = instance.network_interfaces[0].access_configs[0].nat_i_p
 
             return ProvisionedInstance(
                 instance_id=instance_id,
                 spec=spec,
                 public_ip=public_ip,
-                private_ip=(
-                    instance.network_interfaces[0].network_i_p
-                    if instance.network_interfaces
-                    else None
-                ),
+                private_ip=(instance.network_interfaces[0].network_i_p if instance.network_interfaces else None),
                 status=instance.status.lower(),
                 ssh_user="ubuntu",
                 launch_time=(
@@ -1115,8 +1089,7 @@ class MultiCloudManager:
             return None
 
         logger.info(
-            f"Provisioning {best_spec.instance_type} from {provider.value} "
-            f"at ${best_spec.effective_price:.3f}/hour"
+            f"Provisioning {best_spec.instance_type} from {provider.value} " f"at ${best_spec.effective_price:.3f}/hour"
         )
 
         try:
@@ -1285,9 +1258,7 @@ if __name__ == "__main__":
         )
 
         if best:
-            print(
-                f"Best instance: {best.instance_type} at ${best.effective_price:.3f}/hour"
-            )
+            print(f"Best instance: {best.instance_type} at ${best.effective_price:.3f}/hour")
 
         await manager.shutdown()
 

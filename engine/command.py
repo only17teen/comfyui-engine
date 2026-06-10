@@ -61,9 +61,7 @@ class CommandBus:
             _p: Dispatch = pipeline
             _m: Middleware = mw
 
-            async def step(
-                cmd: Any, *, _pp: Dispatch = _p, _mm: Middleware = _m
-            ) -> Any:
+            async def step(cmd: Any, *, _pp: Dispatch = _p, _mm: Middleware = _m) -> Any:
                 return await _mm(cmd, _pp)
 
             pipeline = step
@@ -91,9 +89,7 @@ async def timing_middleware(command: Any, nxt: Dispatch) -> Any:
         try:
             from opentelemetry import metrics as m
 
-            m.get_meter("comfyui_engine").create_histogram(
-                "command.duration_ms", unit="ms"
-            ).record(
+            m.get_meter("comfyui_engine").create_histogram("command.duration_ms", unit="ms").record(
                 (time.perf_counter() - t) * 1000, {"command": type(command).__name__}
             )
         except Exception:

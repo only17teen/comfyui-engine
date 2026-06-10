@@ -310,11 +310,7 @@ class TestPromptManager:
                 "negative_prompt": "bad quality",
             },
             lora={
-                "models": [
-                    LoRAModelConfig(
-                        name="test", path="test.pt", weight_range=(0.5, 0.8)
-                    )
-                ],
+                "models": [LoRAModelConfig(name="test", path="test.pt", weight_range=(0.5, 0.8))],
                 "sampling": SamplingConfig(),
                 "resolutions": [(512, 768)],
                 "batch_size": 1,

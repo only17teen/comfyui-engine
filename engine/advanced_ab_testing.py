@@ -268,9 +268,7 @@ class AdvancedABTestFramework:
             ci_upper = diff + 1.96 * se
 
         elif test_type == "mann_whitney":
-            statistic, p_value = stats.mannwhitneyu(
-                data_a, data_b, alternative="two-sided"
-            )
+            statistic, p_value = stats.mannwhitneyu(data_a, data_b, alternative="two-sided")
 
             # Calculate Cliff's delta effect size
             effect_size = self._cliffs_delta(data_a, data_b)
@@ -284,17 +282,13 @@ class AdvancedABTestFramework:
 
         if is_significant:
             if effect_size > 0.5:
-                recommendation = (
-                    f"Variant {variant_a} is significantly better (large effect)"
-                )
+                recommendation = f"Variant {variant_a} is significantly better (large effect)"
             elif effect_size > 0.2:
                 recommendation = f"Variant {variant_a} is moderately better"
             elif effect_size > 0:
                 recommendation = f"Variant {variant_a} is slightly better"
             elif effect_size < -0.5:
-                recommendation = (
-                    f"Variant {variant_b} is significantly better (large effect)"
-                )
+                recommendation = f"Variant {variant_b} is significantly better (large effect)"
             elif effect_size < -0.2:
                 recommendation = f"Variant {variant_b} is moderately better"
             else:
@@ -376,9 +370,7 @@ class AdvancedABTestFramework:
                     ucb_scores[variant_id] = float("inf")
                 else:
                     conversion_rate = metrics.conversion_rate
-                    exploration = np.sqrt(
-                        2 * np.log(total_impressions) / metrics.impressions
-                    )
+                    exploration = np.sqrt(2 * np.log(total_impressions) / metrics.impressions)
                     ucb_scores[variant_id] = conversion_rate + exploration
 
             # Normalize to probabilities
@@ -441,11 +433,7 @@ class AdvancedABTestFramework:
             best_result = max(significant_results, key=lambda r: abs(r.effect_size))
             return {
                 "status": "complete",
-                "winner": (
-                    best_result.variant_a
-                    if best_result.effect_size > 0
-                    else best_result.variant_b
-                ),
+                "winner": (best_result.variant_a if best_result.effect_size > 0 else best_result.variant_b),
                 "effect_size": best_result.effect_size,
                 "p_value": best_result.p_value,
                 "recommendation": best_result.recommendation,

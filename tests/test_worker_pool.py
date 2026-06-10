@@ -37,9 +37,7 @@ async def test_basic_call(worker: Path) -> None:
 @pytest.mark.asyncio
 async def test_concurrent(worker: Path) -> None:
     async with WorkerPool([sys.executable, str(worker)], size=4) as pool:
-        results = await asyncio.gather(
-            *[pool.call("echo", {"n": i}) for i in range(20)]
-        )
+        results = await asyncio.gather(*[pool.call("echo", {"n": i}) for i in range(20)])
     assert {r["n"] for r in results} == set(range(20))
 
 

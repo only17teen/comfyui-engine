@@ -100,9 +100,7 @@ class Actor(ABC):
         await self.stop()
         return {"status": "stopping"}
 
-    def register_handler(
-        self, message_type: str, handler: Callable[[ActorMessage], Any]
-    ):
+    def register_handler(self, message_type: str, handler: Callable[[ActorMessage], Any]):
         """Register a handler for a specific message type."""
         self._message_handlers[message_type] = handler
 
@@ -128,9 +126,7 @@ class Actor(ABC):
             ttl=ttl,
         )
         # In a full implementation, this would go through the actor system
-        logger.debug(
-            f"Actor {self.actor_id} sending message {message.id} to {recipient}"
-        )
+        logger.debug(f"Actor {self.actor_id} sending message {message.id} to {recipient}")
         return message.id
 
     async def enqueue(self, message: ActorMessage):
@@ -176,17 +172,13 @@ class Actor(ABC):
                 self._stats.average_processing_time = processing_time
             else:
                 self._stats.average_processing_time = (
-                    self._stats.average_processing_time
-                    * (self._stats.messages_processed - 1)
-                    + processing_time
+                    self._stats.average_processing_time * (self._stats.messages_processed - 1) + processing_time
                 ) / self._stats.messages_processed
 
             return result
 
         except Exception as e:
-            logger.error(
-                f"Actor {self.actor_id} failed to process message {message.id}: {e}"
-            )
+            logger.error(f"Actor {self.actor_id} failed to process message {message.id}: {e}")
             self._stats.messages_failed += 1
             await self.handle_failure(message, e)
             raise
@@ -198,9 +190,7 @@ class Actor(ABC):
 
     async def handle_failure(self, message: ActorMessage, exception: Exception):
         """Handle message processing failure."""
-        logger.warning(
-            f"Actor {self.actor_id} handling failure for message {message.id}: {exception}"
-        )
+        logger.warning(f"Actor {self.actor_id} handling failure for message {message.id}: {exception}")
         # Default implementation - can be overridden
 
     async def _mailbox_processor(self):
@@ -215,9 +205,7 @@ class Actor(ABC):
                 # Skip expired messages
                 while self._mailbox and self._mailbox[0].is_expired():
                     expired_msg = heapq.heappop(self._mailbox)
-                    logger.debug(
-                        f"Actor {self.actor_id} dropping expired message {expired_msg.id}"
-                    )
+                    logger.debug(f"Actor {self.actor_id} dropping expired message {expired_msg.id}")
 
                 if self._mailbox:
                     message = heapq.heappop(self._mailbox)

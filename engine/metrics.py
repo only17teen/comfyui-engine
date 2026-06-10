@@ -26,18 +26,10 @@ class MetricsRegistry:
         self._meter: Any = _otel.get_meter(meter_name, version="1.0") if _OTEL else None
 
     def _c(self, name: str, desc: str = "") -> Any:
-        return (
-            self._meter.create_counter(name, unit="1", description=desc)
-            if self._meter
-            else _Noop()
-        )
+        return self._meter.create_counter(name, unit="1", description=desc) if self._meter else _Noop()
 
     def _h(self, name: str, unit: str = "ms", desc: str = "") -> Any:
-        return (
-            self._meter.create_histogram(name, unit=unit, description=desc)
-            if self._meter
-            else _Noop()
-        )
+        return self._meter.create_histogram(name, unit=unit, description=desc) if self._meter else _Noop()
 
     def request_counter(self) -> Any:
         return self._c("http.server.request_count", "Total HTTP requests")
@@ -63,9 +55,7 @@ class MetricsRegistry:
     def set_queue_depth(self, v: float, labels: dict[str, str] | None = None) -> None:
         self._gauge[f"queue_depth:{labels!r}"] = v
 
-    def set_active_connections(
-        self, v: float, labels: dict[str, str] | None = None
-    ) -> None:
+    def set_active_connections(self, v: float, labels: dict[str, str] | None = None) -> None:
         self._gauge[f"active_connections:{labels!r}"] = v
 
     def set_circuit_breaker_state(self, name: str, is_open: bool) -> None:

@@ -40,12 +40,8 @@ class RetryConfig:
     )
     strategy: str = "FULL_JITTER"
     jitter_factor: float = 0.2
-    retryable_statuses: frozenset[int] = field(
-        default=frozenset({408, 429, 500, 502, 503, 504})
-    )
-    non_retryable_statuses: frozenset[int] = field(
-        default=frozenset({400, 401, 403, 404, 405, 422})
-    )
+    retryable_statuses: frozenset[int] = field(default=frozenset({408, 429, 500, 502, 503, 504}))
+    non_retryable_statuses: frozenset[int] = field(default=frozenset({400, 401, 403, 404, 405, 422}))
     status_based_retry: bool = True
 
 
@@ -118,10 +114,7 @@ async def with_retry(
                 status: int = exc.status  # type: ignore[attr-defined]
                 if status in config.non_retryable_statuses:
                     break
-                if (
-                    config.retryable_statuses
-                    and status not in config.retryable_statuses
-                ):
+                if config.retryable_statuses and status not in config.retryable_statuses:
                     break
 
             delay = _compute_delay(

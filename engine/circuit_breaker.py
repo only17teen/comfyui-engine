@@ -89,9 +89,7 @@ class CircuitBreaker:
             except Exception:  # noqa: BLE001
                 logger.exception("State-change callback raised")
 
-    async def call(
-        self, coro_factory: Callable[..., Any], *args: Any, **kwargs: Any
-    ) -> Any:
+    async def call(self, coro_factory: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Execute coroutine with circuit breaker protection."""
         async with self._get_lock():
             if self.state == CircuitState.OPEN:
@@ -101,15 +99,12 @@ class CircuitBreaker:
                     self._successes = 0
                 else:
                     raise CircuitBreakerOpenError(
-                        f"Circuit {self.name!r} is OPEN "
-                        f"(last failure {self._last_failure_time:.1f})"
+                        f"Circuit {self.name!r} is OPEN " f"(last failure {self._last_failure_time:.1f})"
                     )
 
             if self.state == CircuitState.HALF_OPEN:
                 if self._half_open_calls >= self.config.half_open_max_calls:
-                    raise CircuitBreakerOpenError(
-                        f"Circuit {self.name!r} HALF_OPEN quota exhausted"
-                    )
+                    raise CircuitBreakerOpenError(f"Circuit {self.name!r} HALF_OPEN quota exhausted")
                 self._half_open_calls += 1
 
         try:
@@ -124,9 +119,7 @@ class CircuitBreaker:
     def _should_attempt_reset(self) -> bool:
         if self._last_failure_time is None:
             return True
-        return (
-            time.monotonic() - self._last_failure_time >= self.config.recovery_timeout
-        )
+        return time.monotonic() - self._last_failure_time >= self.config.recovery_timeout
 
     async def _on_success(self) -> None:
         async with self._get_lock():
@@ -147,10 +140,7 @@ class CircuitBreaker:
             if self.state == CircuitState.HALF_OPEN:
                 self._transition(CircuitState.OPEN)
                 await self.metrics.inc("circuit_breaker_trips")
-            elif (
-                self.state == CircuitState.CLOSED
-                and self._failures >= self.config.failure_threshold
-            ):
+            elif self.state == CircuitState.CLOSED and self._failures >= self.config.failure_threshold:
                 self._transition(CircuitState.OPEN)
                 await self.metrics.inc("circuit_breaker_trips")
 

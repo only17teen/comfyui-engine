@@ -35,9 +35,7 @@ class ShardedActorRouter:
     def __init__(self, num_shards: int = 16):
         self.num_shards = num_shards
         # Each shard has its own lock and actor dictionary
-        self._shards: list[tuple[asyncio.Lock, dict[str, Actor]]] = [
-            (asyncio.Lock(), {}) for _ in range(num_shards)
-        ]
+        self._shards: list[tuple[asyncio.Lock, dict[str, Actor]]] = [(asyncio.Lock(), {}) for _ in range(num_shards)]
         self._stats = RoutingStats()
         logger.info(f"ShardedActorRouter initialized with {num_shards} shards")
 
@@ -63,9 +61,7 @@ class ShardedActorRouter:
 
         async with lock:
             if actor.actor_id in shard_dict:
-                logger.warning(
-                    f"Actor {actor.actor_id} already registered in shard {shard_index}"
-                )
+                logger.warning(f"Actor {actor.actor_id} already registered in shard {shard_index}")
                 return False
 
             shard_dict[actor.actor_id] = actor
@@ -110,9 +106,7 @@ class ShardedActorRouter:
                     self._stats.average_routing_time = routing_time
                 else:
                     self._stats.average_routing_time = (
-                        self._stats.average_routing_time
-                        * (self._stats.messages_routed - 1)
-                        + routing_time
+                        self._stats.average_routing_time * (self._stats.messages_routed - 1) + routing_time
                     ) / self._stats.messages_routed
 
                 return success

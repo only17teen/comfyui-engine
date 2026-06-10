@@ -27,9 +27,7 @@ async def test_batch_with_tail() -> None:
 
 @pytest.mark.asyncio
 async def test_chain() -> None:
-    assert await Pipeline(ints(10)).map(lambda x: x * 2).filter(
-        lambda x: x > 10
-    ).drain() == [12, 14, 16, 18]
+    assert await Pipeline(ints(10)).map(lambda x: x * 2).filter(lambda x: x > 10).drain() == [12, 14, 16, 18]
 
 
 @pytest.mark.asyncio
