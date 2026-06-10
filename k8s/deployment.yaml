@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: comfyui-engine
+  labels: {app: comfyui-engine, version: "9.0.0"}
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: comfyui-engine}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  template:
+    metadata:
+      labels: {app: comfyui-engine, version: "9.0.0"}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext: {runAsNonRoot: true, runAsUser: 1000, fsGroup: 1000}
+      containers:
+        - name: engine
+          image: ghcr.io/only17teen/comfyui-engine:latest
+          ports: [{containerPort: 8080, name: http}]
+          env:
+            - {name: LOG_LEVEL, value: INFO}
+            - {name: OTEL_SERVICE_NAME, value: comfyui-engine}
+            - {name: PYTHONUNBUFFERED, value: "1"}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+          livenessProbe:
+            httpGet: {path: /health/live, port: 8080}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: {path: /health/ready, port: 8080}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+      volumes: [{name: tmp, emptyDir: {}}]
