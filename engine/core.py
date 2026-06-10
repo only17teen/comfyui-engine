@@ -434,7 +434,7 @@ class JobQueue:
         Returns:
             Future that resolves to ComfyUIJob when complete.
         """
-        future = asyncio.get_event_loop().create_future()
+        future = asyncio.get_running_loop().create_future()
         item = PrioritizedJob(
             priority=priority,
             created_at=time.time(),

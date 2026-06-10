@@ -242,7 +242,7 @@ class ModelCache:
 
         try:
             # Run loader in thread pool to avoid blocking
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             model = await loop.run_in_executor(None, self._loaders[model_type], path)
 
             load_time = (time.time() - start_time) * 1000
@@ -265,7 +265,7 @@ class ModelCache:
 
             if model is not None and info.model_type in self._unloaders:
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = asyncio.get_running_loop()
                     await loop.run_in_executor(None, self._unloaders[info.model_type], model)
                 except Exception as e:
                     logger.warning(f"Error unloading {name}: {e}")

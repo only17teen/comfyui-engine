@@ -266,7 +266,7 @@ class MLflowTracker:
             import mlflow
 
             # Use synchronous mlflow in executor to avoid blocking
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None,
                 lambda: mlflow.log_artifact(
@@ -287,7 +287,7 @@ class MLflowTracker:
             import shutil
 
             dest = self._fallback_dir / local_path.name
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, shutil.copy2, local_path, dest)
             logger.info(f"Fallback artifact stored: {dest}")
         except Exception as e:
@@ -308,7 +308,7 @@ class MLflowTracker:
                 run_id = item["run_id"]
                 params = item["params"]
 
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 await loop.run_in_executor(
                     None,
                     lambda p=params, r=run_id: mlflow.log_params(p, run_id=r),
@@ -338,7 +338,7 @@ class MLflowTracker:
                 metrics = item["metrics"]
                 step = item.get("step")
 
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 await loop.run_in_executor(
                     None,
                     lambda m=metrics, s=step, r=run_id: mlflow.log_metrics(m, step=s, run_id=r),
@@ -384,7 +384,7 @@ class MLflowTracker:
         try:
             import mlflow
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None,
                 lambda: mlflow.set_terminated(self._active_run_id, status=status),
@@ -425,7 +425,7 @@ class MLflowTracker:
 
             exp_ids = experiment_ids or [self._experiment_id]
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             runs = await loop.run_in_executor(
                 None,
                 lambda: mlflow.search_runs(
@@ -495,7 +495,7 @@ class ModelRegistry:
         try:
             import mlflow
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             version = await loop.run_in_executor(
                 None,
                 lambda: mlflow.register_model(
@@ -527,7 +527,7 @@ class ModelRegistry:
         try:
             import mlflow
 
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None,
                 lambda: mlflow.transition_model_version_stage(

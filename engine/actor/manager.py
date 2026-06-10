@@ -6,7 +6,7 @@ Part of Kiro Protocol v3.0 Phase 1: Actor Model.
 import asyncio
 import logging
 from typing import Any, Dict, Optional
-from .base import ActorSystem, Actor
+from .base import ActorSystem, Actor, ActorMessage
 from .router import ShardedActorRouter, get_actor_router
 
 logger = logging.getLogger(__name__)

@@ -70,7 +70,7 @@ class WebhookNotifier:
             return False
 
         # Rate limiting
-        elapsed = asyncio.get_event_loop().time() - self._last_notification_time
+        elapsed = asyncio.get_running_loop().time() - self._last_notification_time
         if elapsed < self._rate_limit_interval:
             await asyncio.sleep(self._rate_limit_interval - elapsed)
 
@@ -82,7 +82,7 @@ class WebhookNotifier:
                 headers={"Content-Type": "application/json"},
             ) as resp:
                 if resp.status in (200, 204):
-                    self._last_notification_time = asyncio.get_event_loop().time()
+                    self._last_notification_time = asyncio.get_running_loop().time()
                     logger.info(f"Notification sent to {self.config.webhook_type.value}")
                     return True
                 else:
@@ -107,7 +107,7 @@ class WebhookNotifier:
             "description": description,
             "color": color,
             "fields": fields,
-            "timestamp": asyncio.get_event_loop().time(),
+            "timestamp": asyncio.get_running_loop().time(),
             "footer": {"text": "ComfyUI Engine v2.0"},
         }
 
@@ -168,7 +168,7 @@ class WebhookNotifier:
             "description": description,
             "fields": fields,
             "source": "comfyui-engine-v2",
-            "timestamp": asyncio.get_event_loop().time(),
+            "timestamp": asyncio.get_running_loop().time(),
         }
 
     async def notify_batch_complete(

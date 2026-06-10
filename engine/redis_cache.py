@@ -11,6 +11,12 @@ Provides caching for:
 from __future__ import annotations
 
 import asyncio
+from engine.config import ConfigLoader, EngineConfig
+
+def get_settings() -> EngineConfig:
+    """Get global engine configuration."""
+    return ConfigLoader.load()
+
 import hashlib
 import json
 import logging
@@ -348,7 +354,7 @@ class RateLimiter:
             Tuple of (allowed, remaining, reset_after)
         """
         key = self._key(identifier, str(window_seconds))
-        now = asyncio.get_event_loop().time()
+        now = asyncio.get_running_loop().time()
         window_start = int(now // window_seconds) * window_seconds
         window_key = f"{key}:{window_start}"
 
@@ -371,7 +377,7 @@ class RateLimiter:
     async def get_current_count(self, identifier: str, window_seconds: int) -> int:
         """Get current request count in window."""
         key = self._key(identifier, str(window_seconds))
-        now = asyncio.get_event_loop().time()
+        now = asyncio.get_running_loop().time()
         window_start = int(now // window_seconds) * window_seconds
         window_key = f"{key}:{window_start}"
 
@@ -477,9 +483,9 @@ class CacheManager:
     async def health_check(self) -> dict:
         """Check cache health."""
         try:
-            start = asyncio.get_event_loop().time()
+            start = asyncio.get_running_loop().time()
             await self.redis.ping()
-            latency = (asyncio.get_event_loop().time() - start) * 1000
+            latency = (asyncio.get_running_loop().time() - start) * 1000
 
             info = await self.redis.info()
             return {

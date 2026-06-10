@@ -12,7 +12,7 @@ from engine.websocket_stream import (
     get_stream_manager,
     initialize_stream_manager,
 )
-from engine.api_server_ws import WebSocketHandler, get_ws_handler
+from engine.api_server_ws import WebSocketHandler, get_ws_handler, initialize_ws_handler
 
 
 @pytest.fixture

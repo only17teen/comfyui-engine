@@ -5,6 +5,7 @@ Tests Phase 1 of Kiro Protocol v3.0: Actor Model Concurrency Architecture
 
 import asyncio
 import pytest
+from typing import Any
 from engine.actor.base import Actor, ActorMessage, MessagePriority
 from engine.actor.router import ShardedActorRouter
 from engine.actor.manager import ActorManager, JobProcessorActor

@@ -19,7 +19,7 @@ class GracefulShutdown:
         
     def _setup_signals(self):
         """Register signal handlers for SIGINT and SIGTERM."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
             try:
                 loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(self.shutdown(s)))
