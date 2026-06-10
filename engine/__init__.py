@@ -7,8 +7,8 @@ from __future__ import annotations
 __version__ = "5.1.0"
 __all__ = [
     "__version__",
-    "MetricsCollector",
-    "MetricsSnapshot",
+#     "MetricsCollector",  # removed: replaced by MetricsRegistry
+#     "MetricsSnapshot",  # removed: replaced by MetricsRegistry
     "CircuitBreaker",
     "CircuitBreakerConfig",
     "CircuitBreakerOpenError",
@@ -34,7 +34,7 @@ __all__ = [
     "default_bus",
 ]
 
-from engine.metrics import MetricsCollector, MetricsSnapshot
+# from engine.metrics import MetricsCollector, MetricsSnapshot  # removed: replaced by MetricsRegistry
 from engine.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
