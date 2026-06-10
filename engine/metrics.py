@@ -38,3 +38,11 @@ def get_registry() -> MetricsRegistry:
     global _registry
     if _registry is None: _registry = MetricsRegistry()
     return _registry
+
+# ── Backwards compatibility aliases ──────────────────────────────────────────
+# Old code imported MetricsCollector/MetricsSnapshot — map to new MetricsRegistry
+MetricsCollector = MetricsRegistry
+
+class MetricsSnapshot:
+    """Stub for backwards compatibility."""
+    pass
